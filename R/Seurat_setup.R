@@ -1,267 +1,218 @@
 ########################################################################
 #
-#  0 setup environment, install libraries if necessary, load libraries
+#  0 setup environment, install libraries if nLynchessary, load libraries
 # 
 # ######################################################################
 
 library(Seurat)
+library(magrittr)
+library(harmony)
 library(dplyr)
-library(scran)
 library(kableExtra)
 source("../R/Seurat_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
-if(!dir.exists(path))dir.create(path, recursive = T)
+if(!dir.exists(path)) dir.create(path, recursive = T)
+if(!dir.exists("./data/")) dir.create("data")
 ########################################################################
 #
-#  1 Seurat Alignment 
+#  1 Data preprocessing
 # 
 # ######################################################################
-#======1.1 Setup the Seurat objects =========================
-# Load the mouse.eyes dataset
+#======1.1 Load the data files and Set up Seurat object =========================
+# read sample summary list
+df_samples <- readxl::read_excel("doc/181230_Single_cell_sample list.xlsx")
+colnames(df_samples) <- colnames(df_samples) %>% tolower
+sample_n = which(df_samples$tests %in% c(paste0("test",3)))
+df_samples[sample_n,] %>% kable() %>% kable_styling()
+table(df_samples$tests);nrow(df_samples)
+samples <- df_samples$sample[sample_n]
+conditions <- df_samples$conditions[sample_n]
+projects <- df_samples$project[sample_n]
+tests <- df_samples$tests[sample_n] 
 
-# setup Seurat objects since both count matrices have already filtered
-# cells, we do no additional filtering here
-df_samples <- readxl::read_excel("doc/181012_Single_cell_sample list.xlsx")
-samples <- df_samples$samples
-projects <- df_samples$projects
-conditions <- df_samples$conditions
-df_samples %>% kable() %>% kable_styling()
-samples_ddSeq <- df_samples$samples[df_samples$projects %in% "ddSeq"]
-samples_10X <- df_samples$samples[df_samples$projects %in% "EC-SR-5444"]
-
-Lung_raw <- list()
-Lung_Seurat <- list()
-for(i in 1:length(samples_ddSeq)){
-    Lung_raw[[i]] <- read.table(file = paste0("./data/",samples_ddSeq[i],
-                                              "/counts.merged.txt.gz"),
-                                header = T, row.names =1)
-    colnames(Lung_raw[[i]]) <- paste0(samples_ddSeq[i],
-                                      "_",colnames(Lung_raw[[i]]))
-}
-
-for(i in (length(samples_ddSeq)+1):length(samples)){
-    Lung_raw[[i]] <- Read10X(data.dir = paste0("./data/",
-                                             samples[i],"/outs/filtered_gene_bc_matrices/hg19/"))
-    colnames(Lung_raw[[i]]) <- paste0(samples[i],
-                                            "_",colnames(Lung_raw[[i]]))
-}
+#======1.2 load  SingleCellExperiment =========================
+(load(file = "data/sce_3_20190109.Rda"))
+names(sce_list)
+object_list <- lapply(sce_list, as.seurat) %>%
+        lapply(NormalizeData) %>%
+        #lapply(ScaleData) %>%
+        lapply(FindVariableGenes, do.plot = FALSE)
 
 for(i in 1:length(samples)){
-    Lung_Seurat[[i]] <- CreateSeuratObject(Lung_raw[[i]],
-                                                 min.cells = 3,
-                                                 min.genes = 0,
-                                                 project = projects[i],
-                                                 names.delim = "_")
-    Lung_Seurat[[i]]@meta.data$conditions <- conditions[i]
+        object_list[[i]]@meta.data$tests <- tests[i]
+        object_list[[i]]@meta.data$conditions <- conditions[i]
+        object_list[[i]]@meta.data$projects <- projects[i]
+        object_list[[i]]@meta.data$tissues <- tissues[i]
+        
 }
-#======1.1.2 QC before merge =========================
-cell.number <- sapply(Lung_Seurat, function(x) length(x@cell.names))
-QC_list <- lapply(Lung_Seurat, function(x) as.matrix(x = x@raw.data))
-median.nUMI <- sapply(QC_list, function(x) median(colSums(x)))
-median.nGene <- sapply(QC_list, function(x) median(apply(x,2,function(y) sum(length(y[y>0])))))
+# we will take the union of the top 1k variable genes in each dataset for alignment
+genes.use <- object_list %>% 
+        lapply(function(object) head(rownames(object@hvg.info), 2000)) %>%
+        unlist %>% unique
+length(genes.use)
 
-min.nUMI <- sapply(QC_list, function(x) min(colSums(x)))
-min.nGene <- sapply(QC_list, function(x) min(apply(x,2,function(y) sum(length(y[y>0])))))
+#========1.3 merge ===================================
+object <- Reduce(function(x, y) MergeSeurat(x, y, do.normalize = F), object_list)
+object@var.genes = genes.use
+remove(sce_list,object_list);GC()
 
-QC.list <- cbind(df_samples,cell.number, median.nUMI,median.nGene,min.nUMI,min.nGene,
-                      row.names = samples)
-write.csv(QC.list,paste0(path,"QC_list.csv"))
-QC.list %>% kable() %>% kable_styling()
-remove(QC_list);GC()
-#========1.1.3 merge ===================================
-Lung <- Reduce(function(x, y) MergeSeurat(x, y, do.normalize = F), Lung_Seurat)
-remove(Lung_raw,Lung_Seurat);GC()
-Lung <- FilterCells(Lung, subset.names = "nGene",
-                    low.thresholds = 50,
-                    high.thresholds = Inf) %>%
-    NormalizeData() %>%
-    ScaleData(display.progress = FALSE) %>%
-    FindVariableGenes(do.plot = FALSE, display.progress = FALSE)
-save(Lung, file = "./data/Lung_20181101.Rda")
+object = SetAllIdent(object, id = "orig.ident")
+#======1.4 mito, QC, filteration =========================
+(mito.genes <- grep(pattern = "^MT-", x = rownames(x = object@data), value = TRUE))
+percent.mito <- Matrix::colSums(object@raw.data[mito.genes, ])/Matrix::colSums(object@raw.data)
+object <- AddMetaData(object = object, metadata = percent.mito, col.name = "percent.mito")
 
-#======1.2 QC, pre-processing and normalizing the data=========================
-# 1.2.1 Calculate median UMI per cell
-Iname = load(file = "./data/Lung_20181101.Rda")
-# 1.2.3 calculate mitochondria percentage
-mito.genes <- grep(pattern = "^MT-", x = rownames(x = Lung@data), value = TRUE)
-percent.mito <- Matrix::colSums(Lung@raw.data[mito.genes, ])/Matrix::colSums(Lung@raw.data)
-Lung <- AddMetaData(object = Lung, metadata = percent.mito, col.name = "percent.mito")
-#Lung@ident = factor(Lung@ident,levels = samples)
+(load(file = paste0("output/20190109/g1_3_20190109.Rda")))
 
-g1 <- VlnPlot(object = Lung, features.plot = c("nGene", "nUMI", "percent.mito"), 
-              nCol = 1,point.size.use = 0.2,
-              x.lab.rot = T, do.return = T,return.plotlist =T)
+object <- FilterCells(object = object, subset.names = c("nGene","nUMI","percent.mito"),
+                   low.thresholds = c(500,200, -Inf), 
+                   high.thresholds = c(Inf,Inf, 0.1))
 
-Lung <- FilterCells(object = Lung, subset.names = c("nGene","nUMI","percent.mito"),
-                    low.thresholds = c(200,300, -Inf), 
-                    high.thresholds = c(Inf,Inf,0.1))
-
-g2 <- VlnPlot(object = Lung, features.plot = c("nGene", "nUMI", "percent.mito"), 
-              nCol = 1,point.size.use = 0.2,
-              x.lab.rot = T, do.return = T,return.plotlist =T)
+object@ident = factor(object@ident,levels = samples)
+g2 <- lapply(c("nGene", "nUMI", "percent.mito"), function(features){
+        VlnPlot(object = object, features.plot = features, nCol = 3, 
+                point.size.use = 0.2,size.x.use = 10, group.by = "ident",
+                x.lab.rot = T, do.return = T)
+})
+save(g2,file= paste0(path,"g2_3_20190109.Rda"))
 
 jpeg(paste0(path,"/S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nGene in raw data")+ 
-                    scale_y_log10(limits = c(100,7000)),#+ylim(c(0,1000)),
+                        scale_y_log10(limits = c(100,10000)),
                 g2[[1]]+ggtitle("nGene after filteration")+ 
-                    scale_y_log10(limits = c(100,7000))))
+                        scale_y_log10(limits = c(100,10000))))
 dev.off()
 jpeg(paste0(path,"/S1_nUMI.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[2]]+ggtitle("nUMI in raw data")+ 
-                    scale_y_log10(limits = c(200,60000)),#+ylim(c(0,1000)),
+                        scale_y_log10(limits = c(2000,100000)),
                 g2[[2]]+ggtitle("nUMI after filteration")+ 
-                    scale_y_log10(limits = c(200,60000))))
+                        scale_y_log10(limits = c(2000,100000))))
 dev.off()
 jpeg(paste0(path,"/S1_mito.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[3]]+ggtitle("mito % in raw data")+ 
-                    ylim(c(0,0.1)),
+                        ylim(c(0,0.25)),
                 g2[[3]]+ggtitle("mito % after filteration")+ 
-                    ylim(c(0,0.1))))
+                        ylim(c(0,0.25))))
 dev.off()
-######################################
+#======1.5 FindVariableGenes=======================
+object <- NormalizeData(object = object)
+jpeg(paste0(path,"/S1_dispersion.jpeg"), units="in", width=10, height=7,res=600)
+object <- FindVariableGenes(object = object, mean.function = ExpMean, 
+                            dispersion.function = LogVMR, do.plot = T, 
+                            x.low.cutoff = 0.1, x.high.cutoff = 8, y.cutoff = 0.4)
+dev.off()
+length(object@var.genes)
+table(object@var.genes %in% genes.use)
 
-# After removing unwanted cells from the dataset, the next step is to normalize the data.
-Lung <- NormalizeData(object = Lung, normalization.method = "LogNormalize", 
-                      scale.factor = 10000)
-Lung <- FindVariableGenes(object = Lung, mean.function = ExpMean, 
-                          dispersion.function = LogVMR, do.plot = FALSE, 
-                          x.low.cutoff = 0.0125, x.high.cutoff = 3, y.cutoff = 0.5)
-length(Lung@var.genes)
-#======1.3 1st run of pca-tsne  =========================
-Lung <- ScaleData(object = Lung) %>%
-    RunPCA() %>%
-    FindClusters(dims.use = 1:20, force.recalc = T, print.output = FALSE) %>%
-    RunTSNE()
-
-p1 <- TSNEPlot(object = Lung, do.label = F, group.by = "orig.ident", 
-         do.return = TRUE, no.legend = F, #colors.use = singler.colors,
-         pt.size = 1,label.size = 8 )+
-    ggtitle("Original")+
-    theme(text = element_text(size=15),							
-          plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
-
-save(Lung, file = "./data/Lung_20181026.Rda")
-Iname = load("./data/Lung_20181026.Rda")
-
-#======1.4 Add Cell-cycle score =========================
+#======1.5 Add Cell-cycle score =========================
 # Read in a list of cell cycle markers, from Tirosh et al, 2015
-cc.genes <- readLines(con = "../seurat_resources/regev_lab_cell_cycle_genes.txt")
-# We can segregate this list into markers of G2/M phase and markers of S phase
-s.genes <- HumanGenes(Lung,cc.genes[1:43])
-g2m.genes <- HumanGenes(Lung,cc.genes[44:97])
-# Assign Cell-Cycle Scores
-Lung <- CellCycleScoring(object = Lung, s.genes = s.genes, g2m.genes = g2m.genes, 
-                         set.ident = TRUE)
-# Visualize the distribution of cell cycle markers across
-RidgePlot(object = Lung, features.plot = HumanGenes(Lung,c("CCND1","CDK4","CCND2","CDK6","CCND3","RB1")), 
+cc.genes <- readLines(con = "../R/seurat_resources/regev_lab_cell_cycle_genes.txt")
+s.genes <- HumanGenes(object,cc.genes[1:43])
+g2m.genes <- HumanGenes(object,cc.genes[44:97])
+object <- CellCycleScoring(object = object, s.genes = s.genes, g2m.genes = g2m.genes, 
+                        set.ident = FALSE)
+jpeg(paste0(path,"/S1_RidgePlot.jpeg"), units="in", width=10, height=7,res=600)
+RidgePlot(object = object, features.plot = HumanGenes(object,c("CCND1","CDK4","CCND2","CCND3")), #"CDK6",,"RB1"
           nCol = 2)
-# regressing out the difference between the G2M and S phase scores
-Lung@meta.data$CC.Difference <- Lung@meta.data$S.Score - Lung@meta.data$G2M.Score
-# view cell cycle scores and phase assignments
-head(x = Lung@meta.data)
+dev.off()
+object@meta.data$CC.Difference <- object@meta.data$S.Score - object@meta.data$G2M.Score
+object@meta.data$S.Score = object@meta.data$S.Score - min(object@meta.data$S.Score)
+object@meta.data$G2M.Score = object@meta.data$G2M.Score - min(object@meta.data$G2M.Score)
+tail(x = object@meta.data)
 
-#======1.5 Add project id =========================
-orig.ident = Lung@meta.data$orig.ident
-batch.effect = as.numeric(factor(orig.ident,levels = samples))
-names(batch.effect) = rownames(Lung@meta.data)
-Lung <- AddMetaData(object = Lung, metadata = batch.effect, col.name = "batch.effect")
-table(Lung@meta.data$batch.effect)
-head(x = Lung@meta.data)
-#---------
-projects = rep(NA,length(orig.ident))
-projects[orig.ident %in% c("170511","CU7","CU-11-Proximal","CU-11-Distal",
-                          "UNC-38","UNC-42")] = "ddSeq"
-projects[orig.ident %in% c("UNC-44-Proximal","UNC-44-Distal",
-                           "Ad-UNC-44-Terminal")] = "10X"
-names(projects) = rownames(Lung@meta.data)
-Lung <- AddMetaData(object = Lung, metadata = projects, col.name = "projects")
-table(Lung@meta.data$projects)
-head(x = Lung@meta.data)
-#======1.6 vars.to.regress ScaleData =========================
-features_threshold <- data.frame(c("nUMI","nGene","batch.effect","percent.mito","CC.Difference"),
-                        c(10000,2000,2.0,0.05,0.05))
-for(i in 1:nrow(features_threshold)){
-    jpeg(paste0(path,"S2_",features_threshold[i,1],".jpeg"), units="in", width=10, height=7,res=600)
-    P <- SingleFeaturePlot.1(Lung, feature = features_threshold[i,1],
-                        threshold= features_threshold[i,2])
-    print(P)
-    dev.off()
+#Split.object <- SplitSeurat(object)
+#======1.6 PCA =========================
+object %<>% ScaleData %>%
+        RunPCA(pc.genes = object@var.genes, pcs.compute = 30, do.print = F)
+
+jpeg(paste0(path,"/S1_PCElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
+PCElbowPlot(object, num.pc = 100)
+dev.off()
+
+jpeg(paste0(path,"/S1_PCHeatmap.jpeg"), units="in", width=10, height=7,res=600)
+PCHeatmap(object, pc.use = c(1:3, 28:33), cells.use = 500, do.balanced = TRUE)
+dev.off()
+
+GC()
+npca = 30
+#rerun PCA
+
+system.time({
+        object %<>% RunTSNE(reduction.use = "pca", dims.use = 1:npca, do.fast = TRUE) %>%
+                FindClusters(reduction.type = "pca", resolution = 0.6, dims.use = 1:npca,
+                             save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
+                             force.recalc = TRUE, print.output = FALSE)
+})
+p0 <- DimPlot(object = object, reduction.use = "tsne", pt.size = 0.3, group.by = "orig.ident", do.return = T)
+#======1.6 RunHarmony=======================
+jpeg(paste0(path,"/S1_RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
+system.time(object %<>% RunHarmony("orig.ident", dims.use = 1:30,
+                                theta = 2, plot_convergence = TRUE,
+                                nclust = 50, max.iter.cluster = 100))
+dev.off()
+
+object@ident %<>% factor(levels = samples)
+p1 <- DimPlot(object = object, reduction.use = "harmony", pt.size = 0.3, group.by = "orig.ident", do.return = T)
+p2 <- VlnPlot(object = object, features.plot = "Harmony1", group.by = "orig.ident", do.return = TRUE,
+              x.lab.rot = T)
+jpeg(paste0(path,"/S1_Harmony_vplot.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p1,p2)
+dev.off()
+
+#========1.6 Seurat tSNE Functions for Integrated Analysis Using Harmony Results=======
+system.time({
+        object %<>% RunTSNE(reduction.use = "harmony", dims.use = 1:npca, do.fast = TRUE) %>%
+                FindClusters(reduction.type = "harmony", resolution = 0.6, dims.use = 1:npca,
+                              save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
+                              force.recalc = TRUE, print.output = FALSE)
+})
+
+p3 <- TSNEPlot(object, do.return = T, pt.size = 0.3, group.by = "orig.ident")
+p4 <- TSNEPlot(object, do.label = T, do.return = T, pt.size = 0.3)
+
+jpeg(paste0(path,"/S1_pca_vs_Harmony_TSNEPlot.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p0+ggtitle("Raw data")+
+                  theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")),
+          p3+ggtitle("After alignment")+
+                  theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) )
+dev.off()
+
+jpeg(paste0(path,"/S1_Harmony_TSNEPlot.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p3+ggtitle("group by samples")+
+                  theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")),
+          p4+ggtitle("group by clusters")+
+                  theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")))
+dev.off()
+
+(samples <- unique(object.all@meta.data$orig.ident) %>% sort)
+for(i in 1:3){
+Split.object[[i]] <- SetAllIdent(Split.object[[i]], id = "res")
+
+g_Harmony <- TSNEPlot.1(object = Split.object[[i]], do.label = F, group.by = "ident",
+                        do.return = TRUE, no.legend = F, 
+                        colors.use = ExtractMetaColor(Split.object[[i]]),
+                        pt.size = 1,label.size = 4 )+
+        ggtitle(paste("Tsne plot of all clusters for",samples[i]))+
+        theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
+
+jpeg(paste0(path,"/TSNEplot-",i,".jpeg"), units="in", width=10, height=7,res=600)
+print(g_Harmony)
+dev.off()
 }
-Lung <- ScaleData(object = Lung, 
-                  model.use = "linear", do.par=T, do.center = T, do.scale = T,
-                  #vars.to.regress = c("nUMI","percent.mito","batch.effect","CC.Difference"),
-                  display.progress = T)
-#======1.7 Performing MNN-based correction =========================
-#https://bioconductor.org/packages/3.8/workflows/vignettes/simpleSingleCell/inst/doc/work-5-mnn.html#4_performing_mnn-based_correction
-set.seed(100)
-original <- lapply(samples, function(x) Lung@scale.data[Lung@var.genes, 
-                                                 (Lung@meta.data$orig.ident %in% x)])
-mnn.out <- do.call(fastMNN, c(original, list(k=20, d=50, auto.order=T,
-                                             approximate=TRUE)))
-dim(mnn.out$corrected)
-rownames(mnn.out$corrected) = Lung@cell.names
-colnames(mnn.out$corrected) = paste0("MNN_",1:ncol(mnn.out$corrected))
-#Storing a new MNN
-Lung <- SetDimReduction(object = Lung, reduction.type = "MNN", slot = "cell.embeddings",
-                       new.data = mnn.out$corrected)
-Lung <- SetDimReduction(object = Lung, reduction.type = "MNN", slot = "key", 
-                       new.data = "MNN_")
-remove(original);GC()
-Lung <- SetAllIdent(Lung,id = "orig.ident")
 
-jpeg(paste0(path,"DimPlot.jpeg"), units="in", width=10, height=7,res=600)
-DimPlot(object = Lung, reduction.use = "MNN", pt.size = 0.5)
-dev.off()
-#======1.7 unsupervised clustering based on MNN =========================
-Lung <- RunPCA(object = Lung, pc.genes = Lung@var.genes, pcs.compute = 100, 
-               do.print = TRUE, pcs.print = 1:5, genes.print = 5)
-PCAPlot(object = Lung)
-PCElbowPlot(object = Lung, num.pc = 100)
-PCHeatmap(Lung, pc.use = c(1:3, 25:30), cells.use = 500, do.balanced = TRUE)
+object <- SetAllIdent(object, id = "res.0.6")
+g_Harmony <- TSNEPlot.1(object = object, do.label = F, group.by = "ident",
+                        do.return = TRUE, no.legend = F, 
+                        colors.use = ExtractMetaColor(object),
+                        pt.size = 1,label.size = 4 )+
+        ggtitle(paste("Tsne plot of all clusters for all samples"))+
+        theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
 
-DimElbowPlot.1(object = Lung, reduction.type = "MNN", 
-             dims.plot = 50,slot = "cell.embeddings")
-
-
-Lung <- RunTSNE(object = Lung, reduction.use = "MNN", dims.use = 1:50, 
-                do.fast = TRUE, perplexity= 30)
-
-Lung <- FindClusters(object = Lung, reduction.type = "MNN", 
-                    dims.use = 1:50, resolution = 0.8, 
-                     k.param = 30,force.recalc = T,
-                     save.SNN = TRUE, n.start = 100, nn.eps = 0, print.output = FALSE)
-
-p2 <- TSNEPlot.1(object = Lung, do.label = F, group.by = "orig.ident", 
-           do.return = TRUE, no.legend = T, 
-           pt.size = 1,label.size = 4 )+
-    ggtitle("Corrected")+
-    theme(text = element_text(size=15),							
-          plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
-
-jpeg(paste0(path,"remove_batch.jpeg"), units="in", width=10, height=7,res=600)
-plot_grid(p1 +theme(legend.position="none"),p2)
+jpeg(paste0(path,"/TSNEplot.jpeg"), units="in", width=10, height=7,res=600)
+print(g_Harmony)
 dev.off()
 
 
-p3 <- TSNEPlot.1(object = Lung, do.label = T, group.by = "ident", 
-                 do.return = TRUE, no.legend = T, 
-                 pt.size = 1,label.size = 6 )+
-    ggtitle("Tsne plot for all clusters")+
-    theme(text = element_text(size=15),							
-          plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
-
-jpeg(paste0(path,"tsneplot.jpeg"), units="in", width=10, height=7,res=600)
-p3
-dev.off()
-
-
-p4 <- SplitTSNEPlot(object = Lung, split.by = "orig.ident",
-                    do.label = F, group.by = "ident", 
-                 do.return = TRUE, no.legend = T, 
-                 pt.size = 1,label.size = 6 )
-
-jpeg(paste0(path,"split_tsneplot.jpeg"), units="in", width=10, height=7,res=600)
-print(do.call(plot_grid,p4))
-dev.off()
-
-save(Lung, file = "./data/Lung_20181101.Rda")
+saveRDS(object@scale.data, file = "data/Lung.scale.data_Harmony_3_20190109.rds")
+object@scale.data =NULL
+save(object, file = "data/Lung_Harmony_3_20190109.Rda")
