@@ -120,10 +120,13 @@ object@meta.data$S.Score = object@meta.data$S.Score - min(object@meta.data$S.Sco
 object@meta.data$G2M.Score = object@meta.data$G2M.Score - min(object@meta.data$G2M.Score)
 tail(x = object@meta.data)
 
-#Split.object <- SplitSeurat(object)
+
 #======1.6 PCA =========================
 object %<>% ScaleData %>%
         RunPCA(pc.genes = object@var.genes, pcs.compute = 30, do.print = F)
+#Split.object <- SplitSeurat(object)
+#Split.object %<>% lapply(ScaleData) %>%
+#        lapply(function(object) RunPCA(object, pcs.compute = 30, do.print = F))
 
 jpeg(paste0(path,"/S1_PCElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
 PCElbowPlot(object, num.pc = 100)
@@ -143,6 +146,12 @@ system.time({
                              save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
                              force.recalc = TRUE, print.output = FALSE)
 })
+
+#Split.object %<>% lapply(function(object) RunTSNE(object, reduction.use = "pca", dims.use = 1:npca, do.fast = TRUE)) %>%
+#        lapply(function(object) FindClusters(object, reduction.type = "pca", resolution = 0.6, dims.use = 1:npca,
+#                     save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
+#                     force.recalc = TRUE, print.output = FALSE))
+
 p0 <- DimPlot(object = object, reduction.use = "tsne", pt.size = 0.3, group.by = "orig.ident", do.return = T)
 #======1.6 RunHarmony=======================
 jpeg(paste0(path,"/S1_RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
@@ -186,18 +195,19 @@ dev.off()
 
 (samples <- unique(object.all@meta.data$orig.ident) %>% sort)
 for(i in 1:3){
-Split.object[[i]] <- SetAllIdent(Split.object[[i]], id = "res")
-
-g_Harmony <- TSNEPlot.1(object = Split.object[[i]], do.label = F, group.by = "ident",
+        Split.object[[i]] <- SetAllIdent(Split.object[[i]], id = "res.0.6")
+        
+        g_Harmony <- TSNEPlot.1(object = Split.object[[i]], do.label = F, group.by = "ident",
                         do.return = TRUE, no.legend = F, 
-                        colors.use = ExtractMetaColor(Split.object[[i]]),
+                        #colors.use = ExtractMetaColor(Split.object[[i]]),
                         pt.size = 1,label.size = 4 )+
-        ggtitle(paste("Tsne plot of all clusters for",samples[i]))+
+        ggtitle(paste("Tsne plot of all clusters in",
+                      unique(Split.object[[i]]@meta.data$conditions)))+
         theme(plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
-
-jpeg(paste0(path,"/TSNEplot-",i,".jpeg"), units="in", width=10, height=7,res=600)
-print(g_Harmony)
-dev.off()
+        
+        jpeg(paste0(path,"TSNEplot-",i,".jpeg"), units="in", width=10, height=7,res=600)
+        print(g_Harmony)
+        dev.off()
 }
 
 object <- SetAllIdent(object, id = "res.0.6")
@@ -216,3 +226,5 @@ dev.off()
 saveRDS(object@scale.data, file = "data/Lung.scale.data_Harmony_3_20190109.rds")
 object@scale.data =NULL
 save(object, file = "data/Lung_Harmony_3_20190109.Rda")
+
+

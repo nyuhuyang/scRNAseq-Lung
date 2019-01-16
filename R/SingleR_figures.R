@@ -118,25 +118,3 @@ for(test in tests){
         print(do.call(plot_grid, c(g, ncol = 2)))
         dev.off()
 }
-
-###################################
-# creat seurat object
-(load(file = 'data/ref_MCL_blue_encode.RData'))
-MCL_blue_encode <- CreateSeuratObject(raw.data = ref$data) %>%
-  NormalizeData %>% ScaleData
-
-MCL_blue_encode@data = ref$data
-ident = ref$main_types
-ident[!grepl("B_cells|MCL",ident)] = "others"
-names(ident) = MCL_blue_encode@cell.names
-MCL_blue_encode@ident = factor(ident, levels = c("others","B_cells","MCL"))
-MCL_B_markers <- FindAllMarkers.UMI(MCL_blue_encode, logfc.threshold = 0.1, only.pos = T,
-                                   test.use = "MAST")
-write.csv(MCL_B_markers, paste0(path,"MCL_B_markers.csv"))
-g <- DoHeatmap.1(MCL_blue_encode, MCL_B_markers,Top_n = 50,
-                 ident.use = paste("B cells vs. MCL vs. other cell types"),
-                 group.label.rot = T,cex.row = 4,remove.key =T)
-jpeg(paste0(path,"heatmap_B_MD_others.jpeg"), units="in", width=10, height=7,
-     res=600)
-print(g)
-dev.off()
