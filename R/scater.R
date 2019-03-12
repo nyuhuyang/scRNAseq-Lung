@@ -25,12 +25,13 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 # ######################################################################
 # 0.1. Setting up the data
 # read sample summary list
-df_samples <- readxl::read_excel("doc/181230_Single_cell_sample list.xlsx")
+df_samples <- readxl::read_excel("doc/20190119_Single_cell_sample list.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c(paste0("test",3)))
+sample_n = which(df_samples$tests %in% c(paste0("test",4)))
 df_samples[sample_n,] %>% kable() %>% kable_styling()
 table(df_samples$tests);nrow(df_samples)
 samples <- df_samples$sample[sample_n]
+sample.id <- df_samples$sample.id[sample_n]
 conditions <- df_samples$conditions[sample_n]
 projects <- df_samples$project[sample_n]
 tests <- df_samples$tests[sample_n] 
@@ -38,8 +39,8 @@ tests <- df_samples$tests[sample_n]
 sce_list <- list()
 species <- "hg19"
 for(i in 1:length(samples)){
-        fname <- paste0("./data/",samples[i],
-                        "/outs/filtered_gene_bc_matrices/",species)
+        fname <- paste0("./data/",sample.id[i],
+                        "/outs/filtered_feature_bc_matrix")
         sce_list[[i]] <- read10xCounts.1(fname, col.names=TRUE,
                                          add.colnames = samples[i])
 }
@@ -112,4 +113,4 @@ for(i in 1:length(sce_list)){
 #        print(paste0(i,":",length(sce_list)," done"))
 #}
 
-save(sce_list, file = "data/sce_3_20190109.Rda")
+save(sce_list, file = "data/sce_5_20190123.Rda")

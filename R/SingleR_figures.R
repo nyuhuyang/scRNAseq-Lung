@@ -5,6 +5,7 @@ library(pheatmap)
 library(kableExtra)
 library(dplyr)
 library(tidyr)
+library(magrittr)
 source("../R/Seurat_functions.R")
 source("../R/SingleR_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
@@ -75,16 +76,16 @@ TSNEPlot.1(object, colors.use = ExtractMetaColor(object),no.legend = F)
 ##############################
 # draw tsne plot
 ##############################
-object <- SetAllIdent(object = object, id = "singler2sub")
-p3 <- TSNEPlot.1(object = object, do.label = T, group.by = "ident",
-                 do.return = TRUE, no.legend = T,
-                 colors.use = singler.colors,#ExtractMetaColor(object),
+object <- SetAllIdent(object = object, id = "manual")
+p3 <- TSNEPlot.1(object = object, do.label = F, group.by = "ident",
+                 do.return = TRUE, no.legend = F,
+                 colors.use = ExtractMetaColor(object),
                  pt.size = 1,label.size = 3,force = 2)+
   ggtitle("Supervised cell type labeling by Blueprint + Encode")+
   theme(text = element_text(size=10),							
         plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
 
-jpeg(paste0(path,"PlotTsne_sub2.jpeg"), units="in", width=10, height=7,
+jpeg(paste0(path,"PlotTsne-combine.jpeg"), units="in", width=10, height=7,
      res=600)
 print(p3)
 dev.off()
@@ -95,26 +96,27 @@ save(object,file="data/Lung_Harmony_3_20190109.Rda")
 ###############################
 table(object@meta.data$orig.ident)
 table(object@ident)
-object@meta.data$orig.ident = gsub("BH|DJ|MD|NZ","Normal",object@meta.data$orig.ident)
-
-df_samples <- readxl::read_excel("doc/181227_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20190119_scRNAseq_info.xlsx")
 colnames(df_samples) <- tolower(colnames(df_samples))
-object <- SetAllIdent(object, id="singler1sub")
-tests <- paste0("test",c(3))
-for(test in tests){
-        sample_n = which(df_samples$tests %in% c("control",test))
-        samples <- unique(df_samples$sample[sample_n])
+sample_n = which(df_samples$tests %in% paste0("test",0:1))
+df <- as.data.frame(df_samples[sample_n,])
+samples <- unique(df$sample)
 
-        cell.use <- rownames(object@meta.data)[object@meta.data$orig.ident %in% 
-                                                       c("Normal",samples)]
-        subset.object <- SubsetData(object, cells.use = cell.use)
-        subset.object@meta.data$orig.ident %>% unique %>% sort %>% print
-        g <- SplitTSNEPlot(subset.object,group.by = "ident",split.by = "orig.ident",
-                           select.plots = c(1,3,2),#c(6:8,1:5)
-                           no.legend = T,do.label =F,label.size=3,size=20,
-                           return.plots =T, label.repel = T,force=2)
-        jpeg(paste0(path,test,"_TSNEPlot.jpeg"), units="in", width=10, height=7,
-             res=600)
-        print(do.call(plot_grid, c(g, ncol = 2)))
-        dev.off()
-}
+object %<>% SetAllIdent(id = "orig.ident")
+
+lapply(samples,function(sample) {
+        SubsetData(object, ident.use = sample) %>%
+                SetAllIdent(id = "manual") %>%
+                TSNEPlot.1(no.legend = F,do.label =F,label.size=3,size=20,
+                           colors.use = ExtractMetaColor(.),
+                           return.plots =T, label.repel = T,force=2,
+                           do.print = T, do.return = F)
+        })
+
+##############################
+# subset Seurat
+###############################
+object %<>% SetAllIdent(id = "res.0.8")
+Epi <- SubsetData(object, ident.use = c(2,8,9,10,12))
+TSNEPlot(Epi,do.label = T)
+

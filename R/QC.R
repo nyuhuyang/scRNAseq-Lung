@@ -18,45 +18,48 @@ if(!dir.exists("./data/")) dir.create("data")
 # ######################################################################
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
-df_samples <- readxl::read_excel("doc/181230_Single_cell_sample list.xlsx")
+df_samples <- readxl::read_excel("doc/20190119_Single_cell_sample list.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c(paste0("test",3)))
+sample_n = which(df_samples$tests %in% c(paste0("test",4)))
 df_samples[sample_n,] %>% kable() %>% kable_styling()
 table(df_samples$tests);nrow(df_samples)
 samples <- df_samples$sample[sample_n]
+sample.id <- df_samples$sample.id[sample_n]
 conditions <- df_samples$conditions[sample_n]
 projects <- df_samples$project[sample_n]
 tests <- df_samples$tests[sample_n] 
 
 # check missing data
 (current <- list.files("data")[!grepl(".Rda|RData",list.files("data"))])
-(missing_data <- samples[!(samples %in% current)])
+(missing_data <- sample.id[!(sample.id %in% current)])
 
 if(length(missing_data)>0){
         # Move files from Download to ./data and rename them
-        species <- "hg19"
+        
         for(missing_dat in missing_data){
                 old.pth  <- paste("~/Downloads", missing_dat,"outs",
-                                  "filtered_gene_bc_matrices",species,
+                                  "filtered_feature_bc_matrix",
                                   sep = "/")
                 list.of.files <- list.files(old.pth)
                 new.folder <- paste("./data", missing_dat,"outs",
-                                    "filtered_gene_bc_matrices",
-                                    species,sep = "/")
+                                    "filtered_feature_bc_matrix",
+                                    sep = "/")
                 if(!dir.exists(new.folder)) dir.create(new.folder, recursive = T)
                 # copy the files to the new folder
                 file.copy(paste(old.pth, list.of.files, sep = "/"), new.folder)
-                list.files(new.folder)
+                #zipfile = grep("\\.zip",list.files(new.folder), value = T)
+                #unzip(zipfile)
+                #features.tsv = grep("features.tsv",list.files(new.folder), value = T)
+                #file.rename("features.tsv","genes.tsv")
         }
 }
 
 ## Load the dataset
 Seurat_raw <- list()
 Seurat_list <- list()
-species <- "hg19"
 for(i in 1:length(samples)){
         Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",sample.id[i],
-                                   "/outs/filtered_gene_bc_matrices/",species))
+                                   "/outs/filtered_feature_bc_matrix/"))
         colnames(Seurat_raw[[i]]) = paste0(samples[i],"_",colnames(Seurat_raw[[i]]))
         rownames(Seurat_raw[[i]]) = gsub(species,"_",rownames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
@@ -80,7 +83,7 @@ min.nGene <- sapply(QC_list, function(x) min(apply(x,2,function(y) sum(length(y[
 QC.list <- cbind(df_samples[sample_n,],cell.number, median.nUMI, median.nGene, 
                  min.nUMI,min.nGene, row.names = samples)
 write.csv(QC.list,paste0(path,"QC_list.csv"))
-QC.list %>% kable() %>% kable_styling()
+QC.list[nrow(QC.list):1,] %>% kable() %>% kable_styling()
 
 remove(QC_list,median.nUMI,median.nGene,min.nUMI,min.nGene,QC.list);GC()
 
@@ -100,4 +103,4 @@ g1 <- lapply(c("nGene", "nUMI", "percent.mito"), function(features){
                 point.size.use = 0.2,size.x.use = 10, group.by = "ident",
                 x.lab.rot = T, do.return = T)
         })
-save(g1,file= paste0(path,"g1_3_20190109.Rda"))
+save(g1,file= paste0(path,"g1_5_20190123.Rda"))
