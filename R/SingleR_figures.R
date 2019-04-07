@@ -8,7 +8,7 @@ library(tidyr)
 library(magrittr)
 source("../R/Seurat_functions.R")
 source("../R/SingleR_functions.R")
-path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #====== 3.2 SingleR specifications ==========================================
@@ -119,4 +119,15 @@ lapply(samples,function(sample) {
 object %<>% SetAllIdent(id = "res.0.8")
 Epi <- SubsetData(object, ident.use = c(2,8,9,10,12))
 TSNEPlot(Epi,do.label = T)
-
+remove <- FeaturePlot(Epi,features.plot = "KRT19",do.identify = T)
+keep  <- Epi@cell.names[!(Epi@cell.names %in% remove)]
+Epi <- SubsetData(object,cells.use = keep)
+Epi %<>% SetAllIdent("manual")
+g <- TSNEPlot.1(Epi,do.label =F,no.legend = F,label.repel = F,pt.size = 2,
+           colors.use = ExtractMetaColor(Epi))+
+        #ggtitle("Epithelial cells labeling by Blueprint + Encode")+
+        theme(text = element_text(size=10),							
+              plot.title = element_text(hjust = 0.5,size = 18, face = "bold")) 
+jpeg(paste0(path,"PlotTsne-Epi.jpeg"), units="in", width=10, height=7,res=600)
+print(g)
+dev.off()

@@ -11,8 +11,7 @@ library(SingleR)
 library(reshape2)
 library(MAST)
 source("../R/Seurat_functions.R")
-
-path <- paste("output",gsub("-","",Sys.Date()),sep = "/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 # 4.1 load data & Rename ident, Compare DE across all major cell types=========================
 # 4.1.1 load data ==============
