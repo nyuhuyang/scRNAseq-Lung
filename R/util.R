@@ -1,3 +1,5 @@
+require(tidyr)
+
 DotPlot.1 <- function (object, genes.plot, cols.use = c("lightgrey", "blue"), 
           col.min = -2.5, col.max = 2.5, dot.min = 0, dot.scale = 6, 
           scale.by = "radius", scale.min = NA, scale.max = NA, group.by, 
@@ -101,3 +103,135 @@ FindPairMarkers <- function(object, ident.1, ident.2 = NULL, genes.use = NULL,re
         }
         return(bind_rows(gde))
 }
+
+RenameCells.1 <-  function(object, add.cell.id = NULL, new.names = NULL, 
+                           for.merge = FALSE, to.upper =TRUE) 
+{
+        if (!is.null(add.cell.id)) {
+                new.cell.names <- paste(add.cell.id, object@cell.names, 
+                                        sep = "_")
+                new.rawdata.names <- paste(add.cell.id, colnames(object@raw.data), 
+                                           sep = "_")
+        }
+        if (to.upper){
+                new.cell.names <- toupper(object@cell.names)
+                new.rawdata.names <- toupper(colnames(object@raw.data))
+        }
+        colnames(object@raw.data) <- new.rawdata.names
+        rownames(object@meta.data) <- new.cell.names
+        object@cell.names <- new.cell.names
+        if (for.merge) {
+                return(object)
+        }
+        colnames(object@data) <- new.cell.names
+        if (!is.null(object@scale.data)) {
+                colnames(object@scale.data) <- new.cell.names
+        }
+        names(object@ident) <- new.cell.names
+        if (length(object@dr) > 0) {
+                for (dr in names(object@dr)) {
+                        rownames(object@dr[[dr]]@cell.embeddings) <- new.cell.names
+                }
+        }
+        if (nrow(object@snn) == length(new.cell.names)) {
+                colnames(object@snn) <- new.cell.names
+                rownames(object@snn) <- new.cell.names
+        }
+        if (!is.null(object@kmeans)) {
+                if (!is.null(object@kmeans@gene.kmeans.obj)) {
+                        colnames(object@kmeans@gene.kmeans.obj$centers) <- new.cell.names
+                }
+                if (!is.null(object@kmeans@cell.kmeans.obj)) {
+                        names(object@kmeans@cell.kmeans.obj$cluster) <- new.cell.names
+                }
+        }
+        return(object)
+}
+
+
+DoHeatmap_exp <- function (object, data.use = NULL, use.scaled = TRUE, cells.use = NULL, 
+                           genes.use = NULL, disp.min = -2.5, disp.max = 2.5, group.by = "ident", 
+                           group.order = NULL, draw.line = TRUE, col.low = "#FF00FF", 
+                           col.mid = "#000000", col.high = "#FFFF00", slim.col.label = FALSE, 
+                           remove.key = FALSE, rotate.key = FALSE, title = NULL, cex.col = 10, 
+                           cex.row = 10, group.label.loc = "bottom", group.label.rot = FALSE, 
+                           group.cex = 15, group.spacing = 0.15, assay.type = "RNA", 
+                           do.plot = TRUE) 
+{
+        if (is.null(x = data.use)) {
+                if (use.scaled) {
+                        data.use <- GetAssayData(object, assay.type = assay.type, 
+                                                 slot = "scale.data")
+                }
+                else {
+                        data.use <- GetAssayData(object, assay.type = assay.type, 
+                                                 slot = "data")
+                }
+        }
+        cells.use <- Seurat:::SetIfNull(x = cells.use, default = object@cell.names)
+        cells.use <- intersect(x = cells.use, y = colnames(x = data.use))
+        if (length(x = cells.use) == 0) {
+                stop("No cells given to cells.use present in object")
+        }
+        genes.use <- Seurat:::SetIfNull(x = genes.use, default = rownames(x = data.use))
+        genes.use <- intersect(x = genes.use, y = rownames(x = data.use))
+        if (length(x = genes.use) == 0) {
+                stop("No genes given to genes.use present in object")
+        }
+        if (is.null(x = group.by) || group.by == "ident") {
+                cells.ident <- object@ident[cells.use]
+        }
+        else {
+                cells.ident <- factor(x = FetchData(object = object, 
+                                                    cells.use = cells.use, vars.all = group.by)[, 1])
+                names(x = cells.ident) <- cells.use
+        }
+        cells.ident <- factor(x = cells.ident, labels = intersect(x = levels(x = cells.ident), 
+                                                                  y = cells.ident))
+        data.use <- data.use[genes.use, cells.use, drop = FALSE]
+        if ((!use.scaled)) {
+                data.use = as.matrix(x = data.use)
+                if (disp.max == 2.5) 
+                        disp.max = 10
+        }
+        data.use <- MinMax(data = data.use, min = disp.min, max = disp.max)
+        data.use <- as.data.frame(x = t(x = data.use))
+        data.use$cell <- rownames(x = data.use)
+        colnames(x = data.use) <- make.unique(names = colnames(x = data.use))
+        data.use <- data.use %>% melt(id.vars = "cell")
+        names(x = data.use)[names(x = data.use) == "variable"] <- "gene"
+        names(x = data.use)[names(x = data.use) == "value"] <- "expression"
+        data.use$ident <- cells.ident[data.use$cell]
+        if (!is.null(group.order)) {
+                if (length(group.order) == length(levels(data.use$ident)) && 
+                    all(group.order %in% levels(data.use$ident))) {
+                        data.use$ident <- factor(data.use$ident, levels = group.order)
+                }
+                else {
+                        stop("Invalid group.order")
+                }
+        }
+        data.use$gene <- with(data = data.use, expr = factor(x = gene, 
+                                                             levels = rev(x = unique(x = data.use$gene))))
+        data.use$cell <- with(data = data.use, expr = factor(x = cell, 
+                                                             levels = cells.use))
+        spred_data.use <- data.use %>% spread(gene, expression)
+        rownames(spred_data.use) = spred_data.use$cell
+        spred_data.use = spred_data.use[,-1]
+        colnames(spred_data.use)[1] = "cell_type"
+        spred_data.use = spred_data.use[,ncol(spred_data.use):1]
+        
+        sortbyfactor <- function(DataFrame, key="cell_type", levels = group.order){
+                DataFrame$order <- plyr::mapvalues(x = DataFrame[,key],
+                                                   from = group.order,
+                                                   to =   unique(DataFrame[,key]))
+                DataFrame = DataFrame[order(DataFrame$order),]
+                DataFrame = DataFrame[,-ncol(DataFrame)]
+                return(DataFrame)
+        }
+        spred_data.use = sortbyfactor(spred_data.use,key="cell_type", levels = group.order)
+        
+        return(spred_data.use)
+}
+
+

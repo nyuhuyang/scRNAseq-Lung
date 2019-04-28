@@ -12,7 +12,7 @@
 echo "=========================================================="
 echo "Start date : $(date)"
 echo "Job name : $JOB_NAME"
-echo "Job ID : $JOB_ID"  $SLURM_ARRAY_TASK_ID"
+echo "Job ID : $JOB_ID"  $SLURM_ARRAY_TASK_ID
 echo "=========================================================="
 
 file=/athena/elementolab/scratch/yah2014/Projects/scRNAseq-Lung/bash/velocyto_single.py

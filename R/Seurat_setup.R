@@ -178,7 +178,7 @@ system.time({
                               save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
                               force.recalc = TRUE, print.output = FALSE)
 })
-
+DimPlot()
 p3 <- TSNEPlot(object, do.return = T, pt.size = 0.3, group.by = "orig.ident")
 p4 <- TSNEPlot(object, do.label = T, do.return = T, pt.size = 0.3)
 
