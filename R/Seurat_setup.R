@@ -126,10 +126,10 @@ tail(x = object@meta.data)
 object %<>% ScaleData
 object %<>% RunPCA(pc.genes = object@var.genes, pcs.compute = 30, do.print = F)
 object <- SetAllIdent(object, id ="orig.ident")
-Split.object <- SplitSeurat(object, split.by = "orig.ident")
-remove(object);GC();GC()
-Split.object %<>% lapply(NormalizeData) %>% lapply(ScaleData)
-Split.object %<>% lapply(function(object) RunPCA(object, pcs.compute = 30, do.print = F))
+#Split.object <- SplitSeurat(object, split.by = "orig.ident")
+#remove(object);GC();GC()
+#Split.object %<>% lapply(NormalizeData) %>% lapply(ScaleData)
+#Split.object %<>% lapply(function(object) RunPCA(object, pcs.compute = 30, do.print = F))
 
 jpeg(paste0(path,"/S1_PCElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
 PCElbowPlot(object, num.pc = 100)
@@ -178,7 +178,7 @@ system.time({
                               save.SNN = TRUE, n.start = 10, nn.eps = 0.5,
                               force.recalc = TRUE, print.output = FALSE)
 })
-DimPlot()
+
 p3 <- TSNEPlot(object, do.return = T, pt.size = 0.3, group.by = "orig.ident")
 p4 <- TSNEPlot(object, do.label = T, do.return = T, pt.size = 0.3)
 

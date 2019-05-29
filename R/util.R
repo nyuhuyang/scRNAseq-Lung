@@ -235,3 +235,69 @@ DoHeatmap_exp <- function (object, data.use = NULL, use.scaled = TRUE, cells.use
 }
 
 
+# make horizontal color bar==========
+# make horizontal corlor bar for DoHeatmap
+#' @param object Seurat object
+#' @param group_by The criteria to group horizontal bar
+#' @param split.by labels for each  horizontal bar
+#' @param color color scheme
+#' @export g vertical ggplot
+#' @example MakeHCorlorBar(B_cells_MCL,group_by = "X5_clusters")
+
+MakeHCorlorBar <- function(object, group_by = "X5_clusters", remove.legend = F,
+                           file_name = "DE_clusters_top50",
+                           split.by = "singler1sub",do.print = TRUE,do.return=FALSE){
+        
+        (group_index <- unique(object@meta.data[,group_by]) %>% sort)
+        if(!paste0(split.by,".colors") %in% colnames(object@meta.data)){
+                # add color to cluster
+                gg_color_hue <- function(n) {
+                        hues = seq(15, 375, length = n + 1)
+                        grDevices::hcl(h = hues, l = 65, c = 100)[1:n]
+                }
+                color_num <- length(unique(object@meta.data[,split.by]))
+                object <- AddMetaColor(object, label= split.by, 
+                                       colors = gg_color_hue(color_num))
+                
+        }
+        for(ind in group_index){
+                b_color_bar <- object@meta.data[(object@meta.data[,group_by] %in% ind),]
+                b_color_bar$x <- 1:nrow(b_color_bar)
+
+                col_index <- which(colnames(b_color_bar) %in% c(split.by,paste0(split.by,".colors")))
+                
+                b_color_bar[,col_index] = sapply(b_color_bar[,col_index],as.character)
+                b_color_bar$labels = b_color_bar[,split.by]
+                g <- ggplot(data = b_color_bar, aes(x, split.by, fill = labels)) +
+                        geom_tile()+
+                        theme_bw() +
+                        theme(panel.border = element_blank(),
+                              panel.grid.major = element_blank(),
+                              panel.grid.minor = element_blank(),
+                              axis.line = element_blank(),
+                              axis.title.x=element_blank(),
+                              axis.text.x=element_blank(),
+                              axis.ticks.x=element_blank(),
+                              axis.title.y=element_blank(),
+                              axis.text.y=element_blank(),
+                              axis.ticks.y=element_blank())
+                if(remove.legend) g = g + theme(legend.position="none")
+                
+                # prepare color scheme
+                dup <- duplicated(b_color_bar[,col_index[1]])
+                colors_df <- b_color_bar[!dup,col_index]
+                colors_df <- colors_df[order(colors_df[,1]),]
+                colors_fill = colors_df[,paste0(split.by,".colors")]
+                g = g + scale_fill_manual(values = colors_fill)
+                
+                path <- paste0("output/",gsub("-","",Sys.Date()),"/",file_name,"/")
+                if(!dir.exists(path)) dir.create(path, recursive = T)
+                if(do.print) {
+                        jpeg(paste0(path,ind,"_","horizontal_bar.jpeg"), units="in",width=10, height=7,res=600)
+                        print(g)
+                        dev.off()
+                } else if(do.return) {
+                        return(g)
+                }
+        }
+}
