@@ -17,7 +17,7 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #=== load data ======
 (load(file="data/Lung_MNN_9_20181101.Rda"))
-
+save(object,file = "data/Lung_MNN_9_20190405.Rda")
 ##############################
 # Dot plot
 ##############################
@@ -44,8 +44,24 @@ object <- SetAllIdent(object = object, id = "res.0.8")
 # TSEN plot====
 TSNEPlot.1(object,label.repel = F,do.label = T,do.print = F,label.size = 5,
            colors.use = ExtractMetaColor(object),no.axes=T)
-TSNEPlot.1(object,do.print = T,label.size = 5,no.legend = F,
-           colors.use = ExtractMetaColor(object))
+TSNEPlot.1(object,do.print = T,label.size = 5,no.legend = F, do.label = F)
+
+# expression data
+
+meta.data = t(object@meta.data[,c("orig.ident","res.0.8","projects","manual")])
+data = object@data; format(object.size(data),unit="GB")
+data = as.data.frame(as.matrix(data));format(object.size(data),unit="GB")
+data = sapply(data,as.character)
+rownames(data) = rownames(object@data)
+table(colnames(meta.data) == colnames(data))
+exp = rbind.data.frame(meta.data,data)
+format(object.size(exp),unit="GB")
+
+data[1:10,1:2]
+exp[1:10,1:2]
+exp = exp[,order(exp["res.0.8",])]
+rownames(exp)[1:4] = c("samples","cluster","sequencing method", "cell type")
+write.csv(exp,paste0(path,"lung_exp.csv"))
 # rename ident, Subset epithelial ========
 table(object@ident)
 idents <- as.data.frame(table(object@ident))

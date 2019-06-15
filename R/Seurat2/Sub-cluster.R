@@ -1,4 +1,5 @@
 library(Seurat)
+library(SingleR)
 library(magrittr)
 library(cowplot)
 library(scran)
@@ -9,8 +10,6 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #=== load data ======
 (load(file="data/Lung_MNN_9_20181101.Rda"))
-object <- SetAllIdent(object, id="orig.ident")
-TSNEPlot.1(object,no.legend = F,do.label = T,do.print = T,do.return=F)
 
 ################################
 # Bascal cells

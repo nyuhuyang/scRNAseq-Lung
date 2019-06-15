@@ -1,0 +1,97 @@
+library(SingleR)
+library(Seurat)
+library(magrittr)
+library(pheatmap)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(ggthemes)
+source("../R/Seurat3_functions.R")
+path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path)) dir.create(path, recursive = T)
+
+#====== 3.2 SingleR specifications ==========================================
+# Step 1: Spearman coefficient
+#raw_data <- object@raw.data[,object@cell.names]
+#save(raw_data, file = "data/MCL.raw.data_Harmony_30_20190320.Rda")
+(load(file = "data/Lung_harmony_12_20190614.Rda"))
+(load(file="output/singlerF_Lung_12_20190614.Rda"))
+
+# if singler didn't find all cell labels
+length(singler$singler[[1]]$SingleR.single$labels) == ncol(object)
+if(length(singler$singler[[1]]$SingleR.single$labels) < ncol(object)){
+        all.cell = colnames(object);length(all.cell)
+        know.cell = rownames(singler$singler[[1]]$SingleR.single$labels);length(know.cell)
+        object = subset(object, cells = know.cell)
+}
+
+table(rownames(singler$singler[[1]]$SingleR.single$labels) %in% colnames(object))
+singler$meta.data$orig.ident = object@meta.data$orig.ident # the original identities, if not supplied in 'annot'
+singler$meta.data$xy = object@reductions$tsne@cell.embeddings # the tSNE coordinates
+singler$meta.data$clusters = Idents(object) # the Seurat clusters (if 'clusters' not provided)
+save(singler,file="output/singlerF_Lung_12_20190614.Rda")
+##############################
+# add singleR label to Seurat
+###############################
+
+singlerDF = data.frame("singler1sub" = singler$singler[[1]]$SingleR.single$labels,
+                       "singler1main" = singler$singler[[1]]$SingleR.single.main$labels,
+                       #"orig.ident"  = object$orig.ident,
+                       row.names = rownames(singler$singler[[1]]$SingleR.single$labels))
+head(singlerDF)
+apply(singlerDF,2,function(x) length(unique(x)))
+
+##############################
+# check the spearman correlation
+###############################
+#Or by all cell types (showing the top 50 cell types):
+jpeg(paste0(path,"DrawHeatmap_sub1.jpeg"), units="in", width=10, height=7,
+     res=600)
+print(SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single, top.n = 50,normalize = F))
+dev.off()
+jpeg(paste0(path,"DrawHeatmap_sub1_N.jpeg"), units="in", width=10, height=7,
+     res=600)
+print(SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single,top.n = 50,normalize = T))
+dev.off()
+
+#Finally, we can also view the labeling as a table compared to the original identities:
+
+table(singlerDF$singler1main, singlerDF$orig.ident) %>% kable %>%
+        kable_styling()
+##############################
+# process color scheme
+##############################
+
+singler_colors <- readxl::read_excel("doc/singler.colors.xlsx")
+singler_colors = singler_colors[,c("singler.color","usable")]
+usable = as.logical(singler_colors$usable) & !is.na(singler_colors$usable)
+singler_colors = singler_colors[usable,]
+singler_colors1 = as.vector(singler_colors$singler.color[!is.na(singler_colors$singler.color)])
+singler_colors1[duplicated(singler_colors1)]
+length(singler_colors1)
+apply(singlerDF[,c("singler1sub","singler1main")],2,function(x) length(unique(x)))
+singlerDF[,c("singler1sub")] %>% table() #%>% kable() %>% kable_styling()
+object <- AddMetaData(object = object,metadata = singlerDF)
+object <- AddMetaColor(object = object, label= "singler1main", colors = singler_colors1)
+Idents(object) <- "singler1sub"
+
+TSNEPlot.1(object, cols = ExtractMetaColor(object),label = F,pt.size = 1,
+         label.size = 5, repel = T,no.legend = F,do.print = T,
+         title = "Minor cell types")
+save(object,file="data/Lung_harmony_12_20190614.Rda")
+##############################
+# draw tsne plot
+##############################
+jpeg(paste0(path,"PlotTsne_split_lable.jpeg"), units="in", width=10, height=7,res=600)
+TSNEPlot(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
+         split.by = "orig.ident", label.size = 4, repel = T)+NoLegend()
+dev.off()
+
+Idents(object) <-"RNA_snn_res.0.6"
+jpeg(paste0(path,"PlotTsne_split_seurat_clusters.jpeg"), units="in", width=10, height=7,res=600)
+TSNEPlot(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
+         group.by = "seurat_clusters",
+         split.by = "orig.ident", label.size = 4, repel = T)+NoLegend()
+dev.off()
