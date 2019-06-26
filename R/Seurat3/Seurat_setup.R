@@ -128,7 +128,7 @@ dev.off()
 
 npcs =71
 object <- FindNeighbors(object, reduction = "pca",dims = 1:npcs)
-object <- FindClusters(object, reduction = "pca",resolution = 0.6,
+object <- FindClusters(object, reduction = "pca",resolution = 1.2,
                        dims.use = 1:npcs,print.output = FALSE) %>%
     RunTSNE(reduction = "pca", dims = 1:npcs)
 
@@ -142,20 +142,20 @@ system.time(object <- RunHarmony.1(object, group.by.vars= "orig.ident", dims.use
 dev.off()
 
 object <- FindNeighbors(object, reduction = "harmony",dims = 1:npcs)
-object <- FindClusters(object, reduction = "harmony",resolution = 2,
+object <- FindClusters(object, reduction = "harmony",resolution = 1.2,
                        dims.use = 1:npcs,print.output = FALSE)
 object <- RunTSNE(reduction = "harmony", dims = 1:npcs)
 object <- RunUMAP(reduction = "harmony", dims = 1:npcs)
 
-p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+p2 <- TSNEPlot.1(object, group.by="RNA_snn_res.1.2",pt.size = 1,label = T,
                  label.size = 4, repel = T,title = "Correct by Harmony")
 
 jpeg(paste0(path,"harmony_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p1 + NoLegend(),p2 + NoLegend())
 dev.off()
 
-TSNEPlot.1(object = object, label = T, group.by = "ident", 
-         do.return = TRUE, no.legend = T, title = "Tsne plot for all clusters",
+TSNEPlot.1(object = object, label = F, group.by = "ident", 
+         do.return = TRUE, no.legend = F, title = "Tsne plot for all clusters",
          pt.size = 1,label.size = 6, do.print = T)
 
 object@assays$RNA@scale.data = matrix(0,0,0)

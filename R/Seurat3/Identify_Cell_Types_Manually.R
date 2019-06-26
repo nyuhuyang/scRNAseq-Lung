@@ -24,7 +24,7 @@ marker.list %<>% lapply(function(x) x) %>%
      lapply(function(x) FilterGenes(object,x)) %>% 
      lapply(function(x) x[!is.na(x)])
 #marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
-Idents(object) <- "RNA_snn_res.0.6"
+Idents(object) <- "RNA_snn_res.1.2"
 
 for(i in 1:length(marker.list)){
     p <- lapply(marker.list[[i]], function(marker) {
@@ -51,12 +51,12 @@ object$cell.type <- plyr::mapvalues(object$RNA_snn_res.0.6,
                                                    "Stromal fibroblasts",
                                                    "Monocytes",
                                                    "Ciliated cells",
-                                                   "Smooth muscle cells& \nStromal fibroblasts",
+                                                   "Smooth muscle cells",
                                                    "Secretory cells",
                                                    "Endothelial cells",
                                                    "Alveolar type I&II cells \nDistal secretory cells",
                                                    "B cells",
-                                                   "Alveolar macrophages& \nRed blood cells",
+                                                   "Red blood cells",
                                                    "Basal cells",
                                                    "HSC/progenitor cells",
                                                    "Lymphatic endothelial cells",
@@ -85,7 +85,7 @@ TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
 ##############################
 # process color scheme
 ##############################
-
+object <- sortIdent(object)
 table(Idents(object)) %>% kable %>% kable_styling()
 singler_colors <- readxl::read_excel("doc/singler.colors.xlsx")
 singler_colors1 = as.vector(singler_colors$singler.color1[!is.na(singler_colors$singler.color1)])
@@ -94,9 +94,28 @@ length(singler_colors1)
 length(unique(object$cell.type))
 object <- AddMetaColor(object = object, label= "cell.type", colors = singler_colors1)
 Idents(object) <- "cell.type"
+
 object <- sortIdent(object)
 
 TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
-           label.size = 5, repel = T,no.legend = T,do.print = T,
+           label.size = 5, repel = T,no.legend = F,do.print = F,
            title = "Cell types")
 save(object,file="data/Lung_harmony_12_20190614.Rda")
+
+meta.data = cbind.data.frame(object@meta.data,object@reductions$tsne@cell.embeddings)
+colnames(meta.data)
+meta.data = meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.1.2","cell.type")]
+meta.data$RNA_snn_res.1.2 = as.numeric(as.character(meta.data$RNA_snn_res.1.2))
+
+meta.data$cell.type = gsub(" \n",", ",meta.data$cell.type)
+table(meta.data$cell.type)
+meta.data = meta.data[order(meta.data$RNA_snn_res.1.2),]
+write.csv(meta.data, paste0(path,"tSNE_coordinates.csv"))
+
+data = as.matrix(t(object@assays$RNA@data))
+tsne_data = cbind(meta.data[,3:4], data[match(rownames(meta.data),
+                                        rownames(data)), ])
+
+tsne_data[1:4,1:5]
+write.csv(t(tsne_data), paste0(path,"Lung_exp.csv"))
+

@@ -22,20 +22,22 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # 3.1.1 load data
 # Rename ident
 (load(file = "data/Lung_harmony_12_20190614.Rda"))
-Idents(object) <- "cell.type"
-Lung.markers <- FindAllMarkers.UMI(object = object, logfc.threshold = 1,
-                                   only.pos = T,test.use = "MAST")
-write.csv(Lung.markers,paste0(path,"Lung_12_markers.csv"))
+Idents(object) <- "RNA_snn_res.1.2"
+Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1,
+                                   only.pos = T)
+
+write.csv(Lung_markers,paste0(path,"Lung_12_markers.csv"))
 #Lung.markers.csv =read.csv(file = paste0(path,"Lung.markers.csv"),
 #                                row.names = 1, stringsAsFactors=F)
 TSNEPlot.1(object,label = F, repel = F, no.legend = F,pt.size = 1,
            cols = ExtractMetaColor(object),do.return = T,do.print = F,
            title = "All clusters in in CU12-D, CU12-D-repeat, and CU12-T")
-object %<>% ScaleData()
-DoHeatmap.1(object, marker_df = Lung.markers, Top_n = 10, do.print=T, angle = 0,
+
+object %<>% ScaleData(features=unique(Lung_markers$gene))
+DoHeatmap.1(object, marker_df = Lung_markers, Top_n = 5, do.print=T, angle = 0,
             group.bar = T, title.size = 13, no.legend = F,size=0,hjust = 0.5,
-            label=F, cex.row=3.5, legend.size = 5,width=10, height=7,
-            title = "Top 10 markers in each cell type")
+            label=F, cex.row=5, legend.size = 5,width=10, height=7,
+            title = "Top 5 markers in each clusters")
 
 #split by samples================
 Idents(object) <- 'orig.ident'

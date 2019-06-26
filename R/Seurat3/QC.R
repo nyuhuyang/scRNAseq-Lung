@@ -27,24 +27,17 @@ df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
 sample_n = which(df_samples$tests %in% c("control",paste0("test",0:2)))
 df_samples <- df_samples[sample_n,]
-samples = sample
-attach(df_samples)
-#df_samples[sample_n,] %>% kable() %>% kable_styling()
-table(tests);nrow(df_samples)
-list_samples <- lapply(colnames(df_samples), function(col) df_samples[,col])
-names(list_samples) = colnames(df_samples)
-keep = sapply(list_samples, function(n) length(n[!is.na(n)])>1)
-list_samples =list_samples[keep]
+samples = df_samples$sample
 
 # check missing data
 current <- list.files("data")
 (current <- current[!grepl(".Rda|RData",current)])
-(missing_data <- list_samples$sample.id[!(list_samples$sample.id %in% current)])
+(missing_data <- df_samples$sample.id[!(df_samples$sample.id %in% current)])
 
 # select species
-if(unique(list_samples$species) %in% c("Homo_sapiens","Human")) species <- "hg19"
-if(unique(list_samples$species) %in% c("Mus_musculus","Mouse")) species <- "mm10"
-if(unique(list_samples$species) %in% c("Danio_rerio")) species <- "danRer10"
+if(unique(df_samples$species) %in% c("Homo_sapiens","Human")) species <- "hg19"
+if(unique(df_samples$species) %in% c("Mus_musculus","Mouse")) species <- "mm10"
+if(unique(df_samples$species) %in% c("Danio_rerio")) species <- "danRer10"
 
 message("Copying the datasets")
 if(length(missing_data)>0){
@@ -67,25 +60,25 @@ Seurat_list <- list()
 ## Load the ddseq data
 sample_n = which(df_samples$tests %in% c("control",paste0("test0")))
 for(i in sample_n){
-        Seurat_raw[[i]] <- read.delim(file = paste0("data/",list_samples$sample.id[i],
+        Seurat_raw[[i]] <- read.delim(file = paste0("data/",df_samples$sample.id[i],
                                                     "/counts.merged.txt.gz"),
                                       row.names = 1, stringsAsFactors =F)
-        colnames(Seurat_raw[[i]]) = paste0(list_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
+        colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
                                                min.cells = 0,
                                                min.features = 0)
-        Seurat_list[[i]]@meta.data$tests <- list_samples$tests[i]
+        Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
 }
 ## Load the  10X dataset
 sample_n = which(df_samples$tests %in% c("control",paste0("test",1:2)))
 for(i in sample_n){
-        Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",list_samples$sample.id[i],
+        Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
                                    "/outs/filtered_gene_bc_matrices/",species))
-        colnames(Seurat_raw[[i]]) = paste0(list_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
+        colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
                                                  min.cells = 0,
                                                min.features = 0)
-        Seurat_list[[i]]@meta.data$tests <- list_samples$tests[i]
+        Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
 
 }
 remove(Seurat_raw);GC()
@@ -104,8 +97,8 @@ if(is.na(args[2])){
         min.nUMI <- sapply(QC_list, function(x) min(colSums(x)))
         min.nGene <- sapply(QC_list, function(x) min(apply(x,2,function(y) sum(length(y[y>0])))))
         
-        QC.list <- cbind(df_samples,cell.number, median.nUMI, median.nGene, 
-                         min.nUMI,min.nGene, row.names = list_samples$sample)
+        QC.list <- cbind(df_samples,cell.number, median.nUMI, median.nGene,
+                         min.nUMI,min.nGene, row.names = df_samples$sample)
         write.csv(QC.list,paste0(path,"QC_list.csv"))
         #QC.list %>% kable() %>% kable_styling()
         remove(QC_list,median.nUMI,median.nGene,min.nUMI,min.nGene,QC.list);GC()
