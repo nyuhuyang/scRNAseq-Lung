@@ -24,7 +24,7 @@ marker.list %<>% lapply(function(x) x) %>%
      lapply(function(x) FilterGenes(object,x)) %>% 
      lapply(function(x) x[!is.na(x)])
 #marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
-Idents(object) <- "RNA_snn_res.1.2"
+Idents(object) <- "RNA_snn_res.0.8"
 
 for(i in 1:length(marker.list)){
     p <- lapply(marker.list[[i]], function(marker) {

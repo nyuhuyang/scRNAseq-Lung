@@ -39,12 +39,13 @@ top20 <- head(VariableFeatures(Epi), 20)
 # plot variable features with and without labels
 plot1 <- VariableFeaturePlot(Epi)
 plot2 <- LabelPoints(plot = plot1, points = top20, repel = TRUE)
-jpeg(paste0(path,"Epi_VariableFeaturePlot.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"Epi_VariableFeaturePlot~.jpeg"), units="in", width=10, height=7,res=600)
 print(plot2)
 dev.off()
+
 hvf.info <- HVFInfo(object = Epi)
 hvf.info = hvf.info[VariableFeatures(Epi),]
-write.csv(hvf.info, file = paste0(path,"Epi_high_variable_genes.csv"))
+write.csv(hvf.info, file = paste0(path,"Epi_high_variable_genes~.csv"))
 
 # Re-run tsne plot
 #======1.3 1st run of pca-tsne  =========================
@@ -85,18 +86,32 @@ Epi %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
 p2 <- TSNEPlot.1(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
                  label.size = 4, repel = T,title = "TSNE plot")
 p3 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
-                 label.size = 4, repel = T)+ggtitle("UMAP plot")+
+                 label.size = 4, repel = T)+ggtitle("UMAP plot after")+
         theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
 
 jpeg(paste0(path,"Epi_harmony_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
 cowplot::plot_grid(p1 + NoLegend(),p2 + NoLegend())
 dev.off()
-jpeg(paste0(path,"Epi_rerun_tsne.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"Epi_rerun_tsne~.jpeg"), units="in", width=10, height=7,res=600)
 cowplot::plot_grid(p0 + NoLegend(),p2 + NoLegend())
 dev.off()
-jpeg(paste0(path,"Epi_tsne_umap.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"Epi_tsne_umap~.jpeg"), units="in", width=10, height=7,res=600)
 cowplot::plot_grid(p2 + NoLegend(),p3 + NoLegend())
 dev.off()
+Epi$RNA_snn_res.0.8 <- plyr::mapvalues(Epi$RNA_snn_res.0.8,from = 0,to = 1)
+
+jpeg(paste0(path,"Epi_umap.jpeg"), units="in", width=10, height=7,res=600)
+print(p3)
+dev.off()
+
+p4 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
+               label.size = 4, repel = T)+ggtitle("UMAP plot before")+
+        theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
+
+jpeg(paste0(path,"Epi_compare_umap.jpeg"), units="in", width=10, height=7,res=600)
+cowplot::plot_grid(p4 + NoLegend(),p3 + NoLegend())
+dev.off()
+
 meta.data = cbind.data.frame(Epi@meta.data,Epi@reductions$tsne@cell.embeddings,
                              Epi@reductions$umap@cell.embeddings)
 colnames(meta.data)
@@ -105,28 +120,35 @@ meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
 
 meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
 write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.8")], 
-          paste0(path,"Epi_tSNE_coordinates.csv"))
+          paste0(path,"Epi_tSNE_coordinates~.csv"))
 write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.8")], 
-          paste0(path,"Epi_UMAP_coordinates.csv"))
+          paste0(path,"Epi_UMAP_coordinates~.csv"))
 
 #4 - List of markers for each cluster =================
 Idents(Epi) <- "RNA_snn_res.0.8"
-Epi_markers <- FindAllMarkers.UMI(Epi, logfc.threshold = 0.1,
-                                   only.pos = F)
+Epi_markers <- FindAllMarkers.UMI(Epi, logfc.threshold = 0.05,return.thresh = 0.05,
+                                   only.pos = T)
 table(Epi_markers$cluster)
-write.csv(Epi_markers,paste0(path,"Epi_markers.csv"))
+write.csv(Epi_markers,paste0(path,"Epi_markers～.csv"))
 
 Epi %<>% ScaleData(features=unique(Epi_markers$gene))
 DoHeatmap.1(Epi, marker_df = Epi_markers, Top_n = 5, do.print=T, angle = 0,
-            group.bar = T, title.size = 13, no.legend = F,size=0,hjust = 0.5,
-            label=F, cex.row=5, legend.size = 5,width=10, height=7,
+            group.bar = T, title.size = 13, no.legend = F,size=5.5,hjust = 0.5,
+            label= T, cex.row=5, legend.size = 5,width=10, height=7,
             title = "Top 5 markers in each clusters")
 #5 - Expression data (with cluster label and sample ID for each cell; order by cluster number)
 data = as.matrix(t(Epi@assays$RNA@data))
 exp_data = cbind(meta.data[,4:5], data[match(rownames(meta.data),
                                               rownames(data)), ])
 
-exp_data[1:4,1:5]
 write.csv(t(exp_data[,-1]), paste0(path,"Epithelial_exp.csv"))
 Epi@assays$RNA@scale.data = matrix(0,0,0)
 save(Epi, file = "data/Epi_harmony_12_20190624.Rda")
+
+# 1. Clusters 0 and 1 can be merged as they are barely different based on markers and both represent type 2 cells.
+# 2. The following clusters can be removed: 8 – macrophages; 9 – endothelial cells; 11 – NK cells.
+(load("data/Epi_harmony_12_20190624.Rda"))
+table(Idents(Epi))
+Epi <- subset(Epi, idents = c(8,9,11), invert = TRUE)
+
+# 3. Once you re-do tSNE and UMAP, please make the list of positive markers only, with p adjusted value <0.05.
