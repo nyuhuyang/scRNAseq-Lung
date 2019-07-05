@@ -8,7 +8,7 @@ library(cowplot)
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-#====== 2.1 pathway analysis ==========================================
+#====== 2.1 Identify cell types ==========================================
 (load(file="data/Lung_harmony_12_20190614.Rda"))
 
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
@@ -119,3 +119,71 @@ tsne_data = cbind(meta.data[,3:4], data[match(rownames(meta.data),
 tsne_data[1:4,1:5]
 write.csv(t(tsne_data), paste0(path,"Lung_exp.csv"))
 
+#====== 2.2 Identify Epi cell types ==========================================
+(load(file="data/Epi_harmony_12_20190627.Rda"))
+
+df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
+
+#df_markers <- readxl::read_excel("../seurat_resources/bio-rad-markers.xlsx",sheet = "Human.sub")
+colnames(df_markers) = gsub(" ","_",colnames(df_markers))
+colnames(df_markers) = gsub(":|\\/","_",colnames(df_markers))
+colnames(df_markers) = gsub("\\+","",colnames(df_markers))
+#markers = df_markers[,-grep("Alias",colnames(df_markers))]
+marker.list <- df2list(df_markers)
+
+marker.list %<>% lapply(function(x) x) %>% 
+    lapply(function(x) FilterGenes(Epi,x)) %>% 
+    lapply(function(x) x[!is.na(x)])
+#marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
+Idents(Epi) <- "RNA_snn_res.0.3"
+
+for(i in 1:length(marker.list)){
+    p <- lapply(marker.list[[i]], function(marker) {
+        FeaturePlot(object = Epi, features = marker,pt.size = 0.5, label=T)+
+            NoLegend()+
+            ggtitle(paste0(marker,Alias(df = df_markers,gene = marker)))+
+            theme(plot.title = element_text(hjust = 0.5,size = 15,face = "plain"))
+    })
+    jpeg(paste0(path,names(marker.list)[i],".jpeg"),units="in", width=10, height=7,res=600)
+    print(do.call(cowplot::plot_grid, p)+ ggtitle(paste(names(marker.list)[i],"markers"))+
+              theme(plot.title = element_text(hjust = 0.5,size = 20)))
+    dev.off()
+    print(paste0(i,":",length(marker.list)))
+}
+
+#======== rename ident =================
+Epi$cell.type <- plyr::mapvalues(Epi$RNA_snn_res.0.8,
+                                    from = 1:9,
+                                    to = c("Alveolar type II cells",
+                                           "M-ciliated cells",
+                                           "Airway secretory cells",
+                                           "D-ciliated cells",
+                                           "Alveolar type I cells",
+                                           "Distal airway secretory cells",
+                                           "Airway basal stem cells",
+                                           "Unknown Alveolar cells",
+                                           "Alveolar type II cells"))
+Idents(Epi) = "cell.type"
+Epi %<>% sortIdent()
+table(Idents(Epi)) %>% kable() %>% kable_styling()
+# process color scheme
+singler_colors <- readxl::read_excel("doc/singler.colors.xlsx")
+singler_colors1 = as.vector(singler_colors$singler.color1[!is.na(singler_colors$singler.color1)])
+singler_colors1[duplicated(singler_colors1)]
+length(singler_colors1)
+Epi <- AddMetaColor(object = Epi, label= "cell.type", colors = singler_colors1)
+Epi %<>% sortIdent()
+
+TSNEPlot.1(Epi, cols = ExtractMetaColor(Epi),label = F,pt.size = 1,
+           label.size = 5, repel = T,no.legend = F,do.print = T,
+           title = "Epithelial cell types")
+
+p5 <- UMAPPlot(Epi, group.by="cell.type",pt.size = 1,label = F,
+               cols = ExtractMetaColor(Epi),
+               label.size = 4, repel = T)+ggtitle("Epithelial cell types")+
+    theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
+
+jpeg(paste0(path,"Epi_umap_cell.type.jpeg"), units="in", width=10, height=7,res=600)
+print(p5)
+dev.off()
+save(Epi, file = "data/Epi_harmony_12_20190627.Rda")

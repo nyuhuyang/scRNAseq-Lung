@@ -19,7 +19,7 @@ library(MAST)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-
+set.seed(1001)
 # 3.1.1 load data
 # Rename ident
 (load(file = "data/Lung_harmony_12_20190614.Rda"))
@@ -39,13 +39,13 @@ top20 <- head(VariableFeatures(Epi), 20)
 # plot variable features with and without labels
 plot1 <- VariableFeaturePlot(Epi)
 plot2 <- LabelPoints(plot = plot1, points = top20, repel = TRUE)
-jpeg(paste0(path,"Epi_VariableFeaturePlot~.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"Epi_VariableFeaturePlot.jpeg"), units="in", width=10, height=7,res=600)
 print(plot2)
 dev.off()
 
 hvf.info <- HVFInfo(object = Epi)
 hvf.info = hvf.info[VariableFeatures(Epi),]
-write.csv(hvf.info, file = paste0(path,"Epi_high_variable_genes~.csv"))
+write.csv(hvf.info, file = paste0(path,"Epi_high_variable_genes.csv"))
 
 # Re-run tsne plot
 #======1.3 1st run of pca-tsne  =========================
@@ -68,9 +68,14 @@ Epi %<>% FindClusters(reduction = "pca",resolution = 0.8,
                        dims.use = 1:npcs,print.output = FALSE)
 Epi %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 
-p1 <- TSNEPlot.1(Epi, group.by="orig.ident",pt.size = 1,label = F,
-                 no.legend = T,label.size = 4, repel = T, title = "Original")
+p0 <- TSNEPlot.1(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = F,
+                 no.legend = T,label.size = 4, repel = T, title = "tSNE plot before")
+p1 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = F,
+               label.size = 4, repel = T)+ggtitle("UMAP plot before")+
+        theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
+
 #======1.8 RunHarmony=======================
+npcs =71
 jpeg(paste0(path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
 system.time(Epi %<>% RunHarmony.1(group.by.vars= "orig.ident", dims.use = 1:npcs,
                                    theta = NULL, plot_convergence = TRUE,#epsilon.harmony = -Inf,
@@ -78,58 +83,55 @@ system.time(Epi %<>% RunHarmony.1(group.by.vars= "orig.ident", dims.use = 1:npcs
 dev.off()
 
 Epi %<>% FindNeighbors(reduction = "harmony",dims = 1:npcs)
-Epi %<>% FindClusters(reduction = "harmony",resolution = 0.8,
+Epi %<>% FindClusters(reduction = "harmony",resolution = 0.3,
                        dims.use = 1:npcs,print.output = FALSE)
 Epi %<>% RunTSNE(reduction = "harmony", dims = 1:npcs)
 Epi %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
 
-p2 <- TSNEPlot.1(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
-                 label.size = 4, repel = T,title = "TSNE plot")
-p3 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
+p2 <- TSNEPlot.1(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = F,
+                 label.size = 4, repel = T,title = "TSNE plot after")
+p3 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = F,
                  label.size = 4, repel = T)+ggtitle("UMAP plot after")+
         theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
-
 jpeg(paste0(path,"Epi_harmony_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
-cowplot::plot_grid(p1 + NoLegend(),p2 + NoLegend())
+cowplot::plot_grid(p0 + NoLegend(),p2 + NoLegend())
 dev.off()
 jpeg(paste0(path,"Epi_rerun_tsne~.jpeg"), units="in", width=10, height=7,res=600)
 cowplot::plot_grid(p0 + NoLegend(),p2 + NoLegend())
 dev.off()
 jpeg(paste0(path,"Epi_tsne_umap~.jpeg"), units="in", width=10, height=7,res=600)
-cowplot::plot_grid(p2 + NoLegend(),p3 + NoLegend())
+cowplot::plot_grid(p1 + NoLegend(),p3 + NoLegend())
 dev.off()
-Epi$RNA_snn_res.0.8 <- plyr::mapvalues(Epi$RNA_snn_res.0.8,from = 0,to = 1)
-
-jpeg(paste0(path,"Epi_umap.jpeg"), units="in", width=10, height=7,res=600)
-print(p3)
-dev.off()
-
-p4 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
-               label.size = 4, repel = T)+ggtitle("UMAP plot before")+
+#Epi$RNA_snn_res.0.8 <- plyr::mapvalues(Epi$RNA_snn_res.0.8,from = 0,to = 1)
+TSNEPlot.1(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = F,
+           label.size = 4, repel = T,title = "TSNE plot res=0.3", do.print = T)
+p4 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = T,
+               label.size = 4, repel = T)+ggtitle("UMAP plot res=0.3")+
         theme(plot.title = element_text(hjust = 0.5,size=15,face = "plain"))
 
-jpeg(paste0(path,"Epi_compare_umap.jpeg"), units="in", width=10, height=7,res=600)
-cowplot::plot_grid(p4 + NoLegend(),p3 + NoLegend())
+jpeg(paste0(path,"Epi_umap.jpeg"), units="in", width=10, height=7,res=600)
+print(p4)
 dev.off()
 
 meta.data = cbind.data.frame(Epi@meta.data,Epi@reductions$tsne@cell.embeddings,
                              Epi@reductions$umap@cell.embeddings)
 colnames(meta.data)
-meta.data = meta.data[,c("tSNE_1","tSNE_2","UMAP_1","UMAP_2","RNA_snn_res.0.8")]
-meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
+meta.data = meta.data[,c("tSNE_1","tSNE_2","UMAP_1","UMAP_2","RNA_snn_res.0.3")]
+meta.data$RNA_snn_res.0.3 = as.numeric(as.character(meta.data$RNA_snn_res.0.3))
 
-meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
-write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.8")], 
-          paste0(path,"Epi_tSNE_coordinates~.csv"))
-write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.8")], 
-          paste0(path,"Epi_UMAP_coordinates~.csv"))
+meta.data = meta.data[order(meta.data$RNA_snn_res.0.3),]
+write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.3")], 
+          paste0(path,"Epi_tSNE_coordinates.csv"))
+write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.3")], 
+          paste0(path,"Epi_UMAP_coordinates.csv"))
 
 #4 - List of markers for each cluster =================
-Idents(Epi) <- "RNA_snn_res.0.8"
+Idents(Epi) <- "RNA_snn_res.0.3"
 Epi_markers <- FindAllMarkers.UMI(Epi, logfc.threshold = 0.05,return.thresh = 0.05,
                                    only.pos = T)
 table(Epi_markers$cluster)
-write.csv(Epi_markers,paste0(path,"Epi_markers～.csv"))
+Epi_markers = Epi_markers[Epi_markers$p_val_adj < 0.05,]
+write.csv(Epi_markers,paste0(path,"Epi_markers.csv"))
 
 Epi %<>% ScaleData(features=unique(Epi_markers$gene))
 DoHeatmap.1(Epi, marker_df = Epi_markers, Top_n = 5, do.print=T, angle = 0,
@@ -143,7 +145,7 @@ exp_data = cbind(meta.data[,4:5], data[match(rownames(meta.data),
 
 write.csv(t(exp_data[,-1]), paste0(path,"Epithelial_exp.csv"))
 Epi@assays$RNA@scale.data = matrix(0,0,0)
-save(Epi, file = "data/Epi_harmony_12_20190624.Rda")
+save(Epi, file = "data/Epi_harmony_12_20190627.Rda")
 
 # 1. Clusters 0 and 1 can be merged as they are barely different based on markers and both represent type 2 cells.
 # 2. The following clusters can be removed: 8 – macrophages; 9 – endothelial cells; 11 – NK cells.
@@ -151,4 +153,59 @@ save(Epi, file = "data/Epi_harmony_12_20190624.Rda")
 table(Idents(Epi))
 Epi <- subset(Epi, idents = c(8,9,11), invert = TRUE)
 
-# 3. Once you re-do tSNE and UMAP, please make the list of positive markers only, with p adjusted value <0.05.
+# 3. Once you re-do PCA, RunHarmony tSNE and UMAP, please make the list of positive markers only, with p adjusted value <0.05.
+
+#####################
+#Volcano plot - DEG analysis
+####################
+# FindPairMarkers
+(load("data/Epi_harmony_12_20190627.Rda"))
+
+Idents(Epi) = "RNA_snn_res.0.8"
+table(Idents(Epi))
+UMAPPlot(Epi,cols = ExtractMetaColor(Epi),label =T)
+
+ident.1 <- list(c(2,3,4,6,7),
+                5,
+                7,
+                c(3,6),
+                6,
+                2)
+ident.2 <- list(c(1,5,8),
+                1,
+                c(2,3,4,6),
+                c(2,4,7),
+                3,
+                4)
+length(ident.1);length(ident.2)
+subfolder <- paste0(path,"DEG/")
+gde.pair <- FindPairMarkers(Epi, ident.1 = ident.1, ident.2 = ident.2,
+                            logfc.threshold = 0.1, min.cells.group =3,
+                            return.thresh = 0.05, only.pos = FALSE, save.path = subfolder)
+write.csv(gde.pair, paste0(subfolder,"pairwise_comparision.csv"))
+head(gde.pair,10) %>% kable %>% kable_styling
+
+titles <- c("Airway (2+3+4+6+7) vs alveolar (1+5+8)",
+            "Alveolar type I cells (5) vs type II cells (1)",
+            "Airway basal stem cells (7) vs airway epithelial differentiated cells (2+3+4+6)",
+            "Airway secretory cells (3+6) vs other airway epithelial cells (2+4+7)",
+            "Distal airway secretory cells (6) vs other airway secretory cells (3)",
+            "M-ciliated cells (2) vs D-ciliated cells (4)")
+# Volcano plot=========
+(clusters <- unique(gde.pair$cluster1.vs.cluster2))
+for(i in 1:length(clusters)){
+        df <- gde.pair[gde.pair$cluster1.vs.cluster2 %in% clusters[i],]
+        g <- ggplot(df,aes(avg_logFC,-log10(p_val_adj))) + 
+                geom_point() + 
+                ggtitle(titles[i]) + 
+                theme(plot.title = element_text(size=20,hjust = 0.5)) +
+                ggrepel::geom_text_repel(aes(label = gene), 
+                                data=df[(df$avg_logFC > 1 | df$avg_logFC < -1)& 
+                                                df$p_val_adj < head(sort(df$p_val_adj),40) %>% tail(1) ,]) +
+                geom_point(color = ifelse((df$avg_logFC > 1  & df$p_val_adj < 0.05) , "red",
+                                          ifelse((df$avg_logFC < -1 & df$p_val_adj < 0.05), "blue","gray")))
+        
+        jpeg(paste0(path,"Volcano_plot",clusters[i],".jpeg"), units="in", width=10, height=7,res=600)
+        print(g)
+        dev.off()
+}
