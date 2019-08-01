@@ -3,7 +3,8 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("R.utils","Seurat","dplyr","kableExtra","ggplot2","scater"), function(x) {
+invisible(lapply(c("R.utils","Seurat","dplyr","kableExtra","ggplot2","scater",
+        "scran","scran","BiocSingular"), function(x) {
         suppressPackageStartupMessages(library(x,character.only = T))
         }))
 source("../R/Seurat3_functions.R")

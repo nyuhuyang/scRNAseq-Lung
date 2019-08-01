@@ -16,6 +16,7 @@ library(tidyr)
 library(kableExtra)
 library(gplots)
 library(MAST)
+library(ggpubr)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -87,7 +88,11 @@ Epi %<>% FindClusters(reduction = "harmony",resolution = 0.3,
                        dims.use = 1:npcs,print.output = FALSE)
 Epi %<>% RunTSNE(reduction = "harmony", dims = 1:npcs)
 Epi %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
-
+table(Idents(Epi))
+Epi@meta.data$RNA_snn_res.0.3 <- plyr::mapvalues(Epi@meta.data$RNA_snn_res.0.3,
+                                 from = 0:7,
+                                 to = 1:8)
+                                         
 p2 <- TSNEPlot.1(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "TSNE plot after")
 p3 <- UMAPPlot(Epi, group.by="RNA_snn_res.0.3",pt.size = 1,label = F,
@@ -161,28 +166,34 @@ Epi <- subset(Epi, idents = c(8,9,11), invert = TRUE)
 # FindPairMarkers
 (load("data/Epi_harmony_12_20190627.Rda"))
 
-Idents(Epi) = "RNA_snn_res.0.8"
+Idents(Epi) = "RNA_snn_res.0.3"
 table(Idents(Epi))
-UMAPPlot(Epi,cols = ExtractMetaColor(Epi),label =T)
+jpeg(paste0(path,"Epi_umap.jpeg"), units="in", width=10, height=7,res=600)
+UMAPPlot(Epi,cols = ExtractMetaColor(Epi),label =T)+ggtitle("UMAP plot res = 0.3")
+dev.off()
 
 ident.1 <- list(c(2,3,4,6,7),
                 5,
                 7,
                 c(3,6),
                 6,
-                2)
+                2,
+                6)
 ident.2 <- list(c(1,5,8),
                 1,
                 c(2,3,4,6),
                 c(2,4,7),
                 3,
-                4)
+                4,
+                1)
 length(ident.1);length(ident.2)
 subfolder <- paste0(path,"DEG/")
 gde.pair <- FindPairMarkers(Epi, ident.1 = ident.1, ident.2 = ident.2,
                             logfc.threshold = 0.1, min.cells.group =3,
                             return.thresh = 0.05, only.pos = FALSE, save.path = subfolder)
+gde.pair = gde.pair[gde.pair$p_val_adj< 0.05,]
 write.csv(gde.pair, paste0(subfolder,"pairwise_comparision.csv"))
+gde.pair = read.csv("output/20190705/Volcano_plots/DEG/pairwise_comparision.csv",row.names = 1)
 head(gde.pair,10) %>% kable %>% kable_styling
 
 titles <- c("Airway (2+3+4+6+7) vs alveolar (1+5+8)",
@@ -190,21 +201,28 @@ titles <- c("Airway (2+3+4+6+7) vs alveolar (1+5+8)",
             "Airway basal stem cells (7) vs airway epithelial differentiated cells (2+3+4+6)",
             "Airway secretory cells (3+6) vs other airway epithelial cells (2+4+7)",
             "Distal airway secretory cells (6) vs other airway secretory cells (3)",
-            "M-ciliated cells (2) vs D-ciliated cells (4)")
+            "M-ciliated cells (2) vs D-ciliated cells (4)",
+            "Distal airway secretory cells (6) vs Alveolar type II cells (1)")
 # Volcano plot=========
 (clusters <- unique(gde.pair$cluster1.vs.cluster2))
 for(i in 1:length(clusters)){
         df <- gde.pair[gde.pair$cluster1.vs.cluster2 %in% clusters[i],]
-        g <- ggplot(df,aes(avg_logFC,-log10(p_val_adj))) + 
+        df$log10_p_val_adj = -log10(df$p_val_adj)
+        df$log10_p_val_adj[df$log10_p_val_adj == "Inf"] = 400
+        left = df[df$avg_logFC < -1,]
+        right = df[df$avg_logFC > 1,]
+        left = rownames(left)[left$log10_p_val_adj >= head(sort(left$log10_p_val_adj,decreasing = T),15) %>% tail(1)]
+        right = rownames(right)[right$log10_p_val_adj >= head(sort(right$log10_p_val_adj,decreasing = T),15) %>% tail(1)]
+        g <- ggplot(df,aes(avg_logFC,log10_p_val_adj)) + 
                 geom_point() + 
                 ggtitle(titles[i]) + 
-                theme(plot.title = element_text(size=20,hjust = 0.5)) +
+                ylab("-log10(p_value_adj)")+
+                theme_minimal()+
+                theme(plot.title = element_text(size=20,hjust = 0.5))+
                 ggrepel::geom_text_repel(aes(label = gene), 
-                                data=df[(df$avg_logFC > 1 | df$avg_logFC < -1)& 
-                                                df$p_val_adj < head(sort(df$p_val_adj),40) %>% tail(1) ,]) +
+                        data=df[c(left,right),]) +
                 geom_point(color = ifelse((df$avg_logFC > 1  & df$p_val_adj < 0.05) , "red",
                                           ifelse((df$avg_logFC < -1 & df$p_val_adj < 0.05), "blue","gray")))
-        
         jpeg(paste0(path,"Volcano_plot",clusters[i],".jpeg"), units="in", width=10, height=7,res=600)
         print(g)
         dev.off()
