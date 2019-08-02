@@ -6,6 +6,7 @@ library(cowplot)
 library(Seurat)
 library(Biobase)
 library(org.Hs.eg.db)
+library(kableExtra)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -47,6 +48,7 @@ annotation_path <- "~/Downloads/GTEx_v7_Annotations_SampleAttributesDS.txt"
 annotation = fread(annotation_path)
 head(annotation[,1:4])
 annotation = annotation[annotation$SMTSD %in% "Lung"]
+table(annotation$SMAFRZE) %>%t %>% kable %>% kable_styling
 (keep.column = complete.cases(t(annotation)))
 annotation = annotation[,keep.column,with=FALSE]
 head(annotation)

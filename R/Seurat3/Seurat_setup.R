@@ -129,8 +129,8 @@ dev.off()
 npcs =71
 object <- FindNeighbors(object, reduction = "pca",dims = 1:npcs)
 object <- FindClusters(object, reduction = "pca",resolution = 1.2,
-                       dims.use = 1:npcs,print.output = FALSE) %>%
-    RunTSNE(reduction = "pca", dims = 1:npcs)
+                       dims.use = 1:npcs,print.output = FALSE)
+object <- RunTSNE(reduction = "pca", dims = 1:npcs)
 
 p1 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = T,label.size = 4, repel = T, title = "Original")
