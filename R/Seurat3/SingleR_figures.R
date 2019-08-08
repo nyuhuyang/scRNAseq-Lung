@@ -14,10 +14,8 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #====== 3.2 SingleR specifications ==========================================
 # Step 1: Spearman coefficient
-#raw_data <- object@raw.data[,object@cell.names]
-#save(raw_data, file = "data/MCL.raw.data_Harmony_30_20190320.Rda")
-(load(file = "data/Lung_harmony_12_20190614.Rda"))
-(load(file="output/singlerF_Lung_12_20190614.Rda"))
+(load(file = "data/Lung_8_20190807.Rda"))
+(load(file="output/singlerF_Lung_8_20190807.Rda"))
 
 # if singler didn't find all cell labels
 length(singler$singler[[1]]$SingleR.single$labels) == ncol(object)
@@ -31,7 +29,7 @@ table(rownames(singler$singler[[1]]$SingleR.single$labels) %in% colnames(object)
 singler$meta.data$orig.ident = object@meta.data$orig.ident # the original identities, if not supplied in 'annot'
 singler$meta.data$xy = object@reductions$tsne@cell.embeddings # the tSNE coordinates
 singler$meta.data$clusters = Idents(object) # the Seurat clusters (if 'clusters' not provided)
-save(singler,file="output/singlerF_Lung_12_20190614.Rda")
+save(singler,file="output/singlerF_Lung_8_20190807.Rda")
 ##############################
 # add singleR label to Seurat
 ###############################
@@ -58,8 +56,7 @@ dev.off()
 
 #Finally, we can also view the labeling as a table compared to the original identities:
 
-table(singlerDF$singler1main, singlerDF$orig.ident) %>% kable %>%
-        kable_styling()
+table(singlerDF$singler1sub) %>% kable %>% kable_styling()
 ##############################
 # process color scheme
 ##############################

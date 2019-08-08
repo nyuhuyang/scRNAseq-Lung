@@ -21,12 +21,15 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # 3.1.1 load data
 # Rename ident
-(load(file = "data/Lung_harmony_12_20190614.Rda"))
-Idents(object) <- "RNA_snn_res.1.2"
-Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1,
+(samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
+            "Day-56","Day-122"))
+(load(file = "data/Lung_8_20190807.Rda"))
+
+Idents(object) <- "integrated_snn_res.0.6"
+Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25,
                                    only.pos = T)
 
-write.csv(Lung_markers,paste0(path,"Lung_12_markers.csv"))
+write.csv(Lung_markers,paste0(path,"Lung_6_combine_markers.csv"))
 #Lung.markers.csv =read.csv(file = paste0(path,"Lung.markers.csv"),
 #                                row.names = 1, stringsAsFactors=F)
 TSNEPlot.1(object,label = F, repel = F, no.legend = F,pt.size = 1,

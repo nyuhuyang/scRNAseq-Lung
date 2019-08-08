@@ -27,7 +27,7 @@ colnames(df_samples) <- colnames(df_samples) %>% tolower
 sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
 df_samples = df_samples[sample_n,]
 df_samples
-samples = df_samples$sample
+(samples = df_samples$sample)
 
 
 #======1.2 load  SingleCellExperiment =========================
@@ -53,34 +53,40 @@ meta.data = object@meta.data[,-remove]
 object@meta.data = meta.data 
 
 #======1.2 QC, pre-processing and normalizing the data=========================
-Idents(object) = factor(Idents(object),levels = df_samples$sample)
+object@meta.data$orig.ident = factor(Idents(object),levels = df_samples$sample)
 (load(file = "output/20190807/g1_8_20190807.Rda"))
 
-object %<>% subset(subset = nFeature_RNA > 1000  & percent.mt < 25)
+object %<>% subset(subset = nFeature_RNA > 1000  & nCount_RNA > 2000 & percent.mt < 25)
 # FilterCellsgenerate Vlnplot before and after filteration
 g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
     VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
         theme(axis.text.x = element_text(size=15),legend.position="none")
 })
 
-save(g2,file= paste0(path,"g1_8_20190807.Rda"))
+save(g2,file= paste0(path,"g2_8_20190807.Rda"))
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
-                    scale_y_log10(limits = c(100,10000)),
+                    scale_y_log10(limits = c(100,10000))+
+                    theme(plot.title = element_text(hjust = 0.5)),
                 g2[[1]]+ggtitle("nFeature_RNA after filteration")+
-                    scale_y_log10(limits = c(100,10000))))
+                    scale_y_log10(limits = c(100,10000))+
+                    theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
 jpeg(paste0(path,"S1_nUMI.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[2]]+ggtitle("nCount_RNA before filteration")+
-                    scale_y_log10(limits = c(500,100000)),
+                    scale_y_log10(limits = c(500,100000))+
+                    theme(plot.title = element_text(hjust = 0.5)),
                 g2[[2]]+ggtitle("nCount_RNA after filteration")+ 
-                    scale_y_log10(limits = c(500,100000))))
+                    scale_y_log10(limits = c(500,100000))+
+                    theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
 jpeg(paste0(path,"S1_mito.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[3]]+ggtitle("mito % before filteration")+
-                    ylim(c(0,50)),
+                    ylim(c(0,50))+
+                    theme(plot.title = element_text(hjust = 0.5)),
                 g2[[3]]+ggtitle("mito % after filteration")+ 
-                    ylim(c(0,50))))
+                    ylim(c(0,50))+
+                    theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
 
 ######################################
@@ -107,6 +113,7 @@ write.csv(hvf.info, file = paste0(path,"high_variable_genes.csv"))
 #======1.3 1st run of pca-tsne  =========================
 object <- ScaleData(object = object,features = rownames(object))
 object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = 100)
+object@assays$RNA@scale.data = matrix(0,0,0)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
 object <- ScoreJackStraw(object, dims = 1:85)
 
@@ -133,7 +140,8 @@ object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
-  #======1.5 Performing SCTransform and integration =========================
+save(p0,file= paste0(path,"p0_Original_20190807.Rda"))
+#======1.5 Performing SCTransform and integration =========================
 set.seed(100)
 object_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
@@ -171,11 +179,11 @@ plot_grid(p0+ggtitle("Clustering without integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-TSNEPlot.1(object = object, label = F, group.by = "ident", 
-         do.return = TRUE, no.legend = F, title = "Tsne plot for all clusters",
-         pt.size = 1,label.size = 6, do.print = T)
+TSNEPlot.1(object = object, label = F, group.by = "integrated_snn_res.0.6", 
+         do.return = F, no.legend = F, title = "Tsne plot for all clusters",
+         pt.size = 0.3,label.size = 6, do.print = T)
 
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_harmony_12_20190803.Rda")
+save(object, file = "data/Lung_8_20190808.Rda")
 object_data = object@assays$RNA@data
-save(object_data, file = "data/Lung.data_harmony_12_20190614.Rda")
+save(object_data, file = "data/Lung.data_8_20190808.Rda")

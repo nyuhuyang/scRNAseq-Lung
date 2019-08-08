@@ -9,7 +9,7 @@ source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_harmony_12_20190614.Rda"))
+(load(file="data/Lung_8_20190807.Rda"))
 
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -23,8 +23,11 @@ marker.list <- df2list(df_markers)
 marker.list %<>% lapply(function(x) x) %>% 
      lapply(function(x) FilterGenes(object,x)) %>% 
      lapply(function(x) x[!is.na(x)])
-#marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
-Idents(object) <- "RNA_snn_res.0.8"
+marker.list <- marker.list[!is.na(marker.list)]
+marker.list <- marker.list[sapply(marker.list,length)>0]
+marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
+DefaultAssay(object) <- 'RNA'
+Idents(object) <- "integrated_snn_res.0.6"
 
 for(i in 1:length(marker.list)){
     p <- lapply(marker.list[[i]], function(marker) {
@@ -41,29 +44,24 @@ for(i in 1:length(marker.list)){
 }
 
 #======== rename ident =================
-object$cell.type <- plyr::mapvalues(object$RNA_snn_res.0.6,
-                                            from = 0:19,
-                                            to = c("Alveolar macrophages",
-                                                   "Alveolar type I&II cells \nDistal secretory cells",
-                                                   "Endothelial cells",
-                                                   "Macrophages",
-                                                   "T cells",
-                                                   "Stromal fibroblasts",
-                                                   "Monocytes",
-                                                   "Ciliated cells",
-                                                   "Smooth muscle cells",
-                                                   "Secretory cells",
-                                                   "Endothelial cells",
-                                                   "Alveolar type I&II cells \nDistal secretory cells",
-                                                   "B cells",
-                                                   "Red blood cells",
-                                                   "Basal cells",
-                                                   "HSC/progenitor cells",
-                                                   "Lymphatic endothelial cells",
-                                                   "Endothelial cells",
-                                                   "Chondrocytes & Fibroblast",
-                                                   "Alveolar type I&II cells \nDistal secretory cells"))
-object$cell.type <- as.character(object$cell.type)
+object %<>% RenameIdents("0" = "Distal secretory cells",
+                         "1" = "Distal secretory cells",
+                         "2" = "Distal secretory cells",
+                         "3" = "Basal cells",
+                         "4" = "Ciliated cells",
+                         "5" = "Ciliated cells",
+                         "6" = "Ciliated cells",
+                         "7" = "Distal secretory cells",
+                         "8" = "Basal cells",
+                         "9" = "Secretory cells",
+                         "10" = "Secretory cells",
+                         "11" = "Basal cells",
+                         "12" = "Basal cells",
+                         "13" = "Ciliated cells",
+                         "14" = "Basal cells",
+                         "15" = "Ciliated cells")
+
+object[['cell.type']] = Idents(object)
 
 # rename NK cells
 (load(file="output/singlerF_Lung_12_20190614.Rda"))
@@ -92,15 +90,15 @@ singler_colors1 = as.vector(singler_colors$singler.color1[!is.na(singler_colors$
 singler_colors1[duplicated(singler_colors1)]
 length(singler_colors1)
 length(unique(object$cell.type))
-object <- AddMetaColor(object = object, label= "cell.type", colors = singler_colors1)
+object <- AddMetaColor(object = object, label= "cell.type", colors = singler.colors)
 Idents(object) <- "cell.type"
 
 object <- sortIdent(object)
 
-TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
-           label.size = 5, repel = T,no.legend = F,do.print = F,
+TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,label.repel = T,
+           label.size = 5, repel = T,no.legend = F,do.print = T,
            title = "Cell types")
-save(object,file="data/Lung_harmony_12_20190614.Rda")
+save(object,file="data/Lung_8_20190807.Rda")
 
 meta.data = cbind.data.frame(object@meta.data,object@reductions$tsne@cell.embeddings)
 colnames(meta.data)
