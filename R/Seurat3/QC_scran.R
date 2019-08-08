@@ -20,15 +20,15 @@ if(!dir.exists("doc")) dir.create("doc")
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
 #args <- commandArgs(trailingOnly = TRUE)
-args <- "doc/20190119_scRNAseq_info.xlsx"
+args <-"doc/20190509_scRNAseq_info.xlsx"
 if(length(args)==0) stop("Sample info must be provided in excel!")
 df_samples <- readxl::read_excel(args[1])
-print(df_samples)
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",0:2)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
 df_samples <- df_samples[sample_n,]
-samples = df_samples$sample
+print(df_samples)
+(samples = df_samples$sample)
 
 # check missing data
 current <- list.files("data")
@@ -45,10 +45,10 @@ if(length(missing_data)>0){
         # Move files from Download to ./data and rename them
         for(missing_dat in missing_data){
                 old.pth  <- paste("~/Downloads", missing_dat,"outs",
-                                  "filtered_gene_bc_matrices",species,sep = "/")
+                                  "filtered_feature_bc_matrix",sep = "/")
                 list.of.files <- list.files(old.pth)
                 new.folder <- paste("./data", missing_dat,"outs",
-                                    "filtered_gene_bc_matrices",species,sep = "/")
+                                    "filtered_feature_bc_matrix",sep = "/")
                 if(!dir.exists(new.folder)) dir.create(new.folder, recursive = T)
                 # copy the files to the new folder
                 file.copy(paste(old.pth, list.of.files, sep = "/"), new.folder)
@@ -71,10 +71,10 @@ for(i in sample_n){
         Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
 }
 ## Load the  10X dataset
-sample_n = which(df_samples$tests %in% c("control",paste0("test",1:2)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
 for(i in sample_n){
         Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
-                                   "/outs/filtered_gene_bc_matrices/",species))
+                                   "/outs/filtered_feature_bc_matrix/"))
         colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
                                                  min.cells = 0,
@@ -125,7 +125,7 @@ g1 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
 save(g1,file= paste0(path,"g1","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 
 #========1.2 scatter ===============================
-Seurat_list <- lapply(df_samples$sample, function(x) subset(object, idents = x))
+Seurat_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
 
 for(i in 1:length(df_samples$sample)){

@@ -9,8 +9,6 @@ library(dplyr)
 library(cowplot)
 library(kableExtra)
 library(magrittr)
-library(harmony)
-library(scran)
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -24,16 +22,16 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # setup Seurat objects since both count matrices have already filtered
 # cells, we do no additional filtering here
-df_samples <- readxl::read_excel("doc/20190119_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20190509_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",0:2)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
 df_samples = df_samples[sample_n,]
 df_samples
 samples = df_samples$sample
 
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_12_20190614.Rda"))
+(load(file = "data/sce_8_20190807.Rda"))
 names(sce_list)
 object_list <- lapply(sce_list, as.Seurat)
 
@@ -56,16 +54,16 @@ object@meta.data = meta.data
 
 #======1.2 QC, pre-processing and normalizing the data=========================
 Idents(object) = factor(Idents(object),levels = df_samples$sample)
-(load(file = "output/20190614/g1_12_20190614.Rda"))
+(load(file = "output/20190807/g1_8_20190807.Rda"))
 
-object %<>% subset(subset = nFeature_RNA > 500 & nCount_RNA > 1000 & percent.mt < 10)
+object %<>% subset(subset = nFeature_RNA > 1000  & percent.mt < 25)
 # FilterCellsgenerate Vlnplot before and after filteration
 g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
     VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
         theme(axis.text.x = element_text(size=15),legend.position="none")
 })
 
-save(g2,file= paste0(path,"g2_12_20190614.Rda"))
+save(g2,file= paste0(path,"g1_8_20190807.Rda"))
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
                     scale_y_log10(limits = c(100,10000)),
@@ -120,45 +118,64 @@ ElbowPlot(object, ndims = 85)+
 dev.off()
 
 jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 65:80)+
+JackStrawPlot(object, dims = 60:70)+
     ggtitle("JackStrawPlot")+
     theme(text = element_text(size=15),							
           plot.title = element_text(hjust = 0.5,size = 18)) 
 dev.off()
+npcs =65
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindClusters(reduction = "pca",resolution = 1.2,
+                       dims.use = 1:npcs,print.output = FALSE)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 
+object@meta.data$orig.ident %<>% as.factor()
+object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
+p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+                 no.legend = F,label.size = 4, repel = T, title = "Original")
+  #======1.5 Performing SCTransform and integration =========================
+set.seed(100)
+object_list <- SplitObject(object, split.by = "orig.ident")
+remove(object);GC()
+object_list %<>% lapply(SCTransform)
+object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
+options(future.globals.maxSize= 118388608000)
+object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
+                                  verbose = FALSE)
+anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
+                                  anchor.features = object.features)
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT")
+
+remove(anchors,object_list);GC()
+object %<>% RunPCA(npcs = 100, verbose = FALSE)
+#object <- JackStraw(object, num.replicate = 20,dims = 100)
+#object <- ScoreJackStraw(object, dims = 1:100)
+#jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
+#JackStrawPlot(object, dims = 90:100)
+#dev.off()
 npcs =71
-object <- FindNeighbors(object, reduction = "pca",dims = 1:npcs)
-object <- FindClusters(object, reduction = "pca",resolution = 1.2,
-                       dims.use = 1:npcs,print.output = FALSE)
-object <- RunTSNE(reduction = "pca", dims = 1:npcs)
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindClusters(reduction = "pca",resolution = 0.6,
+                         dims.use = 1:npcs,print.output = FALSE)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 
-p1 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 no.legend = T,label.size = 4, repel = T, title = "Original")
-#======1.8 RunHarmony=======================
-jpeg(paste0(path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
-system.time(object <- RunHarmony.1(object, group.by.vars= "orig.ident", dims.use = 1:npcs,
-                                  theta = NULL, plot_convergence = TRUE,#epsilon.harmony = -Inf,
-                                  nclust = 100, max.iter.cluster = 100))
-dev.off()
+p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+                 label.size = 4, repel = T,title = "Intergrated tSNE plot")
 
-object <- FindNeighbors(object, reduction = "harmony",dims = 1:npcs)
-object <- FindClusters(object, reduction = "harmony",resolution = 1.2,
-                       dims.use = 1:npcs,print.output = FALSE)
-object <- RunTSNE(reduction = "harmony", dims = 1:npcs)
-object <- RunUMAP(reduction = "harmony", dims = 1:npcs)
+#=======1.9 summary =======================================
 
-p2 <- TSNEPlot.1(object, group.by="RNA_snn_res.1.2",pt.size = 1,label = T,
-                 label.size = 4, repel = T,title = "Correct by Harmony")
-
-jpeg(paste0(path,"harmony_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
-plot_grid(p1 + NoLegend(),p2 + NoLegend())
+jpeg(paste0(path,"S1_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p0+ggtitle("Clustering without integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)),
+          p2+ggtitle("Clustering with integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
 TSNEPlot.1(object = object, label = F, group.by = "ident", 
          do.return = TRUE, no.legend = F, title = "Tsne plot for all clusters",
          pt.size = 1,label.size = 6, do.print = T)
 
-object@assays$RNA@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_harmony_12_20190614.Rda")
+object@assays$integrated@scale.data = matrix(0,0,0)
+save(object, file = "data/Lung_harmony_12_20190803.Rda")
 object_data = object@assays$RNA@data
 save(object_data, file = "data/Lung.data_harmony_12_20190614.Rda")
