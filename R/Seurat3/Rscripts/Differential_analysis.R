@@ -22,16 +22,20 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-# 3.1.1 load data
-# Rename ident
+
+# samples
 samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
              "Day-56","Day-122")
 (sample = samples[args])
-(load(file = "data/Lung_8_20190807.Rda"))
-Idents(object) = "orig.ident"
+
+# 3.1.1 load data
+(load(file = "data/Lung_8_20190808.Rda"))
+Idents(object) <-  "Doublets"
+object %<>% subset(idents = "Singlet")
+Idents(object) <- "orig.ident"
 if(args>1) object %<>% subset(idents = sample)
-Idents(object) <- "integrated_snn_res.0.6"
-Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25,
+Idents(object) <- "integrated_snn_res.1.2"
+Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1,
                                    only.pos = T)
 
 write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
@@ -39,8 +43,9 @@ write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
 
 object %<>% ScaleData(features=unique(Lung_markers$gene))
 DoHeatmap.1(object, marker_df = Lung_markers, Top_n = 5, do.print=T, angle = 0,
-            group.bar = T, title.size = 13, no.legend = F,size=0,hjust = 0.5,
-            label=F, cex.row=5, legend.size = 5,width=10, height=7,
-            title = paste("Top 5 markers in each clusters",sample, 
-                          ifelse(args==1,"sampels","sample")))
+            group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
+            assay = "SCT",
+            label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = T,
+            title = paste("Top 5 markers in each clusters",sample,
+                          ifelse(sample=="All","sampels","sample")))
 

@@ -6,11 +6,11 @@ library(magrittr)
 library(readxl)
 library(cowplot)
 source("../R/Seurat3_functions.R")
-path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_8_20190807.Rda"))
-
+(load(file="data/Lung_8_20190808.Rda"))
+DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
 #df_markers <- readxl::read_excel("../seurat_resources/bio-rad-markers.xlsx",sheet = "Human.sub")
@@ -26,12 +26,13 @@ marker.list %<>% lapply(function(x) x) %>%
 marker.list <- marker.list[!is.na(marker.list)]
 marker.list <- marker.list[sapply(marker.list,length)>0]
 marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
-DefaultAssay(object) <- 'RNA'
-Idents(object) <- "integrated_snn_res.0.6"
+DefaultAssay(object) <- 'SCT'
+Idents(object) <- "integrated_snn_res.1.2"
 
 for(i in 1:length(marker.list)){
     p <- lapply(marker.list[[i]], function(marker) {
-        FeaturePlot(object = object, features = marker,pt.size = 0.5, label=T)+
+        FeaturePlot(object = object, features = marker,pt.size = 0.5, label=T,
+                    reduction = "umap")+
             NoLegend()+
             ggtitle(paste0(marker,Alias(df = df_markers,gene = marker)))+
             theme(plot.title = element_text(hjust = 0.5,size = 15,face = "plain"))
@@ -42,41 +43,38 @@ for(i in 1:length(marker.list)){
     dev.off()
     print(paste0(i,":",length(marker.list)))
 }
+"Basal cells",
+
+
 
 #======== rename ident =================
-object %<>% RenameIdents("0" = "Distal secretory cells",
+object %<>% RenameIdents("0" = "Secretory cells",
                          "1" = "Distal secretory cells",
-                         "2" = "Distal secretory cells",
+                         "2" = "Ciliated cells",
                          "3" = "Basal cells",
-                         "4" = "Ciliated cells",
-                         "5" = "Ciliated cells",
+                         "4" = "Secretory cells",
+                         "5" = "Basal cells",
                          "6" = "Ciliated cells",
-                         "7" = "Distal secretory cells",
+                         "7" = "Ciliated cells",
                          "8" = "Basal cells",
-                         "9" = "Secretory cells",
+                         "9" = "Distal secretory cells",
                          "10" = "Secretory cells",
-                         "11" = "Basal cells",
-                         "12" = "Basal cells",
-                         "13" = "Ciliated cells",
-                         "14" = "Basal cells",
-                         "15" = "Ciliated cells")
+                         "11" = "Secretory cells",
+                         "12" = "Distal secretory cells",
+                         "13" = "Secretory cells",
+                         "14" = "Distal secretory cells",
+                         "15" = "Ciliated cells",
+                         "16" = "Ciliated cells",
+                         "17" = "Ciliated cells",
+                         "18" = "Ciliated cells",
+                         "19" = "Basal cells",
+                         "20" = "Mast cells",
+                         "21" = "Ciliated cells",
+                         "22" = "Distal secretory cells")
+                            
 
 object[['cell.type']] = Idents(object)
 
-# rename NK cells
-(load(file="output/singlerF_Lung_12_20190614.Rda"))
-singlerDF = data.frame("singler1sub" = singler$singler[[1]]$SingleR.single$labels,
-                       row.names = rownames(singler$singler[[1]]$SingleR.single$labels))
-head(singlerDF)
-NK_cells <-  rownames(singlerDF)[singlerDF$singler1sub %in% "NK_cells"]
-# PECAM1_neg
-SELE <- WhichCells(object, expression = SELE >0 )
-
-
-object@meta.data[NK_cells,"cell.type"] = "NK cells"
-object@meta.data[SELE,"cell.type"] = "Endothelial PECAM1-neg"
-
-Idents(object) <- "cell.type"
 TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
            label.size = 5, repel = T,no.legend = F,do.print = F,
            title = "Cell types")
@@ -90,7 +88,7 @@ singler_colors1 = as.vector(singler_colors$singler.color1[!is.na(singler_colors$
 singler_colors1[duplicated(singler_colors1)]
 length(singler_colors1)
 length(unique(object$cell.type))
-object <- AddMetaColor(object = object, label= "cell.type", colors = singler.colors)
+object <- AddMetaColor(object = object, label= "cell.type", colors = SingleR::singler.colors)
 Idents(object) <- "cell.type"
 
 object <- sortIdent(object)
@@ -98,24 +96,35 @@ object <- sortIdent(object)
 TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,label.repel = T,
            label.size = 5, repel = T,no.legend = F,do.print = T,
            title = "Cell types")
-save(object,file="data/Lung_8_20190807.Rda")
+UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,label.repel = T,
+           label.size = 5, repel = T,no.legend = F,do.print = T,
+           title = "Cell types")
+save(object,file="data/Lung_8_20190808.Rda")
 
-meta.data = cbind.data.frame(object@meta.data,object@reductions$tsne@cell.embeddings)
-colnames(meta.data)
-meta.data = meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.1.2","cell.type")]
-meta.data$RNA_snn_res.1.2 = as.numeric(as.character(meta.data$RNA_snn_res.1.2))
+Idents(object) = "orig.ident"
+(samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
+             "Day-56","Day-122"))
+for(sample in samples[-1]){
+    sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
+    meta.data = cbind.data.frame(sub_object@meta.data,
+                                 sub_object@reductions$tsne@cell.embeddings,
+                                 sub_object@reductions$umap@cell.embeddings)
+    meta.data = meta.data[,c("tSNE_1","tSNE_2","UMAP_1","UMAP_2","integrated_snn_res.1.2")]
+    meta.data$integrated_snn_res.1.2 = as.numeric(as.character(meta.data$integrated_snn_res.1.2))
+    
+    meta.data = meta.data[order(meta.data$integrated_snn_res.1.2),]
+    print(colnames(meta.data))
+    write.csv(meta.data, paste0(path,sample,"_tSNE_UMAP_coordinates.csv"))
+    
+    data = as.matrix(DelayedArray::t(sub_object@assays$SCT@data))
+    tsne_data = cbind(meta.data[,3:5], data[match(rownames(meta.data),
+                                                  rownames(data)), ])
+    
+    tsne_data = tsne_data[,-1:2]
+    write.csv(DelayedArray::t(tsne_data), paste0(path,sample,"_Expression_data.csv"))
+}
 
-meta.data$cell.type = gsub(" \n",", ",meta.data$cell.type)
-table(meta.data$cell.type)
-meta.data = meta.data[order(meta.data$RNA_snn_res.1.2),]
-write.csv(meta.data, paste0(path,"tSNE_coordinates.csv"))
 
-data = as.matrix(t(object@assays$RNA@data))
-tsne_data = cbind(meta.data[,3:4], data[match(rownames(meta.data),
-                                        rownames(data)), ])
-
-tsne_data[1:4,1:5]
-write.csv(t(tsne_data), paste0(path,"Lung_exp.csv"))
 
 #====== 2.2 Identify Epi cell types ==========================================
 (load(file="data/Epi_harmony_12_20190627.Rda"))

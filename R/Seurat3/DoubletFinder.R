@@ -134,6 +134,8 @@ object@meta.data = meta.data
 
 TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
 
 table(object$Doublets) %>% prop.table %>% kable %>% kable_styling()
 table(object$Doublets, object$cell.types) %>% kable %>% kable_styling()

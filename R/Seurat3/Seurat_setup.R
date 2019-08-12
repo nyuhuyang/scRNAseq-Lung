@@ -53,7 +53,8 @@ meta.data = object@meta.data[,-remove]
 object@meta.data = meta.data 
 
 #======1.2 QC, pre-processing and normalizing the data=========================
-object@meta.data$orig.ident = factor(Idents(object),levels = df_samples$sample)
+object@meta.data$orig.ident %<>% as.factor()
+object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 (load(file = "output/20190807/g1_8_20190807.Rda"))
 
 object %<>% subset(subset = nFeature_RNA > 1000  & nCount_RNA > 2000 & percent.mt < 25)
@@ -132,7 +133,7 @@ JackStrawPlot(object, dims = 60:70)+
 dev.off()
 npcs =65
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(reduction = "pca",resolution = 1.2,
+object %<>% FindClusters(reduction = "pca",resolution = 0.6,
                        dims.use = 1:npcs,print.output = FALSE)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 
@@ -161,28 +162,34 @@ object %<>% RunPCA(npcs = 100, verbose = FALSE)
 #jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
 #JackStrawPlot(object, dims = 90:100)
 #dev.off()
-npcs =71
+npcs =65
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(reduction = "pca",resolution = 0.6,
+object %<>% FindClusters(reduction = "pca",resolution = 1.2,
                          dims.use = 1:npcs,print.output = FALSE)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
-
+p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+                 label.size = 4, repel = T,title = "Intergrated UMAP plot")
 p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated tSNE plot")
-
 #=======1.9 summary =======================================
 
-jpeg(paste0(path,"S1_remove_batch.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p0+ggtitle("Clustering without integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)),
           p2+ggtitle("Clustering with integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-TSNEPlot.1(object = object, label = F, group.by = "integrated_snn_res.0.6", 
-         do.return = F, no.legend = F, title = "Tsne plot for all clusters",
-         pt.size = 0.3,label.size = 6, do.print = T)
+TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+         do.return = F, no.legend = F, title = "tSNE plot for all clusters",
+         pt.size = 0.3,alpha = 1, label.size = 6, do.print = T)
 
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.1.2", 
+           do.return = F, no.legend = F, title = "UMAP plot for all clusters",
+           pt.size = 0.2,alpha = 1, label.size = 6, do.print = T)
+
+table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
 save(object, file = "data/Lung_8_20190808.Rda")
 object_data = object@assays$RNA@data
