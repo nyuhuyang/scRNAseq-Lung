@@ -9,7 +9,7 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_8_20190808.Rda"))
+(load(file="data/Lung_9_20190813.Rda"))
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -43,41 +43,45 @@ for(i in 1:length(marker.list)){
     dev.off()
     print(paste0(i,":",length(marker.list)))
 }
-"Basal cells",
-
-
 
 #======== rename ident =================
-object %<>% RenameIdents("0" = "Secretory cells",
-                         "1" = "Distal secretory cells",
-                         "2" = "Ciliated cells",
-                         "3" = "Basal cells",
-                         "4" = "Secretory cells",
-                         "5" = "Basal cells",
-                         "6" = "Ciliated cells",
-                         "7" = "Ciliated cells",
-                         "8" = "Basal cells",
-                         "9" = "Distal secretory cells",
-                         "10" = "Secretory cells",
-                         "11" = "Secretory cells",
-                         "12" = "Distal secretory cells",
-                         "13" = "Secretory cells",
-                         "14" = "Distal secretory cells",
-                         "15" = "Ciliated cells",
-                         "16" = "Ciliated cells",
-                         "17" = "Ciliated cells",
+object %<>% RenameIdents("0" = "Alveolar cells/Distal secretory cells",
+                         "1" = "Endothelial cells",
+                         "2" = "Alveolar cells/Distal secretory cells",
+                         "3" = "Smooth muscle cells",
+                         "4" = "Macrophages",
+                         "5" = "Endothelial cells",
+                         "6" = "Stromal/fibroblasts",
+                         "7" = "Endothelial cells",
+                         "8" = "T cells",
+                         "9" = "T cells",
+                         "10" = "NK cells",
+                         "11" = "Ciliated cells",
+                         "12" = "Secretory cells",
+                         "13" = "Alveolar cells/Distal secretory cells",
+                         "14" = "Monocytes",
+                         "15" = "Endothelial cells",
+                         "16" = "Stromal/fibroblasts",
+                         "17" = "Basal cells",
                          "18" = "Ciliated cells",
-                         "19" = "Basal cells",
-                         "20" = "Mast cells",
-                         "21" = "Ciliated cells",
-                         "22" = "Distal secretory cells")
-                            
-
-object[['cell.type']] = Idents(object)
-
-TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,
-           label.size = 5, repel = T,no.legend = F,do.print = F,
-           title = "Cell types")
+                         "19" = "Alveolar macrophages",
+                         "20" = "Stromal/fibroblasts",
+                         "21" = "Lymphatic endothelial cells",
+                         "22" = "Ciliated cells",
+                         "23" = "B cells",
+                         "24" = "Stromal/fibroblasts",
+                         "25" = "Mast cells")
+object@meta.data$cell.type = Idents(object)
+#object@meta.data$cell.type %<>% as.character()
+#object@meta.data$singler1main %<>% as.character()
+#T_cell <- grep("T-cells",object@meta.data[,"singler1main"])
+#object@meta.data[T_cell,"cell.type"] = object@meta.data[T_cell,"singler1main"]
+object %<>% sortIdent()
+object <- AddMetaColor(object = object, label= "cell.type", colors = Singler.colors)
+Idents(object) = "cell.type"
+UMAPPlot.1(object, group.by = "cell.type",cols = ExtractMetaColor(object),label = T,
+           label.repel = T, pt.size = 0.5,label.size = 4, repel = T,no.legend = T,
+           do.print = T,do.return = F,title = "Cell types")
 ##############################
 # process color scheme
 ##############################
@@ -104,7 +108,7 @@ save(object,file="data/Lung_8_20190808.Rda")
 Idents(object) = "orig.ident"
 (samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
              "Day-56","Day-122"))
-for(sample in samples[-1]){
+for(sample in samples[-c(1:2)]){
     sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
     meta.data = cbind.data.frame(sub_object@meta.data,
                                  sub_object@reductions$tsne@cell.embeddings,
@@ -120,7 +124,7 @@ for(sample in samples[-1]){
     tsne_data = cbind(meta.data[,3:5], data[match(rownames(meta.data),
                                                   rownames(data)), ])
     
-    tsne_data = tsne_data[,-1:2]
+    tsne_data = tsne_data[,-c(1:2)]
     write.csv(DelayedArray::t(tsne_data), paste0(path,sample,"_Expression_data.csv"))
 }
 

@@ -28,15 +28,19 @@ Idents(object) <-  "Doublets"
 table(Idents(object)) %>% prop.table(margin=2) %>% kable_styling()
 object %<>% subset(idents = "Singlet")
 Idents(object) <- "orig.ident"
-for(sample in samples[1]){
-        sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
-        Idents(sub_object) <- "integrated_snn_res.0.6"
+for(sample in samples[-1]){
+        #sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
+        #Idents(sub_object) <- "integrated_snn_res.1.2"
         #Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25,
         #                                   only.pos = T)
         
         #write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
-        Lung_markers =read.csv(file = paste0("output/20190808/Lung_6-",sample,"_markers.csv"),
+        
+        Lung_markers =read.csv(file = paste0("output/20190811/5. DE analysis/CSV files/Lung_6-",sample,"_markers.csv"),
                                         row.names = 1, stringsAsFactors=F)
+        Lung_markers = Lung_markers[Lung_markers$p_val_adj <0.05,]
+        write.csv(Lung_markers,paste0("output/20190811/5. DE analysis/CSV files/Lung_6-",sample,"_markers.csv"))
+
         TSNEPlot.1(sub_object,label = T, repel = T, label.repel = T,no.legend = F,pt.size = 1,
                    cols = ExtractMetaColor(sub_object),do.return = F,do.print = T,
                    unique.name = T,label.size = 5,

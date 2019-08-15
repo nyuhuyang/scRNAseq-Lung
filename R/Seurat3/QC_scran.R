@@ -25,7 +25,7 @@ if(length(args)==0) stop("Sample info must be provided in excel!")
 df_samples <- readxl::read_excel(args[1])
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",0:3)))
 df_samples <- df_samples[sample_n,]
 print(df_samples)
 (samples = df_samples$sample)
@@ -70,17 +70,29 @@ for(i in sample_n){
                                                min.features = 0)
         Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
 }
-## Load the  10X dataset
-sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
+## Load the 10X dataset
+sample_n = which(df_samples$tests %in% c("control",paste0("test",1:3)))
 for(i in sample_n){
         Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
-                                   "/outs/filtered_feature_bc_matrix/"))
+                                   "/outs/filtered_gene_bc_matrices/",species))
         colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
                                                  min.cells = 0,
                                                min.features = 0)
         Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
 
+}
+## Load the new version 10X dataset
+sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
+for(i in sample_n){
+        Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
+                                                     "/outs/filtered_feature_bc_matrix/"))
+        colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
+        Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
+                                               min.cells = 0,
+                                               min.features = 0)
+        Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
+        
 }
 remove(Seurat_raw);GC()
 
@@ -100,11 +112,11 @@ if(is.na(args[2])){
         
         QC.list <- cbind(df_samples,cell.number, median.nUMI, median.nGene,
                          min.nUMI,min.nGene, row.names = df_samples$sample)
-        write.csv(QC.list,paste0(path,"QC_list.csv"))
+        write.csv(QC.list,paste0(path,"test1_3_QC_list.csv"))
         #QC.list %>% kable() %>% kable_styling()
         remove(QC_list,median.nUMI,median.nGene,min.nUMI,min.nGene,QC.list);GC()
 }
-#========1.1.3 g1 ===================================
+#========1.1.3 g1 QC plots before filteration=================================
 object <- Reduce(function(x, y) merge(x, y, do.normalize = F), Seurat_list)
 remove(Seurat_list);GC()
 
@@ -124,7 +136,7 @@ g1 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
 })
 save(g1,file= paste0(path,"g1","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 
-#========1.2 scatter ===============================
+#========1.2 scatter and scran ===============================
 Seurat_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
 

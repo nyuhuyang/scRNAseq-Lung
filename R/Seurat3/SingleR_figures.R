@@ -1,4 +1,3 @@
-library(SingleR)
 library(Seurat)
 library(magrittr)
 library(pheatmap)
@@ -14,8 +13,8 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #====== 3.2 SingleR specifications ==========================================
 # Step 1: Spearman coefficient
-(load(file = "data/Lung_8_20190807.Rda"))
-(load(file="output/singlerF_Lung_8_20190807.Rda"))
+(load(file = "data/Lung_9_20190813.Rda"))
+(load(file="output/singlerF_Lung_9_20190813.Rda"))
 
 # if singler didn't find all cell labels
 length(singler$singler[[1]]$SingleR.single$labels) == ncol(object)
@@ -36,7 +35,7 @@ save(singler,file="output/singlerF_Lung_8_20190807.Rda")
 
 singlerDF = data.frame("singler1sub" = singler$singler[[1]]$SingleR.single$labels,
                        "singler1main" = singler$singler[[1]]$SingleR.single.main$labels,
-                       #"orig.ident"  = object$orig.ident,
+                       "orig.ident"  = object$orig.ident,
                        row.names = rownames(singler$singler[[1]]$SingleR.single$labels))
 head(singlerDF)
 apply(singlerDF,2,function(x) length(unique(x)))
@@ -47,11 +46,11 @@ apply(singlerDF,2,function(x) length(unique(x)))
 #Or by all cell types (showing the top 50 cell types):
 jpeg(paste0(path,"DrawHeatmap_sub1.jpeg"), units="in", width=10, height=7,
      res=600)
-print(SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single, top.n = 50,normalize = F))
+print(SingleR::SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single, top.n = 50,normalize = F))
 dev.off()
 jpeg(paste0(path,"DrawHeatmap_sub1_N.jpeg"), units="in", width=10, height=7,
      res=600)
-print(SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single,top.n = 50,normalize = T))
+print(SingleR::SingleR.DrawHeatmap(singler$singler[[1]]$SingleR.single,top.n = 50,normalize = T))
 dev.off()
 
 #Finally, we can also view the labeling as a table compared to the original identities:
@@ -61,21 +60,14 @@ table(singlerDF$singler1sub) %>% kable %>% kable_styling()
 # process color scheme
 ##############################
 
-singler_colors <- readxl::read_excel("doc/singler.colors.xlsx")
-singler_colors = singler_colors[,c("singler.color","usable")]
-usable = as.logical(singler_colors$usable) & !is.na(singler_colors$usable)
-singler_colors = singler_colors[usable,]
-singler_colors1 = as.vector(singler_colors$singler.color[!is.na(singler_colors$singler.color)])
-singler_colors1[duplicated(singler_colors1)]
-length(singler_colors1)
 apply(singlerDF[,c("singler1sub","singler1main")],2,function(x) length(unique(x)))
-singlerDF[,c("singler1sub")] %>% table() #%>% kable() %>% kable_styling()
+singlerDF[,c("singler1sub")] %>% table() %>% kable() %>% kable_styling()
 object <- AddMetaData(object = object,metadata = singlerDF)
-object <- AddMetaColor(object = object, label= "singler1main", colors = singler_colors1)
-Idents(object) <- "singler1sub"
+object <- AddMetaColor(object = object, label= "singler1main", colors = Singler.colors)
+Idents(object) <- "singler1main"
 
-TSNEPlot.1(object, cols = ExtractMetaColor(object),label = F,pt.size = 1,
-         label.size = 5, repel = T,no.legend = F,do.print = T,
+UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
+         label.size = 4, repel = T,no.legend = T,do.print = T,
          title = "Minor cell types")
 save(object,file="data/Lung_harmony_12_20190614.Rda")
 ##############################

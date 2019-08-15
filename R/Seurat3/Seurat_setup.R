@@ -24,20 +24,21 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # cells, we do no additional filtering here
 df_samples <- readxl::read_excel("doc/20190509_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",1:3)))
 df_samples = df_samples[sample_n,]
 df_samples
 (samples = df_samples$sample)
 
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_8_20190807.Rda"))
+(load(file = "data/sce_9_20190813.Rda"))
 names(sce_list)
 object_list <- lapply(sce_list, as.Seurat)
 
 for(i in 1:length(samples)){
     object_list[[i]]$orig.ident <- df_samples$sample[i]
     object_list[[i]]$conditions <- df_samples$conditions[i]
+    object_list[[i]]$group <- df_samples$group[i]
     object_list[[i]]$project <- df_samples$project[i]
     object_list[[i]]$tests <- df_samples$tests[i]
     Idents(object_list[[i]]) <- df_samples$sample[i]
@@ -51,20 +52,20 @@ remove(sce_list,object_list);GC()
 (remove <- which(colnames(object@meta.data) %in% "ident"))
 meta.data = object@meta.data[,-remove]
 object@meta.data = meta.data 
-
+remove(meta.data);GC()
 #======1.2 QC, pre-processing and normalizing the data=========================
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
-(load(file = "output/20190807/g1_8_20190807.Rda"))
+Idents(object) = "orig.ident"
+(load(file = "output/20190813/g1_9_20190813.Rda"))
 
-object %<>% subset(subset = nFeature_RNA > 1000  & nCount_RNA > 2000 & percent.mt < 25)
+object %<>% subset(subset = nFeature_RNA > 500  & nCount_RNA > 1500 & percent.mt < 10)
 # FilterCellsgenerate Vlnplot before and after filteration
 g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
     VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
         theme(axis.text.x = element_text(size=15),legend.position="none")
 })
-
-save(g2,file= paste0(path,"g2_8_20190807.Rda"))
+save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
                     scale_y_log10(limits = c(100,10000))+
@@ -116,7 +117,7 @@ object <- ScaleData(object = object,features = rownames(object))
 object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = 100)
 object@assays$RNA@scale.data = matrix(0,0,0)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
-object <- ScoreJackStraw(object, dims = 1:85)
+object <- ScoreJackStraw(object, dims = 1:100)
 
 jpeg(paste0(path,"ElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
 ElbowPlot(object, ndims = 85)+
@@ -131,24 +132,27 @@ JackStrawPlot(object, dims = 60:70)+
     theme(text = element_text(size=15),							
           plot.title = element_text(hjust = 0.5,size = 18)) 
 dev.off()
-npcs =65
+npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(reduction = "pca",resolution = 0.6,
-                       dims.use = 1:npcs,print.output = FALSE)
-object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
+object %<>% FindClusters(reduction = "pca",resolution = 1.2,
+                       dims.use = 1:npcs, print.output = FALSE)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
-save(p0,file= paste0(path,"p0_Original_20190807.Rda"))
+p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+                 no.legend = F,label.size = 4, repel = T, title = "Original")
+save(p0,p1,file= paste0(path,"p0_Original_20190807.Rda"))
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)
 object_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
 object_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
-options(future.globals.maxSize= 118388608000)
+options(future.globals.maxSize= object.size(object_list)*1.5)
 object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
                                   verbose = FALSE)
 anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
@@ -157,23 +161,22 @@ object <- IntegrateData(anchorset = anchors, normalization.method = "SCT")
 
 remove(anchors,object_list);GC()
 object %<>% RunPCA(npcs = 100, verbose = FALSE)
-#object <- JackStraw(object, num.replicate = 20,dims = 100)
-#object <- ScoreJackStraw(object, dims = 1:100)
-#jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
-#JackStrawPlot(object, dims = 90:100)
-#dev.off()
-npcs =65
+object <- JackStraw(object, num.replicate = 20,dims = 100)
+object <- ScoreJackStraw(object, dims = 1:100)
+jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
+JackStrawPlot(object, dims = 90:100)
+dev.off()
+npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
 object %<>% FindClusters(reduction = "pca",resolution = 1.2,
                          dims.use = 1:npcs,print.output = FALSE)
-object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
-p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 label.size = 4, repel = T,title = "Intergrated UMAP plot")
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated tSNE plot")
+p3 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
+                 label.size = 4, repel = T,title = "Intergrated UMAP plot")
 #=======1.9 summary =======================================
-
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p0+ggtitle("Clustering without integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)),
@@ -181,16 +184,23 @@ plot_grid(p0+ggtitle("Clustering without integration")+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+jpeg(paste0(path,"S1_remove_batch_umap.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(p1+ggtitle("Clustering without integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)),
+          p3+ggtitle("Clustering with integration")+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)))
+dev.off()
+
+TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.1.2", 
          do.return = F, no.legend = F, title = "tSNE plot for all clusters",
-         pt.size = 0.3,alpha = 1, label.size = 6, do.print = T)
+         pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 
 UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.1.2", 
            do.return = F, no.legend = F, title = "UMAP plot for all clusters",
-           pt.size = 0.2,alpha = 1, label.size = 6, do.print = T)
+           pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_8_20190808.Rda")
+save(object, file = "data/Lung_9_20190813.Rda")
 object_data = object@assays$RNA@data
-save(object_data, file = "data/Lung.data_8_20190808.Rda")
+save(object_data, file = "data/Lung.data_9_20190813.Rda")
