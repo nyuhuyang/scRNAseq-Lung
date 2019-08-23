@@ -55,9 +55,11 @@ g <- plot_cells(cds, color_cells_by="cell.type",cell_size = 1,
                 label_cell_groups = F,
                 label_groups_by_cluster = F, 
                 label_branch_points = F)+scale_colour_manual(values = ExtractMetaColor(object))
-
-
 jpeg(paste0(path,"pseudotime~.jpeg"), units="in", width=10, height=7,res=600)
 print(g)+ ggtitle("Pseudotime trajectory from Seurat")+ 
         theme(plot.title = element_text(size=20, hjust = 0.5,face="plain"))
 dev.off()
+
+object$conditions = (gsub(".*\\-","",object$orig.ident))
+object$conditions %<>% plyr::mapvalues(from = c("D","P","Repeat","T"),
+                                       to = c("distal", "proximal", "distal", "terminal"))

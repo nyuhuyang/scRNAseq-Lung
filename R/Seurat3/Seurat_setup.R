@@ -22,16 +22,16 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # setup Seurat objects since both count matrices have already filtered
 # cells, we do no additional filtering here
-df_samples <- readxl::read_excel("doc/20190509_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20190815_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",1:3)))
+sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:15)))
 df_samples = df_samples[sample_n,]
 df_samples
 (samples = df_samples$sample)
 
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_9_20190813.Rda"))
+(load(file = "data/sce_24_20190823.Rda"))
 names(sce_list)
 object_list <- lapply(sce_list, as.Seurat)
 
@@ -57,7 +57,7 @@ remove(meta.data);GC()
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 Idents(object) = "orig.ident"
-(load(file = "output/20190813/g1_9_20190813.Rda"))
+(load(file = "output/20190823/g1_24_20190823.Rda"))
 
 object %<>% subset(subset = nFeature_RNA > 500  & nCount_RNA > 1500 & percent.mt < 10)
 # FilterCellsgenerate Vlnplot before and after filteration
@@ -127,7 +127,7 @@ ElbowPlot(object, ndims = 85)+
 dev.off()
 
 jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 60:70)+
+JackStrawPlot(object, dims = 80:100)+
     ggtitle("JackStrawPlot")+
     theme(text = element_text(size=15),							
           plot.title = element_text(hjust = 0.5,size = 18)) 
@@ -195,12 +195,12 @@ TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
          do.return = F, no.legend = F, title = "tSNE plot for all clusters",
          pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 
-UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.1.2", 
-           do.return = F, no.legend = F, title = "UMAP plot for all clusters",
-           pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "conditions", 
+           do.return = T, no.legend = F, title = "UMAP plot for all clusters",
+           pt.size = 0.2,alpha = 1, label.size = 5, do.print = F)
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_9_20190813.Rda")
+save(object, file = "data/Lung_24_20190823.Rda")
 object_data = object@assays$RNA@data
-save(object_data, file = "data/Lung.data_9_20190813.Rda")
+save(object_data, file = "data/Lung.data_24_20190823.Rda")

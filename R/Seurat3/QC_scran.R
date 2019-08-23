@@ -20,12 +20,13 @@ if(!dir.exists("doc")) dir.create("doc")
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
 #args <- commandArgs(trailingOnly = TRUE)
-args <-"doc/20190509_scRNAseq_info.xlsx"
+args <-"doc/20190815_scRNAseq_info.xlsx"
 if(length(args)==0) stop("Sample info must be provided in excel!")
 df_samples <- readxl::read_excel(args[1])
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% c("control",paste0("test",0:3)))
+sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:15)))
+sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
 df_samples <- df_samples[sample_n,]
 print(df_samples)
 (samples = df_samples$sample)
@@ -83,7 +84,7 @@ for(i in sample_n){
 
 }
 ## Load the new version 10X dataset
-sample_n = which(df_samples$tests %in% c("control",paste0("test",4)))
+sample_n = which(df_samples$tests %in% c("control",paste0("test",5:15)))
 for(i in sample_n){
         Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
                                                      "/outs/filtered_feature_bc_matrix/"))
@@ -95,8 +96,6 @@ for(i in sample_n){
         
 }
 remove(Seurat_raw);GC()
-
-
 #======1.1.2 record data quality before removing low quanlity cells =========================
 # if args 2 is passed
 args[2] = as.character(args[2])
