@@ -9,7 +9,7 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_9_20190813.Rda"))
+(load(file="data/Lung_24_20190824.Rda"))
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -27,7 +27,7 @@ marker.list <- marker.list[!is.na(marker.list)]
 marker.list <- marker.list[sapply(marker.list,length)>0]
 marker.list %>% list2df %>% t %>% kable() %>% kable_styling()
 DefaultAssay(object) <- 'SCT'
-Idents(object) <- "integrated_snn_res.1.2"
+Idents(object) <- "integrated_snn_res.0.6"
 
 for(i in 1:length(marker.list)){
     p <- lapply(marker.list[[i]], function(marker) {

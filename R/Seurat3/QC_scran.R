@@ -111,7 +111,7 @@ if(is.na(args[2])){
         
         QC.list <- cbind(df_samples,cell.number, median.nUMI, median.nGene,
                          min.nUMI,min.nGene, row.names = df_samples$sample)
-        write.csv(QC.list,paste0(path,"test1_3_QC_list.csv"))
+        write.csv(QC.list,paste0(path,"test24_QC_list.csv"))
         #QC.list %>% kable() %>% kable_styling()
         remove(QC_list,median.nUMI,median.nGene,min.nUMI,min.nGene,QC.list);GC()
 }
