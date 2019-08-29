@@ -1,13 +1,4 @@
 ####################################
-# install packages
-BiocManager::install()
-BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
-                       'limma', 'S4Vectors', 'SingleCellExperiment',
-                       'SummarizedExperiment'))
-install.packages("reticulate")
-reticulate::py_install("louvain")
-devtools::install_github('cole-trapnell-lab/monocle3')
-####################################
 library(monocle3)
 library(Seurat)
 library(dplyr)
@@ -15,14 +6,28 @@ library(magrittr)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
+
+# SLURM_ARRAY_TASK_ID
+set.seed=101
+slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
+# coerce the value to an integer
+args <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",args))
+
+# samples
+samples = c("combined","distal","proximal","terminal")
+(con <- samples[args])
+
+
 # 5.0 Preliminaries: Load the data
 
 (load(file = "data/Lung_24_20190824.Rda"))
 Idents(object) = "group"
 object %<>% subset(idents ="UNC-44", invert = T)
+cellUse = object$conditions %in% con
+object <- object[,cellUse]
 Idents(object) = "cell.type"
-UMAPPlot.1(object,cols = ExtractMetaColor(object),label.repel = T,label = T,
-           no.legend = T,do.print = T)
 Epi <- subset(object, idents=c("Alveolar cells/Distal secretory cells",
                                "Ciliated cells","Basal cells","Secretory cells"))
 Epi@meta.data = cbind(Epi@meta.data,Epi@reductions$umap@cell.embeddings)
@@ -57,7 +62,7 @@ g <- plot_cells(cds, color_cells_by="cell.type",cell_size = 1,
                 label_cell_groups = F,
                 label_groups_by_cluster = F, 
                 label_branch_points = F)+scale_colour_manual(values = ExtractMetaColor(object))
-jpeg(paste0(path,"combined_","pseudotime.jpeg"), units="in", width=10, height=7,res=600)
-print(g)+ ggtitle("Pseudotime trajectory for all combined samples")+ 
+jpeg(paste0(path,con,"_pseudotime.jpeg"), units="in", width=10, height=7,res=600)
+print(g)+ ggtitle(paste("Pseudotime trajectory of",con,"samples"))+ 
         theme(plot.title = element_text(size=20, hjust = 0.5,face="plain"))
 dev.off()

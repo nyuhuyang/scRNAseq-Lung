@@ -173,8 +173,7 @@ JackStrawPlot(object, dims = 90:100)
 dev.off()
 npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(reduction = "pca",resolution = 0.6,
-                         dims.use = 1:npcs,print.output = FALSE)
+object %<>% FindClusters(resolution = 0.6)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
@@ -201,7 +200,8 @@ TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
          do.return = F, no.legend = F, title = "tSNE plot for all clusters",
          pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 
-UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+UMAPPlot.1(object = object, label = T,label.repel = T, 
+           group.by = "integrated_snn_res.0.6", cols = Singler.colors,
            do.return = T, no.legend = F, title = "UMAP plot for all clusters",
            pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
 

@@ -45,66 +45,81 @@ for(i in 1:length(marker.list)){
 }
 
 #======== rename ident =================
-object %<>% RenameIdents("0" = "Alveolar cells/Distal secretory cells",
-                         "1" = "Endothelial cells",
-                         "2" = "Alveolar cells/Distal secretory cells",
-                         "3" = "Smooth muscle cells",
-                         "4" = "Macrophages",
+object %<>% RenameIdents("0" = "NK cells",
+                         "1" = "T cells",
+                         "2" = "Ciliated cells",
+                         "3" = "Macrophages",
+                         "4" = "Stromal/fibroblasts",
                          "5" = "Endothelial cells",
-                         "6" = "Stromal/fibroblasts",
-                         "7" = "Endothelial cells",
-                         "8" = "T cells",
-                         "9" = "T cells",
-                         "10" = "NK cells",
-                         "11" = "Ciliated cells",
-                         "12" = "Secretory cells",
-                         "13" = "Alveolar cells/Distal secretory cells",
+                         "6" = "Endothelial cells",
+                         "7" = "Alveolar cells/Distal secretory cells",
+                         "8" = "Secretory cells",
+                         "9" = "Smooth muscle cells",
+                         "10" = "Basal cells",
+                         "11" = "B cells",
+                         "12" = "Monocytes",
+                         "13" = "Secretory cells",
                          "14" = "Monocytes",
-                         "15" = "Endothelial cells",
-                         "16" = "Stromal/fibroblasts",
-                         "17" = "Basal cells",
-                         "18" = "Ciliated cells",
-                         "19" = "Alveolar macrophages",
-                         "20" = "Stromal/fibroblasts",
-                         "21" = "Lymphatic endothelial cells",
-                         "22" = "Ciliated cells",
-                         "23" = "B cells",
-                         "24" = "Stromal/fibroblasts",
-                         "25" = "Mast cells")
+                         "15" = "Monocytes",
+                         "16" = "Macrophages",
+                         "17" = "Lymphatic endothelial cells",
+                         "18" = "Chondrocytes",
+                         "19" = "Unknown",
+                         "20" = "Secretory cells")
 object@meta.data$cell.type = Idents(object)
-#object@meta.data$cell.type %<>% as.character()
-#object@meta.data$singler1main %<>% as.character()
-#T_cell <- grep("T-cells",object@meta.data[,"singler1main"])
-#object@meta.data[T_cell,"cell.type"] = object@meta.data[T_cell,"singler1main"]
+object@meta.data$cell.type %<>% as.character()
+object@meta.data$singler1main %<>% as.character()
+T_HSC_DC <- grep("T-cells|HSC|DC",object@meta.data[,"singler1main"])
+object@meta.data[T_HSC_DC,"cell.type"] = object@meta.data[T_HSC_DC,"singler1main"]
+object@meta.data$cell.type %<>% gsub("T cells","CD8+ T-cells",.)
+Idents(object) = "cell.type"
+
 object %<>% sortIdent()
 object <- AddMetaColor(object = object, label= "cell.type", colors = Singler.colors)
-Idents(object) = "cell.type"
 UMAPPlot.1(object, group.by = "cell.type",cols = ExtractMetaColor(object),label = T,
            label.repel = T, pt.size = 0.5,label.size = 4, repel = T,no.legend = T,
            do.print = T,do.return = F,title = "Cell types")
-##############################
-# process color scheme
-##############################
-object <- sortIdent(object)
-table(Idents(object)) %>% kable %>% kable_styling()
-singler_colors <- readxl::read_excel("doc/singler.colors.xlsx")
-singler_colors1 = as.vector(singler_colors$singler.color1[!is.na(singler_colors$singler.color1)])
-singler_colors1[duplicated(singler_colors1)]
-length(singler_colors1)
-length(unique(object$cell.type))
-object <- AddMetaColor(object = object, label= "cell.type", colors = SingleR::singler.colors)
-Idents(object) <- "cell.type"
 
-object <- sortIdent(object)
+save(object,file="data/Lung_24_20190824.Rda")
 
-TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,label.repel = T,
-           label.size = 5, repel = T,no.legend = F,do.print = T,
-           title = "Cell types")
-UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T,pt.size = 1,label.repel = T,
-           label.size = 5, repel = T,no.legend = F,do.print = T,
-           title = "Cell types")
-save(object,file="data/Lung_8_20190808.Rda")
+#========== P+D+T samples combined (a separate plot with colors based on type of sample - P, D, T)
+# All cell types
+Idents(object) = "group"
+object %<>% subset(idents ="UNC-44", invert = T)
+Idents(object) = "cell.type"
+for(con in c("distal","proximal","terminal")){
+    cellUse = object$conditions %in% con
+    sub_obj <- object[,cellUse]
+    p <- UMAPPlot.1(object = sub_obj, label = F,label.repel = F, group.by = "cell.type", 
+                    cols = ExtractMetaColor(object),
+                    do.return = T, no.legend = F, title = paste("UMAP plot for all cell types in",con),
+                    pt.size = 0.2,alpha = 1, label.size = 5, do.print = F,unique.name = T)
+    jpeg(paste0(path,"UMAPPlot_cell.type_",con,".jpeg"), 
+         units='in', width=10, height=7,res=600)
+    print(p)
+    dev.off()
+}
 
+Idents(object) = "integrated_snn_res.0.6"
+for(con in c("distal","proximal","terminal")){
+    cellUse = object$conditions %in% con
+    sub_obj <- object[,cellUse]
+    p <- UMAPPlot.1(object = sub_obj, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
+                    cols = ExtractMetaColor(object),
+                    do.return = T, no.legend = T, title = paste("UMAP plot for all clusters in",con),
+                    pt.size = 0.2,alpha = 1, label.size = 5, do.print = F,unique.name = T)
+    jpeg(paste0(path,"UMAPPlot_clusters_",con,".jpeg"), 
+         units='in', width=10, height=7,res=600)
+    print(p)
+    dev.off()
+}
+table(object$integrated_snn_res.0.6,object$conditions)
+table(object$cell.type,object$conditions)
+
+# Epi cell types
+
+
+# Prepare expression files==============
 Idents(object) = "orig.ident"
 (samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
              "Day-56","Day-122"))
@@ -128,10 +143,8 @@ for(sample in samples[-c(1:2)]){
     write.csv(DelayedArray::t(tsne_data), paste0(path,sample,"_Expression_data.csv"))
 }
 
-
-
 #====== 2.2 Identify Epi cell types ==========================================
-(load(file="data/Epi_harmony_12_20190627.Rda"))
+(load(file="data/Lung_24_20190824.Rda"))
 
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -197,4 +210,4 @@ p5 <- UMAPPlot(Epi, group.by="cell.type",pt.size = 1,label = F,
 jpeg(paste0(path,"Epi_umap_cell.type.jpeg"), units="in", width=10, height=7,res=600)
 print(p5)
 dev.off()
-save(Epi, file = "data/Epi_harmony_12_20190627.Rda")
+save(Epi, file = "data/Lung_24_20190824.Rda")

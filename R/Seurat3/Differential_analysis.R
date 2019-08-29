@@ -23,7 +23,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # Rename ident
 (samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
             "Day-56","Day-122"))
-(load(file = "data/Lung_8_20190808.Rda"))
+(load(file = "data/Lung_24_20190824.Rda"))
 Idents(object) <-  "Doublets"
 table(Idents(object)) %>% prop.table(margin=2) %>% kable_styling()
 object %<>% subset(idents = "Singlet")
@@ -55,7 +55,7 @@ for(sample in samples[-1]){
         top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
         sub_object %<>% ScaleData(features=unique(c(as.character(top$gene))))
         
-        DoHeatmap.1(sub_object, marker_df = Lung_markers, Top_n = 5, do.print=T, angle = 0,
+        DoHeatmap.1(sub_object, features = unique(c(as.character(top$gene))), do.print=T, angle = 0,
                     group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
                     assay = "SCT",
                     label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = T,
@@ -71,6 +71,42 @@ for(sample in samples){
 
 }
 
+
+# For each combination mode:
+(load(file="data/Lung_24_20190824.Rda"))
+Idents(object) = "group"
+object %<>% subset(idents ="UNC-44", invert = T)
+DefaultAssay(object) = "SCT"
+Idents(object) = "integrated_snn_res.0.6"
+for(con in c("distal","proximal","terminal","combined")){
+        if(con == "combined") {
+                sub_object <- object
+        } else {
+                cellUse = object$conditions %in% con
+                sub_object <- object[,cellUse]
+        }
+        p <- UMAPPlot.1(object = sub_object, label = F,label.repel = F, group.by = "integrated_snn_res.0.6", 
+                        cols = ExtractMetaColor(object),
+                        do.return = T, no.legend = F, title = paste("UMAP plot for all clusters in",con),
+                        pt.size = 0.2,alpha = 1, label.size = 5, do.print = F,unique.name = T)
+        jpeg(paste0(path,"UMAPPlot_clusters_",con,"~.jpeg"), 
+             units='in', width=10, height=7,res=600)
+        print(p)
+        dev.off()
+        Idents(sub_object) = "integrated_snn_res.0.6"
+        Lung_markers <- FindAllMarkers.UMI(sub_object, logfc.threshold = 0.25,
+                                           only.pos = T)
+        write.csv(Lung_markers,paste0(path,"Lung_24-",con,"_markers.csv"))
+        Lung_markers = read.csv(paste0(path,"Lung_24-",con,"_markers.csv"),row.names =1)
+        Top_n = 5
+        top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
+        #sub_object %<>% ScaleData(features=unique(c(as.character(top$gene))))
+        DoHeatmap.1(sub_object, features = unique(c(as.character(top$gene))), Top_n = 5, do.print=T, angle = 0,
+                    group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
+                    assay = "SCT",
+                    label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = T,
+                    title = paste("Top 5 markers of each clusters in",con,"sampels"))
+}
 #split by samples================
 Idents(object) <- 'orig.ident'
 table(Idents(object))

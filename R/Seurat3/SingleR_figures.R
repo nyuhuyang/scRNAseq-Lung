@@ -13,8 +13,8 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 
 #====== 3.2 SingleR specifications ==========================================
 # Step 1: Spearman coefficient
-(load(file = "data/Lung_9_20190813.Rda"))
-(load(file="output/singlerF_Lung_9_20190813.Rda"))
+(load(file = "data/Lung_24_20190824.Rda"))
+(load(file="output/singlerT_Lung_24_20190824.Rda"))
 
 # if singler didn't find all cell labels
 length(singler$singler[[1]]$SingleR.single$labels) == ncol(object)
@@ -24,11 +24,11 @@ if(length(singler$singler[[1]]$SingleR.single$labels) < ncol(object)){
         object = subset(object, cells = know.cell)
 }
 
-table(rownames(singler$singler[[1]]$SingleR.single$labels) %in% colnames(object))
+table(names(singler$singler[[1]]$SingleR.single$labels) %in% colnames(object))
 singler$meta.data$orig.ident = object@meta.data$orig.ident # the original identities, if not supplied in 'annot'
 singler$meta.data$xy = object@reductions$tsne@cell.embeddings # the tSNE coordinates
 singler$meta.data$clusters = Idents(object) # the Seurat clusters (if 'clusters' not provided)
-save(singler,file="output/singlerF_Lung_8_20190807.Rda")
+save(singler,file="output/singlerT_Lung_24_20190824.Rda")
 ##############################
 # add singleR label to Seurat
 ###############################
@@ -36,7 +36,7 @@ save(singler,file="output/singlerF_Lung_8_20190807.Rda")
 singlerDF = data.frame("singler1sub" = singler$singler[[1]]$SingleR.single$labels,
                        "singler1main" = singler$singler[[1]]$SingleR.single.main$labels,
                        "orig.ident"  = object$orig.ident,
-                       row.names = rownames(singler$singler[[1]]$SingleR.single$labels))
+                       row.names = names(singler$singler[[1]]$SingleR.single$labels))
 head(singlerDF)
 apply(singlerDF,2,function(x) length(unique(x)))
 
@@ -68,8 +68,8 @@ Idents(object) <- "singler1main"
 
 UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
          label.size = 4, repel = T,no.legend = T,do.print = T,
-         title = "Minor cell types")
-save(object,file="data/Lung_harmony_12_20190614.Rda")
+         title = "Major cell types")
+save(object,file="data/Lung_24_20190824.Rda")
 ##############################
 # draw tsne plot
 ##############################
