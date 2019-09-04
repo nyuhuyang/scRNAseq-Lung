@@ -160,3 +160,11 @@ DoHeatmap.1(CU12_T, CU12_T.markers, Top_n = 10, do.print=T, angle = 0,
             group.bar = T, title.size = 13, no.legend = F,size=0,hjust = 0.5,
             label=T, cex.row=4, legend.size = 5,width=10, height=7,
             title = "All clusters in CU12-T")
+
+conditions = c("combined","distal","proximal","terminal")
+for(con in conditions){
+        Lung_markers = read.csv(paste0(path,"Lung_23-",con,"_markers.csv"),row.names = 1)
+        Lung_markers = Lung_markers[Lung_markers$p_val_adj < 0.05,]
+        write.csv(Lung_markers,paste0(path,"Lung_23-",con,"_markers.csv"))
+        
+}
