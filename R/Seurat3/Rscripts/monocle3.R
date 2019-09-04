@@ -21,20 +21,30 @@ samples = c("combined","distal","proximal","terminal")
 
 
 # 5.0 Preliminaries: Load the data
-
-(load(file = "data/Lung_24_20190824.Rda"))
-Idents(object) = "group"
-object %<>% subset(idents ="UNC-44", invert = T)
-cellUse = object$conditions %in% con
-object <- object[,cellUse]
+(load(file = paste0("data/Lung_23",con,"_20190824.Rda")))
 Idents(object) = "cell.type"
 Epi <- subset(object, idents=c("Alveolar cells/Distal secretory cells",
                                "Ciliated cells","Basal cells","Secretory cells"))
 Epi@meta.data = cbind(Epi@meta.data,Epi@reductions$umap@cell.embeddings)
 UMAPPlot.1(Epi,cols = ExtractMetaColor(Epi),label.repel = T,label = T,no.legend = T,
            do.print = T, title = "UMAP plot for Epithelial cells",unique.name = "conditions")
-Epi <- subset(x = Epi, subset = UMAP_1 <5)
-Epi <- subset(x = Epi, subset = UMAP_2 <0)
+if(con =="combined"){
+    Epi <- subset(x = Epi, subset = UMAP_1 > -5)
+    Epi <- subset(x = Epi, subset = UMAP_2 > 0)
+}
+
+if(con =="proximal"){
+    Epi <- subset(x = Epi, subset = UMAP_1 <5)
+    Epi <- subset(x = Epi, subset = UMAP_2 <0)
+}
+if(con =="distal"){
+    Epi <- subset(x = Epi, subset = UMAP_1 <0)
+    Epi <- subset(x = Epi, subset = UMAP_2 > -5)
+}
+if(con =="terminal"){
+    Epi <- subset(x = Epi, subset = UMAP_1 > -5)
+    Epi <- subset(x = Epi, subset = UMAP_2 > 0)
+}
 object <- Epi
 remove(Epi);GC()
 #Construct monocle cds

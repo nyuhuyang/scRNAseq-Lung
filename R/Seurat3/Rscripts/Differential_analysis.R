@@ -60,7 +60,7 @@ Top_n = 5
 top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
 sub_object %<>% ScaleData(features=unique(c(as.character(top$gene))))
 
-DoHeatmap.1(sub_object, marker_df = Lung_markers, Top_n = 5, do.print=F,
+DoHeatmap.1(sub_object, marker_df = Lung_markers, Top_n = 5, do.print=T,
             angle = 0,group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
             assay = "SCT",
             label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = "conditions",

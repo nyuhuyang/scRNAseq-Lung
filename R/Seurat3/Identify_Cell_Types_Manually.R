@@ -80,6 +80,9 @@ UMAPPlot.1(object, group.by = "cell.type",cols = ExtractMetaColor(object),label 
            label.repel = T, pt.size = 0.5,label.size = 4, repel = T,no.legend = T,
            do.print = T,do.return = F,title = "Cell types")
 
+UMAPPlot.1(object, group.by = "cell.type",split.by = "conditions",cols = ExtractMetaColor(object),label = F,label.repel = F, pt.size = 0.5,label.size = 4, repel = T,no.legend = T,do.print = T,do.return = F,border = T,,title = "Cell types")
+
+
 save(object,file="data/Lung_24_20190824.Rda")
 
 #========== P+D+T samples combined (a separate plot with colors based on type of sample - P, D, T)

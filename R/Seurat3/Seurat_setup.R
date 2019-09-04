@@ -132,8 +132,7 @@ JackStrawPlot(object, dims = 85:95)+
 dev.off()
 npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(reduction = "pca",resolution = 1.2,
-                       dims.use = 1:npcs, print.output = FALSE)
+object %<>% FindClusters(resolution = 0.6,dims.use = 1:npcs, print.output = FALSE)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
