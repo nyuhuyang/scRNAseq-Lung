@@ -86,3 +86,49 @@ DoHeatmap.1(Epi, marker_df = Lung_markers, Top_n = 5, do.print=T,
             assay = "SCT",
             label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = "conditions",
             title = paste("Top 5 markers of each clusters in",con,"sampels"))
+
+# Prepare expression files for individual sample ==============
+for(con in c("proximal","distal","terminal")){
+        print(load(file = paste0("data/Epi_23",con,"_20190904.Rda")))
+        print(samples <- unique(Epi$orig.ident))
+        for(sample in samples){
+                sub_object <- subset(Epi, idents =  sample)
+                meta.data = cbind.data.frame(sub_object@meta.data,
+                                             sub_object@reductions$umap@cell.embeddings)
+                meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8")]
+                meta.data$integrated_snn_res.0.8 = as.numeric(as.character(meta.data$integrated_snn_res.0.8))
+                
+                meta.data = meta.data[order(meta.data$integrated_snn_res.0.8),]
+                print(colnames(meta.data))
+                write.csv(meta.data, paste0(path,sample,"_UMAP_coordinates.csv"))
+                
+                data = as.matrix(DelayedArray::t(sub_object@assays$SCT@data))
+                tsne_data = cbind(meta.data[,1:2], data[match(rownames(meta.data),
+                                                              rownames(data)), ])
+                
+                tsne_data = tsne_data[,-c(1:2)]
+                write.csv(DelayedArray::t(tsne_data), paste0(path,sample,"_Expression_data.csv"))
+        }
+}
+
+
+# Prepare expression files for individual region  ==============
+for(con in c("proximal","distal","terminal")){
+        print(load(file = paste0("data/Epi_23",con,"_20190904.Rda")))
+
+        meta.data = cbind.data.frame(Epi@meta.data,
+                                     Epi@reductions$umap@cell.embeddings)
+        meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8")]
+        meta.data$integrated_snn_res.0.8 = as.numeric(as.character(meta.data$integrated_snn_res.0.8))
+        
+        meta.data = meta.data[order(meta.data$integrated_snn_res.0.8),]
+        print(colnames(meta.data))
+
+        data = as.matrix(DelayedArray::t(Epi@assays$SCT@data))
+        tsne_data = cbind(meta.data[,1:3], data[match(rownames(meta.data),
+                                                      rownames(data)), ])
+        
+        tsne_data = tsne_data[,-c(1:2)]
+        write.csv(DelayedArray::t(tsne_data), paste0(path,"Epi_",con,"_Expression_data.csv"))
+
+}

@@ -120,32 +120,6 @@ table(object$integrated_snn_res.0.6,object$conditions)
 table(object$cell.type,object$conditions)
 
 # Epi cell types
-
-
-# Prepare expression files==============
-Idents(object) = "orig.ident"
-(samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
-             "Day-56","Day-122"))
-for(sample in samples[-c(1:2)]){
-    sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
-    meta.data = cbind.data.frame(sub_object@meta.data,
-                                 sub_object@reductions$tsne@cell.embeddings,
-                                 sub_object@reductions$umap@cell.embeddings)
-    meta.data = meta.data[,c("tSNE_1","tSNE_2","UMAP_1","UMAP_2","integrated_snn_res.1.2")]
-    meta.data$integrated_snn_res.1.2 = as.numeric(as.character(meta.data$integrated_snn_res.1.2))
-    
-    meta.data = meta.data[order(meta.data$integrated_snn_res.1.2),]
-    print(colnames(meta.data))
-    write.csv(meta.data, paste0(path,sample,"_tSNE_UMAP_coordinates.csv"))
-    
-    data = as.matrix(DelayedArray::t(sub_object@assays$SCT@data))
-    tsne_data = cbind(meta.data[,3:5], data[match(rownames(meta.data),
-                                                  rownames(data)), ])
-    
-    tsne_data = tsne_data[,-c(1:2)]
-    write.csv(DelayedArray::t(tsne_data), paste0(path,sample,"_Expression_data.csv"))
-}
-
 #====== 2.2 Identify Epi cell types ==========================================
 (load(file="data/Lung_24_20190824.Rda"))
 

@@ -25,9 +25,8 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-
 # samples
-samples = c("combined","distal","proximal","terminal")
+samples = c("distal","proximal","terminal")
 (con <- samples[args])
 
 # Load Seurat
@@ -37,31 +36,53 @@ object %<>% subset(idents ="UNC-44-P", invert = T)
 DefaultAssay(object) = "SCT"
 
 if(con != "combined") {
-    cellUse = object$conditions %in% con
-    object <- object[,cellUse]
+        Idents(object) = "conditions"
+        object %<>% subset(idents = con)
 }
+#======1.5 Performing SCTransform and integration =========================
+set.seed(100)
+object_list <- SplitObject(object, split.by = "orig.ident")
+remove(object);GC()
+object_list %<>% lapply(SCTransform)
+object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
+npcs =100
+object_list %<>% lapply(function(x) {
+        x %<>% RunPCA(features = object.features, verbose = FALSE,npcs = npcs)
+})
+options(future.globals.maxSize= object.size(object_list)*3)
+object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
+                                  verbose = FALSE)
+anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
+                                  anchor.features = object.features,
+                                  reference = c(1, 2), reduction = "rpca", 
+                                  dims = 1:npcs)
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
+save(object, file = paste0("data/Lung_23",con,"_20190824.Rda"))
+remove(anchors,object_list);GC()
 # FindNeighbors
+object %<>% RunPCA(npcs = 100, verbose = FALSE)
 npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(resolution = 0.6)
+object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
-TSNEPlot.1(object, group.by="integrated_snn_res.0.6",pt.size = 1,label = T,
-           label.repel = T,do.print = T,unique.name = "conditions",
-           label.size = 4, repel = T,no.legend = T,
-           title = paste("tSNE plot of",con, "samples"))
-
-UMAPPlot.1(object, group.by="integrated_snn_res.0.6",pt.size = 1,label = T,
-           label.repel = T,do.print = T,unique.name = "conditions",
+UMAPPlot.1(object = object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T,do.print = T,unique.name = T,
            label.size = 4, repel = T,no.legend = T,
            title = paste("UMAP plot of",con, "samples"))
+
+TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T,do.print = T,unique.name = T,
+           label.size = 4, repel = T,no.legend = T,
+           title = paste("tSNE plot of",con, "samples"))
 save(object, file = paste0("data/Lung_23",con,"_20190824.Rda"))
 
 # Differential analysis
-Idents(object) = "integrated_snn_res.0.6"
+Idents(object) = "integrated_snn_res.0.8"
 Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1, only.pos = T,
                                    test.use = "MAST")
-write.csv(Lung_markers,paste0(path,"Lung_3-",con,"_markers.csv"))
+Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
+write.csv(Lung_markers,paste0(path,"Lung_23-",con,"_markers.csv"))
 Top_n = 5
 top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
 object %<>% ScaleData(features=unique(c(as.character(top$gene))))
@@ -69,10 +90,5 @@ object %<>% ScaleData(features=unique(c(as.character(top$gene))))
 DoHeatmap.1(object, marker_df = Lung_markers, Top_n = 5, do.print=T,
             angle = 0,group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
             assay = "SCT",
-            label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = "conditions",
+            label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = T,
             title = paste("Top 5 markers of each clusters in",con,"sampels"))
-
-UMAPPlot.1(object, group.by = "conditions",split.by = "conditions",
-           label = T,label.repel = T, 
-           pt.size = 0.5,label.size = 4, repel = T,no.legend = T,do.print = T,
-           do.return = F,title = "Cell types")
