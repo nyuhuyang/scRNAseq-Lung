@@ -62,7 +62,7 @@ object %<>% subset(subset = nFeature_RNA > 200  & #nCount_RNA > 1500 &
 # FilterCellsgenerate Vlnplot before and after filteration
 g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
     VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
-        theme(axis.text.x = element_text(size=15),legend.position="none")
+        theme(axis.text.x = element_text(size=12),legend.position="none")
 })
 save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
@@ -209,3 +209,21 @@ object@assays$integrated@scale.data = matrix(0,0,0)
 save(object, file = "data/Lung_24_20190824.Rda")
 object_data = object@assays$SCT@data
 save(object_data, file = "data/Lung.data_24_20190824.Rda")
+
+
+for(con in c("proximal","distal","terminal")){
+    print(load(file = paste0("data/Lung_23",con,"_20190824.Rda")))
+    
+    meta.data = cbind.data.frame(object@meta.data,
+                                 object@reductions$umap@cell.embeddings)
+    meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8")]
+    meta.data$integrated_snn_res.0.8 = as.numeric(as.character(meta.data$integrated_snn_res.0.8))
+    
+    meta.data = meta.data[order(meta.data$integrated_snn_res.0.8),]
+    print(colnames(meta.data))
+    
+    data = as.matrix(DelayedArray::t(object@assays$SCT@data))
+    write.csv(DelayedArray::t(data), paste0(path,"object_",con,"_counts.csv"))
+    write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
+    
+}

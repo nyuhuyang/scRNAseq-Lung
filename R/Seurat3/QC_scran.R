@@ -131,7 +131,7 @@ object[["percent.mt"]] <- PercentageFeatureSet(object = object, pattern = mito)
 Idents(object) = factor(Idents(object),levels = df_samples$sample)
 g1 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
         VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
-                theme(axis.text.x = element_text(size=15),legend.position="none")
+                theme(axis.text.x = element_text(size=12),legend.position="none")
 })
 save(g1,file= paste0(path,"g1","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 
