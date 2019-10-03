@@ -26,19 +26,14 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 # samples
-samples = c("distal","proximal","terminal")
+samples = c("proximal","distal","terminal")
 (con <- samples[args])
 
 # Load Seurat
-(load(file="data/Lung_24_20190824.Rda"))
-Idents(object) = "orig.ident"
-object %<>% subset(idents ="UNC-44-P", invert = T)
-DefaultAssay(object) = "SCT"
-
-if(con != "combined") {
-        Idents(object) = "conditions"
-        object %<>% subset(idents = con)
-}
+(load(file="data/Lung_24_20190918.Rda"))
+Idents(object) = "conditions"
+object %<>% subset(idents = con)
+table(object$orig.ident)
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)
 object_list <- SplitObject(object, split.by = "orig.ident")
@@ -57,7 +52,7 @@ anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT",
                                   reference = c(1, 2), reduction = "rpca", 
                                   dims = 1:npcs)
 object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
-save(object, file = paste0("data/Lung_23",con,"_20190824.Rda"))
+save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))
 remove(anchors,object_list);GC()
 # FindNeighbors
 object %<>% RunPCA(npcs = 100, verbose = FALSE)
@@ -67,15 +62,17 @@ object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 UMAPPlot.1(object = object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,do.print = T,unique.name = T,
+           label.repel = T,do.print = T,unique.name = "conditions",
            label.size = 4, repel = T,no.legend = T,
            title = paste("UMAP plot of",con, "samples"))
 
 TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,do.print = T,unique.name = T,
+           label.repel = T,do.print = T,unique.name = "conditions",
            label.size = 4, repel = T,no.legend = T,
            title = paste("tSNE plot of",con, "samples"))
-save(object, file = paste0("data/Lung_23",con,"_20190824.Rda"))
+object@assays$integrated@scale.data = matrix(0,0,0)
+save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))
+
 
 # Differential analysis
 Idents(object) = "integrated_snn_res.0.8"

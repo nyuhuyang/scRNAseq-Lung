@@ -29,7 +29,7 @@ print(df_samples)
 
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_24_20190823.Rda"))
+(load(file = "data/sce_24_20190918.Rda"))
 names(sce_list)
 object_list <- lapply(sce_list, as.Seurat)
 
@@ -55,7 +55,7 @@ remove(meta.data);GC()
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 Idents(object) = "orig.ident"
-(load(file = "output/20190823/g1_24_20190823.Rda"))
+(load(file = "output/20190918/g1_24_20190918.Rda"))
 
 object %<>% subset(subset = nFeature_RNA > 200  & #nCount_RNA > 1500 & 
                        percent.mt < 25)
@@ -132,7 +132,7 @@ JackStrawPlot(object, dims = 85:95)+
 dev.off()
 npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(resolution = 0.6,dims.use = 1:npcs, print.output = FALSE)
+object %<>% FindClusters(resolution = 0.8,dims.use = 1:npcs, print.output = FALSE)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
@@ -142,7 +142,7 @@ p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
 p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
-save(object, file = "data/object_orig_24_20190824.Rda")
+save(p0,p1, file = "data/object_orig_24_20190918.Rda")
 
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)
@@ -179,7 +179,7 @@ p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated tSNE plot")
 p3 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated UMAP plot")
-save(object, file = "data/Lung_24_20190824.Rda")
+save(object, file = "data/Lung_24_20190918.Rda")
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p0+ggtitle("Clustering without integration")+NoLegend()+
@@ -206,24 +206,30 @@ UMAPPlot.1(object = object, label = T,label.repel = T,
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_24_20190824.Rda")
+save(object, file = "data/Lung_24_20190918.Rda")
 object_data = object@assays$SCT@data
 save(object_data, file = "data/Lung.data_24_20190824.Rda")
 
 
 for(con in c("proximal","distal","terminal")){
-    print(load(file = paste0("data/Lung_23",con,"_20190824.Rda")))
+    print(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
     
     meta.data = cbind.data.frame(object@meta.data,
                                  object@reductions$umap@cell.embeddings)
-    meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8")]
+    meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8","manual")]
     meta.data$integrated_snn_res.0.8 = as.numeric(as.character(meta.data$integrated_snn_res.0.8))
     
     meta.data = meta.data[order(meta.data$integrated_snn_res.0.8),]
     print(colnames(meta.data))
     
-    data = as.matrix(DelayedArray::t(object@assays$SCT@data))
-    write.csv(DelayedArray::t(data), paste0(path,"object_",con,"_counts.csv"))
+    #data = as.matrix(DelayedArray::t(object@assays$SCT@data))
+    #write.csv(DelayedArray::t(data), paste0(path,"object_",con,"_counts.csv"))
     write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
-    
+}
+
+load(file = paste0("data/Lung_24distal_20190918.Rda"))
+DefaultAssay(object) <- 'integrated'
+for(i in c(15,16)/10){
+    object %<>% FindClusters(resolution = i)
+    Idents(object) = paste0("integrated_snn_res.",i)
 }

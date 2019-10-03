@@ -23,17 +23,18 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 # samples
-samples = c("distal","proximal","terminal")
+samples = c("proximal","distal","terminal")
 (con <- samples[args])
 
-(load(file = paste0("data/Lung_23",con,"_20190824.Rda")))
+(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
 
 # Differential analysis
 Idents(object) = "integrated_snn_res.0.8"
-Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1, only.pos = T,
+object %<>% sortIdent(numeric = T)
+Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.05, only.pos = T,
                                    test.use = "MAST")
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-write.csv(Lung_markers,paste0(path,"Lung_23-",con,"_markers.csv"))
+write.csv(Lung_markers,paste0(path,"Lung_24-",con,"_markers_res=0.8.csv"))
 Top_n = 5
 top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
 object %<>% ScaleData(features=unique(c(as.character(top$gene))))

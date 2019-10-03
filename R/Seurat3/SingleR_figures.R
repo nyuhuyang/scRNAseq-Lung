@@ -24,7 +24,7 @@ if(length(singler$singler[[1]]$SingleR.single$labels) < ncol(object)){
         object = subset(object, cells = know.cell)
 }
 
-table(names(singler$singler[[1]]$SingleR.single$labels) %in% colnames(object))
+table(names(singler$singler[[1]]$SingleR.single$labels) == colnames(object))
 singler$meta.data$orig.ident = object@meta.data$orig.ident # the original identities, if not supplied in 'annot'
 singler$meta.data$xy = object@reductions$tsne@cell.embeddings # the tSNE coordinates
 singler$meta.data$clusters = Idents(object) # the Seurat clusters (if 'clusters' not provided)

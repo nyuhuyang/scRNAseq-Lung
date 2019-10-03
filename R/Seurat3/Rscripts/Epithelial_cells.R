@@ -23,7 +23,7 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 # samples
-samples = c("distal","proximal","terminal")
+samples = c("proximal","distal","terminal")
 (con <- samples[args])
 
 # 5.0 Preliminaries: Load the data
