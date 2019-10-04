@@ -7,13 +7,12 @@
 library(Seurat)
 library(dplyr)
 library(tidyr)
+library(kableExtra)
 library(gplots)
 library(MAST)
-library(ggpubr)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-set.seed(1001)
 
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -152,35 +151,66 @@ if(con == "distal"){
 
 
 if(con == "terminal"){
+    Idents(object) = "integrated_snn_res.0.8"
     print(unique(object@meta.data$conditions))
-    object %<>% RenameIdents("0" = "T cells:CD8+",
-                             "1" = "Alveolar macrophages",
+    object@meta.data = cbind(object@meta.data,object@reductions$umap@cell.embeddings)
+    object %<>% RenameIdents("0" = "T cells:CD4+",
+                             "1" = "Macrophages",
                              "2" = "Alveolar type 2",
-                             "3" = "Endothelial cells",
-                             "4" = "Alveolar macrophages",
+                             "3" = "Endothelial cells:Capillary",
+                             "4" = "Neutrophils",
                              "5" = "NK cells",
-                             "6" = "Alveolar macrophages",
+                             "6" = "Monocytes",
                              "7" = "Ciliated cells",
-                             "8" = "Distal secretory SCGB3A2+ SFTPB+",
-                             "9" = "Smooth muscle",
+                             "8" = "Secretory cells",
+                             "9" = "Smooth muscle cells:Vascular",
                              "10" = "B cells", 
                              "11" = "Fibroblasts",
                              "12" = "Alveolar macrophages",
-                             "13" = "Endothelial cells",
+                             "13" = "Endothelial cells:HEV",
                              "14" = "Basal cells",
                              "15" = "T cells:CD8+",
-                             "16" = "Alveolar macrophages",
+                             "16" = "Neutrophils",
                              "17" = "Mast cells",
-                             "18" = "Endothelial cells",
-                             "19" = "Endothelial cells",
-                             "20" = "Lymphatic Endothelial cells",
+                             "18" = "Endothelial cells:smooth muscel",
+                             "19" = "Endothelial cells:arterial",
+                             "20" = "Endothelial cells:Lymphatic",
                              "21" = "B cells:Plasma")
     object@meta.data$manual = as.character(Idents(object))
-    object@meta.data = cbind(object@meta.data,object@reductions$umap@cell.embeddings)
+    (load(file="data/Epi_23terminal_20190904.Rda"))
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 11],
+                     "manual"] = "Hybrid"
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 1],
+                     "manual"] = "Secretory cells"
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% c(2,10)],
+                     "manual"] = "Distal secretory cells"
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 11],
+                     "manual"] = "Basal cells"
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.0.8 %in% 13],"manual"] = "Pre-ciliated cells"
+    AT1 <- object@meta.data$UMAP_1 < -1 & object@meta.data$UMAP_2 > 7.4 & object@meta.data$UMAP_1 > -2.5
+    object@meta.data[AT1,"manual"] = "Alveolar type 1"
+    object@meta.data[(object$integrated_snn_res.0.8 %in% 14 &
+                         object$UMAP_2 < 5.3),"manual"] = "Neuro endocrine"
+    object@meta.data[(object$UMAP_1 < -5 & object$UMAP_2 < -5),"manual"] = "B cells"
+    object@meta.data[(object$integrated_snn_res.0.8 %in% 9 &
+                          object$UMAP_1 < 8.7 & object$UMAP_2 < 3.6),"manual"] = "Pericytes"
+
     basal <- object@meta.data$manual %in% "Basal cells"
-    hist(object@meta.data[basal,"UMAP_1"],breaks = 30)
     type1 <- object@meta.data$UMAP_1 < -1 & object@meta.data$UMAP_2 >6 
     object@meta.data[(basal & type1),"manual"] = "Alveolar type 1"
+    Proximal_markers <- read.csv("output/20190920/Proximal-2. DEGs for each proximal cell.types.csv",
+                                 row.names = 1,stringsAsFactors = F) 
+    DC <- Proximal_markers[(Proximal_markers$cluster %in% "Dendritic cells"),"gene"]
+    DC <- FilterGenes(object,DC)
+    (DC %<>% head(20))
+    object %<>% AddModuleScore(features = list(DC), name = "DC")
+    DC = object$DC1 > 0.75 & object$integrated_snn_res.0.8 %in% 1
+    object@meta.data[DC,"manual"]="Dendritic cells"
+    object@meta.data[(object$integrated_snn_res.0.8 %in% 1 &
+                          object$UMAP_1 > 0 ),"manual"] = "Macrophages-like"
+    object@meta.data[(object$integrated_snn_res.0.8 %in% 15 &
+                          object$UMAP_2 > -7.3 ),"manual"] = "T cells:7SK.2"
+    
     
 }
 Idents(object) = "manual"
@@ -188,7 +218,9 @@ object %<>% sortIdent()
 UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "manual", 
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = T, title = paste("UMAP plot for all clusters in",con),
-           pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,unique.name = "conditions")
+           pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,
+           unique.name = "conditions")
+
 UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "manual", 
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = F, title = paste("UMAP plot for all clusters in",con),

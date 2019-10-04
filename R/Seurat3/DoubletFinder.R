@@ -166,7 +166,7 @@ for (i in 1:length(object_list)) {
     sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
     message(paste("Complete", i,":", length(object_list)," ==================="))
 }
-save(sweep.res_list,file = "output/",con,"_sweep.res_list.Rda")
+save(sweep.res_list,file = paste0("output/",con,"_sweep.res_list.Rda"))
 
 sweep_list <- lapply(sweep.res_list, function(x) summarizeSweep(x, GT = FALSE))
 bcmvn_list <- lapply(sweep_list,find.pK)
@@ -234,7 +234,7 @@ Multiplet_Rate(object_list[[1]])
 ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
 for(i in 1:length(object_list)){
     print(paste("processing",unique(object_list[[i]]$orig.ident)))
-    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$cell.types)
+    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$manual)
     nExp_poi <- round(Multiplet_Rate(object_list[[i]])*length(colnames(object_list[[i]])))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
     nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
     
@@ -250,6 +250,7 @@ for(i in 1:length(object_list)){
                                                     "High_confident_doublets")
     colnames(object_list[[i]]@meta.data) = colName
 }
+
 for(i in 1:length(object_list)){
     object_list[[i]]@meta.data$row.names = rownames(object_list[[i]]@meta.data)
 }
@@ -269,8 +270,5 @@ TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"),
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
 UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
-
-table(object$Doublets) %>% prop.table %>% kable %>% kable_styling()
-table(object$Doublets, object$cell.types) %>% kable %>% kable_styling()
 
 save(object,file=paste0("data/Lung_24",con,"_20191002.Rda"))
