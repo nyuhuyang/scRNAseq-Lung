@@ -229,9 +229,9 @@ UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "manual",
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = T, title = paste("UMAP plot for all clusters in",con),
            pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,unique.name = "conditions")
+save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))
 
 Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1, only.pos = F,
                                    test.use = "MAST")
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
 write.csv(Lung_markers,paste0(path,"Lung_24-",con,"_cell.types_markers.csv"))
-save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))

@@ -28,7 +28,7 @@ samples = c("proximal","distal","terminal")
 path <- paste0(path,con,"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
+(load(file = paste0("data/Lung_24-",con,"_20190918.Rda")))
 print(unique(object@meta.data$conditions))
 
 # - Table: number of cells per cluster (per each sample and total)
@@ -38,7 +38,7 @@ colnames(df) = c("cell.types","samples","Freq")
 df %<>% spread("samples","Freq")
 rownames(df) = df$cell.types
 df = df[,-1]
-write.csv(df, paste0(path,"Lung_",con,"_cell.types_by_samples.csv"))
+write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
 
 #  UMAP coordinates &  Expression data =============
 meta.data = cbind.data.frame(object@meta.data,
@@ -51,7 +51,7 @@ print(colnames(meta.data))
 
 data = as.matrix(DelayedArray::t(object@assays$SCT@data))
 write.csv(DelayedArray::t(data), paste0(path,"Lung_",con,"_counts.csv"))
-write.csv(meta.data, paste0(path,"Lung_",con,"_meta.data.csv"))
+write.csv(meta.data, paste0(path,"Lung_24-",con,"_meta.data.csv"))
 
 # - Table: number of expressed genes per cluster (per each sample and total) ==============
 df <- table(object$integrated_snn_res.0.8, object$orig.ident) %>% as.data.frame()
