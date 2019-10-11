@@ -99,18 +99,12 @@ object_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
 object_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
-npcs =50
-object_list %<>% lapply(function(x) {
-    x %<>% RunPCA(features = object.features, verbose = FALSE,npcs = npcs)
-})
-options(future.globals.maxSize= object.size(object_list)*3)
+options(future.globals.maxSize= object.size(object_list)*1.5)
 object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
                                   verbose = FALSE)
 anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
-                                  anchor.features = object.features,
-                                  reference = c(1, 2), reduction = "rpca", 
-                                  dims = 1:npcs)
-object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
+                                  anchor.features = object.features)
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT")
 
 remove(anchors,object_list);GC()
 object %<>% RunPCA(npcs = 100, verbose = FALSE)
@@ -132,7 +126,7 @@ p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated tSNE plot")
 p3 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  label.size = 4, repel = T,title = "Intergrated UMAP plot")
-save(object, file = "data/Lung_24_20190918.Rda")
+save(object, file = "data/Lung_4_COPD_20191009.Rda")
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p0+ggtitle("Clustering without integration")+NoLegend()+

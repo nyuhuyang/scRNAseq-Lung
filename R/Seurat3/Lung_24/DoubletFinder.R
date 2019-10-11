@@ -37,13 +37,12 @@ object_list <- SplitObject(object,split.by = "orig.ident")
 GC()
 ## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
 npcs =100
-#sweep.res_list <- list()
-#for (i in 1:length(object_list)) {
-#    sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
-#    message(paste("Complete", i,":", length(object_list)," ==================="))
-#}
-#save(sweep.res_list,file = paste0("output/",con,"_sweep.res_list.Rda"))
-(load(paste0("output/",con,"_sweep.res_list.Rda")))
+sweep.res_list <- list()
+for (i in 1:length(object_list)) {
+    sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
+    message(paste("Complete", i,":", length(object_list)," ==================="))
+}
+save(sweep.res_list,file = paste0("output/",con,"_sweep.res_list.Rda"))
 sweep_list <- lapply(sweep.res_list, function(x) summarizeSweep(x, GT = FALSE))
 bcmvn_list <- lapply(sweep_list,find.pK)
 # find histgram local maximam
@@ -142,9 +141,9 @@ colnames(meta.data)[ncol(meta.data)] = "Doublets"
 (load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
 object@meta.data = meta.data
 
-Idents(object) = "Doublets"
-UMAPPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
-           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3,
-           unique.name = "conditions")
+#TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+#           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+#UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+#           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
 
 save(object,file=paste0("data/Lung_24",con,"_20191004.Rda"))
