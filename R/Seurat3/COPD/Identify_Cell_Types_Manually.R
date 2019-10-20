@@ -9,7 +9,7 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file = "data/Lung_4_COPD_20191009.Rda"))
+(load(file = "data/Lung_16_distal_20191017.Rda"))
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 

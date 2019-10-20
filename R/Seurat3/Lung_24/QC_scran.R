@@ -59,18 +59,7 @@ if(length(missing_data)>0){
 message("Loading the datasets")
 Seurat_raw <- list()
 Seurat_list <- list()
-## Load the ddseq data
-sample_n = which(df_samples$tests %in% c("control",paste0("test0")))
-for(i in sample_n){
-        Seurat_raw[[i]] <- read.delim(file = paste0("data/",df_samples$sample.id[i],
-                                                    "/counts.merged.txt.gz"),
-                                      row.names = 1, stringsAsFactors =F)
-        colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
-        Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
-                                               min.cells = 0,
-                                               min.features = 0)
-        Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
-}
+
 ## Load the 10X dataset
 sample_n = which(df_samples$tests %in% c("control",paste0("test",1:3)))
 for(i in sample_n){

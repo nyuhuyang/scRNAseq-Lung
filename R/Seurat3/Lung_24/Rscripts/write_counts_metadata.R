@@ -28,11 +28,11 @@ samples = c("proximal","distal","terminal")
 path <- paste0(path,con,"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-(load(file = paste0("data/Lung_24-",con,"_20190918.Rda")))
+(load(file = paste0("data/Lung_24-",con,"_20191004.Rda")))
 print(unique(object@meta.data$conditions))
 
 # - Table: number of cells per cluster (per each sample and total)
-df <- table(object$manual, object$orig.ident) %>% 
+df <- table(object$cell.types, object$orig.ident) %>% 
         as.data.frame()
 colnames(df) = c("cell.types","samples","Freq")
 df %<>% spread("samples","Freq")
@@ -43,7 +43,7 @@ write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
 #  UMAP coordinates &  Expression data =============
 meta.data = cbind.data.frame(object@meta.data,
                              object@reductions$umap@cell.embeddings)
-meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8","manual")]
+meta.data = meta.data[,c("UMAP_1","UMAP_2","integrated_snn_res.0.8","cell.types")]
 meta.data$integrated_snn_res.0.8 = as.numeric(as.character(meta.data$integrated_snn_res.0.8))
 
 meta.data = meta.data[order(meta.data$integrated_snn_res.0.8),]

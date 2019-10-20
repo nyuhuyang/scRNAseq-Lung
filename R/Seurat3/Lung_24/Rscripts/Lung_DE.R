@@ -24,7 +24,7 @@ print(paste0("slurm_arrayid=",args))
 # samples
 samples = c("proximal","distal","terminal")
 (con <- samples[args])
-(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
+(load(file = paste0("data/Lung_24",con,"_20191004.Rda")))
 
 if(con == "proximal"){
     print(unique(object@meta.data$conditions))
@@ -58,28 +58,28 @@ if(con == "proximal"){
                              "25" = "Neurons",
                              "26" = "Endothelial cells:Lymphatic",
                              "27" = "Dendritic cells:Plasmacytoid")
-    object@meta.data$manual = as.character(Idents(object))
+    object@meta.data$cell.types = as.character(Idents(object))
     object@meta.data = cbind(object@meta.data,object@reductions$umap@cell.embeddings)
     plasma <- object@meta.data$UMAP_1 >7 & object@meta.data$UMAP_2 < -10
-    object@meta.data[plasma,"manual"] = "B cells:Plasma"
+    object@meta.data[plasma,"cell.types"] = "B cells:Plasma"
     pre_ciliated <- object$integrated_snn_res.0.8==9 & object@meta.data$UMAP_2 < 14.25 & object@meta.data$UMAP_1 > 1.5
-    object@meta.data[pre_ciliated,"manual"] = "Pre-ciliated cells"
+    object@meta.data[pre_ciliated,"cell.types"] = "Pre-ciliated cells"
     basal_like <- object$integrated_snn_res.0.8==11 &  object@meta.data$UMAP_1 < 2.2 & object@meta.data$UMAP_2 > -2.2
-    object@meta.data[basal_like,"manual"] = "Basal-like cells"
+    object@meta.data[basal_like,"cell.types"] = "Basal-like cells"
     ASM <- object$integrated_snn_res.0.8==19 &  object@meta.data$UMAP_1 < -7.8
-    object@meta.data[ASM,"manual"] = "Smooth muscle:Airway"
+    object@meta.data[ASM,"cell.types"] = "Smooth muscle:Airway"
     
     (load(file = "data/Epi_23proximal_20190904.Rda"))
     serous <- colnames(Epi)[Epi$integrated_snn_res.0.8 == 1]
-    object@meta.data[serous,"manual"] = "Serous gland cells"
+    object@meta.data[serous,"cell.types"] = "Serous gland cells"
     ESML <- object$integrated_snn_res.0.8==10 &  object@meta.data$UMAP_2 < -3
-    object@meta.data[ESML,"manual"] = "Endothelial:Smooth muscle"
+    object@meta.data[ESML,"cell.types"] = "Endothelial:Smooth muscle"
     prlif_mf <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_1 < 7.2
-    object@meta.data[prlif_mf,"manual"] = "Macrophage:Prolifereating"
+    object@meta.data[prlif_mf,"cell.types"] = "Macrophage:Prolifereating"
     monocytes <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_2 < 2
-    object@meta.data[monocytes,"manual"] = "Monocytes"
+    object@meta.data[monocytes,"cell.types"] = "Monocytes"
     DC <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_1 >10
-    object@meta.data[DC,"manual"] = "Dendritic cells"
+    object@meta.data[DC,"cell.types"] = "Dendritic cells"
     
     # Endothelial cells
     Distal_markers <- read.csv("Yang/distal/Lung_24-distal_cell.types_markers.csv",
@@ -89,9 +89,9 @@ if(con == "proximal"){
     EC_At <- Distal_markers[(Distal_markers$cluster %in% "Endothelial cells:Arterial"),"gene"]
     (EC_At %<>% head(20))
     object %<>% AddModuleScore(features = list(EC_At), name = "EC_At")
-    object@meta.data[object$EC_At1 > 1.1 ,"manual"]="Endothelial cells:Arterial"
+    object@meta.data[object$EC_At1 > 1.1 ,"cell.types"]="Endothelial cells:Arterial"
     EC_p = object@assays$SCT@data["MKI67",] > 0 & object$integrated_snn_res.0.8 %in% 8
-    object@meta.data[EC_p,"manual"]="Endothelial cells:Proliferating"
+    object@meta.data[EC_p,"cell.types"]="Endothelial cells:Proliferating"
     
     mf_like <- Terminal_markers[(Terminal_markers$cluster %in% "Macrophages-like"),] %>% 
         .[order(.$avg_logFC, decreasing = TRUE),"gene"]
@@ -140,52 +140,52 @@ if(con == "distal"){
                              "28" = "Neuroendocrine")
     Proximal_markers <- read.csv("Yang/proximal/Lung_24-proximal_cell.types_markers.csv",
                                  row.names = 1,stringsAsFactors = F)       
-    object@meta.data$manual = as.character(Idents(object))
+    object@meta.data$cell.types = as.character(Idents(object))
     object@meta.data = cbind(object@meta.data,object@reductions$umap@cell.embeddings)
     
     DC <- Proximal_markers[(Proximal_markers$cluster %in% "Dendritic cells"),"gene"]
     (DC %<>% head(20))
     object %<>% AddModuleScore(features = list(DC), name = "DC")
     DC = object$DC1 > 1.5 & object$integrated_snn_res.0.8 %in% 12
-    object@meta.data[DC,"manual"]="Dendritic cells"
+    object@meta.data[DC,"cell.types"]="Dendritic cells"
     
     NK_like <- Proximal_markers[(Proximal_markers$cluster %in% "NK-like cells"),"gene"]
     (NK_like %<>% head(20))
     object %<>% AddModuleScore(features = list(NK_like), name = "NK_like")
     NK_like = object$NK_like1 > 0.8
-    object@meta.data[NK_like,"manual"]="Dendritic cells:Plasmacytoid"
+    object@meta.data[NK_like,"cell.types"]="Dendritic cells:Plasmacytoid"
     
-    object@meta.data[DC,"manual"]="Dendritic cells"
+    object@meta.data[DC,"cell.types"]="Dendritic cells"
     macrophage_p = object@assays$SCT@data["MKI67",] > 0 & object$integrated_snn_res.0.8 %in% 12
-    object@meta.data[macrophage_p,"manual"]="Macrophage:Proliferating"
+    object@meta.data[macrophage_p,"cell.types"]="Macrophage:Proliferating"
     
-    object@meta.data[object$integrated_snn_res.1.5 %in% 21,"manual"]="Secretory cells:Distal"
+    object@meta.data[object$integrated_snn_res.1.5 %in% 21,"cell.types"]="Secretory cells:Distal"
     basal_p <- object@meta.data$UMAP_1 < -5 & object@meta.data$UMAP_2 > 0 & 
         object@meta.data$UMAP_2 < 5 & object$integrated_snn_res.1.5 %in% 28
     
-    object@meta.data[basal_p,"manual"]="Basal cells:Proliferating"
+    object@meta.data[basal_p,"cell.types"]="Basal cells:Proliferating"
     unknow <- object@meta.data$UMAP_1 > 0  & object@meta.data$UMAP_1 < 5 & 
         object$integrated_snn_res.1.5 %in% 28
-    object@meta.data[unknow,"manual"]="Unknown"
+    object@meta.data[unknow,"cell.types"]="Unknown"
     Fibroblast_p <- object@meta.data$UMAP_2 > 9 & object$integrated_snn_res.1.5 %in% 28
-    object@meta.data[Fibroblast_p,"manual"]="Fibroblasts:Proliferating"
+    object@meta.data[Fibroblast_p,"cell.types"]="Fibroblasts:Proliferating"
     
     Idents(object) = "integrated_snn_res.1.5"
     Intermediate_genes <- Proximal_markers[(Proximal_markers$cluster %in% "Intermediate cells"),"gene"]
     (Intermediate_genes %<>% head(20))
     object %<>% AddModuleScore(features = list(c(Intermediate_genes)), name = "Intermediate_genes")
     Intermediate = object$Intermediate_genes1 > 1.5 & object$UMAP_1 < -6
-    object@meta.data[Intermediate,"manual"]="Intermediate cells"
+    object@meta.data[Intermediate,"cell.types"]="Intermediate cells"
 
     
-    object@meta.data[object$integrated_snn_res.1.6 %in% 11,"manual"]="Smooth muscle:Vascular"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 21,"manual"]="Smooth muscle:Airway"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 27,"manual"]="Endothelial cells:Smooth muscle"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 28,"manual"]="Pericytes"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 31,"manual"]="Plasma cells"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 36,"manual"]="Alveolar type 1"
-    object@meta.data[object$manual %in% "Endothelial cells","manual"] = "T cells:TRM"
-    object@meta.data[object$manual %in% "Smooth muscle","manual"] = "Ciliated cells"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 11,"cell.types"]="Smooth muscle:Vascular"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 21,"cell.types"]="Smooth muscle:Airway"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 27,"cell.types"]="Endothelial cells:Smooth muscle"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 28,"cell.types"]="Pericytes"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 31,"cell.types"]="Plasma cells"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 36,"cell.types"]="Alveolar type 1"
+    object@meta.data[object$cell.types %in% "Endothelial cells","cell.types"] = "T cells:TRM"
+    object@meta.data[object$cell.types %in% "Smooth muscle","cell.types"] = "Ciliated cells"
 
     }
 
@@ -214,103 +214,100 @@ if(con == "terminal"){
                              "15" = "T cells:TRM",
                              "16" = "Neutrophils",
                              "17" = "Mast cells",
-                             "18" = "Endothelial cells:smooth muscel",
-                             "19" = "Endothelial cells:arterial",
+                             "18" = "Endothelial cells:Smooth muscel",
+                             "19" = "Endothelial cells:Arterial",
                              "20" = "Endothelial cells:Lymphatic",
                              "21" = "B cells:Plasma")
-    object@meta.data$manual = as.character(Idents(object))
+    object@meta.data$cell.types = as.character(Idents(object))
     (load(file="data/Epi_23terminal_20190904.Rda"))
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 11],
-                     "manual"] = "Hybrid" # double check
+                     "cell.types"] = "Hybrid" # double check
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 1],
-                     "manual"] = "Secretory cells"
+                     "cell.types"] = "Secretory cells"
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% c(2,10)],
-                     "manual"] = "Distal secretory cells"
+                     "cell.types"] = "Distal secretory cells"
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 9],
-                     "manual"] = "Basal cells"
+                     "cell.types"] = "Basal cells"
     #
     Proximal_markers <- read.csv("Yang/proximal/Lung_24-proximal_cell.types_markers.csv",
                                  row.names = 1,stringsAsFactors = F)
     Distal_markers <- read.csv("Yang/distal/Lung_24-distal_cell.types_markers.csv",
                                row.names = 1,stringsAsFactors = F)
-    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.0.8 %in% 13],"manual"] = "Pre-ciliated cells"
+    object@meta.data[colnames(Epi)[Epi$integrated_snn_res.0.8 %in% 13],"cell.types"] = "Pre-ciliated cells"
     AT1 <- object@meta.data$UMAP_1 < -1 & object@meta.data$UMAP_2 > 7.4 & object@meta.data$UMAP_1 > -2.5
-    object@meta.data[AT1,"manual"] = "Alveolar type 1"
+    object@meta.data[AT1,"cell.types"] = "Alveolar type 1"
     object@meta.data[(object$integrated_snn_res.0.8 %in% 14 &
-                         object$UMAP_2 < 5.3),"manual"] = "Neuro endocrine"
-    object@meta.data[(object$UMAP_1 < -5 & object$UMAP_2 < -5),"manual"] = "B cells"
+                         object$UMAP_2 < 5.3),"cell.types"] = "Neuro endocrine"
+    object@meta.data[(object$UMAP_1 < -5 & object$UMAP_2 < -5),"cell.types"] = "B cells"
     object@meta.data[(object$integrated_snn_res.0.8 %in% 9 &
-                          object$UMAP_1 < 8.7 & object$UMAP_2 < 3.6),"manual"] = "Pericytes"
+                          object$UMAP_1 < 8.7 & object$UMAP_2 < 3.6),"cell.types"] = "Pericytes"
 
-    basal <- object@meta.data$manual %in% "Basal cells"
+    basal <- object@meta.data$cell.types %in% "Basal cells"
     type1 <- object@meta.data$UMAP_1 < -1 & object@meta.data$UMAP_2 >6 
-    object@meta.data[(basal & type1),"manual"] = "Alveolar type 1"
+    object@meta.data[(basal & type1),"cell.types"] = "Alveolar type 1"
     
     proliferating <- as.vector(object@assays$SCT["MKI67",] >0 )
-    object@meta.data[proliferating & basal,"manual"] = "Basal cells:Proliferating"
-    object@meta.data[proliferating & object$manual %in% "Macrophages","manual"] = "Macrophages:Proliferating"
+    object@meta.data[proliferating & basal,"cell.types"] = "Basal cells:Proliferating"
+    object@meta.data[proliferating & object$cell.types %in% "Macrophages","cell.types"] = "Macrophages:Proliferating"
 
     Av_mf <-  Distal_markers[(Distal_markers$cluster %in% "Alveolar macrophages"),"gene"]
     (Av_mf %<>% head(20))
     object %<>% AddModuleScore(features = list(Av_mf), name = "Alveolar macrophages")
     Av_mf = object$`Alveolar macrophages1` > 1.5 & object$integrated_snn_res.0.8 %in% c(1,12)
-    object@meta.data[Av_mf,"manual"] = "Alveolar macrophages"
+    object@meta.data[Av_mf,"cell.types"] = "Alveolar macrophages"
     
     DC <- Proximal_markers[(Proximal_markers$cluster %in% "Dendritic cells"),"gene"]
     (DC %<>% head(20))
     object %<>% AddModuleScore(features = list(DC), name = "DC")
-    DC = (as.vector(object@assays$SCT["CCR7"] > 1) & object$manual %in% "Macrophages") |
+    DC = (as.vector(object@assays$SCT["CCR7"] > 1) & object$cell.types %in% "Macrophages") |
         (object$integrated_snn_res.0.8 %in% 21 & object$UMAP_2 >0 )
     
-    object@meta.data[DC,"manual"]="Dendritic cells"
-    object@meta.data[(object$manual %in% "Macrophages" &
-                          object$UMAP_1 > 0 ),"manual"] = "Macrophages-like"
+    object@meta.data[DC,"cell.types"]="Dendritic cells"
+    object@meta.data[(object$cell.types %in% "Macrophages" &
+                          object$UMAP_1 > 0 ),"cell.types"] = "Macrophages-like"
     NK_like <- Proximal_markers[(Proximal_markers$cluster %in% "NK-like cells"),"gene"]
     (NK_like %<>% head(20))
     object %<>% AddModuleScore(features = list(NK_like), name = "NK_like")
     NK_like = object$NK_like1 > 0.8
-    object@meta.data[NK_like,"manual"]="Dendritic cells:Plasmacytoid"
+    object@meta.data[NK_like,"cell.types"]="Dendritic cells:Plasmacytoid"
     
     Airway <- Proximal_markers[(Proximal_markers$cluster %in% "Airway smooth muscle"),] %>% 
         .[order(.$avg_logFC, decreasing = TRUE),"gene"]
     (Airway %<>% head(20))
     object %<>% AddModuleScore(features = list(Airway), name = "Airway")
     Airway = object$Airway1 > 2
-    object@meta.data[Airway,"manual"]="Smooth muscle:Airway"
+    object@meta.data[Airway,"cell.types"]="Smooth muscle:Airway"
     
     # for T cells
     object@meta.data[(object$integrated_snn_res.0.8 %in% 15 &
-                          object$UMAP_2 > -7.3 ),"manual"] = "T cells:7SK.2"
+                          object$UMAP_2 > -7.3 ),"cell.types"] = "T cells:7SK.2"
     T_CD4 <- Proximal_markers[(Proximal_markers$cluster %in% "T cells:CD4+"),"gene"]
     (T_CD4 %<>% head(20))
     object %<>% AddModuleScore(features = list(T_CD4), name = "T_CD4")
     T_CD4 = object$T_CD41 > 1 & object$integrated_snn_res.0.8 %in% 0
-    object@meta.data[T_CD4,"manual"]="T cells:CD4+"
+    object@meta.data[T_CD4,"cell.types"]="T cells:CD4+"
 
     }
 
-Idents(object) = "manual"
+Idents(object) = "cell.types"
 object %<>% sortIdent()
-UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "manual", 
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "cell.types", 
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = T, title = paste("UMAP plot for all clusters in",con),
            pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,
            unique.name = "conditions")
 
-UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "manual", 
+UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "cell.types", 
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = F, title = paste("UMAP plot for all clusters in",con),
            pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,unique.name = "conditions")
-UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "manual", 
+UMAPPlot.1(object = object, label = F,label.repel = F, group.by = "cell.types", 
            cols = Singler.colors,legend.size = 15,
            do.return = F, no.legend = T, title = paste("UMAP plot for all clusters in",con),
            pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,unique.name = "conditions")
-save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))
+save(object, file = paste0("data/Lung_24",con,"_20191004.Rda"))
 
 Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1, only.pos = F,
                                    test.use = "MAST")
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
 write.csv(Lung_markers,paste0(path,"Lung_24-",con,"_cell.types_markers.csv"))
-
-Lung_markers <- FindMarkers.UMI(object, ident.1 = "Unknown", logfc.threshold = 2, only.pos = T,
-                                   test.use = "MAST")
