@@ -38,21 +38,21 @@ if(con == "proximal"){
                              "5" = "Macrophages",
                              "6" = "B cells",
                              "7" = "T cells:TRM",
-                             "8" = "Endothelial cells:HEV",
+                             "8" = "Endothelial cells:HEVs",
                              "9" = "Ciliated cells",
                              "10" = "Smooth muscle:Vascular",
                              "11" = "T cells:7SK.2+",
                              "12" = "Endothelial cells:Capillary",
                              "13" = "Basal cells",
                              "14" = "Fibroblasts",
-                             "15" = "Neutrophil",
+                             "15" = "Neutrophils",
                              "16" = "Cartilage",
                              "17" = "Hybrid cells",
                              "18" = "Mast cells",
                              "19" = "Myo-epithelial cells",
                              "20" = "Pericytes",
                              "21" = "NK cells",
-                             "22" = "Proliferating basal cells",
+                             "22" = "Basal cells:Proliferating",
                              "23" = "T cells:CD4+",
                              "24" = "Ionocytes/NEC",
                              "25" = "Neurons",
@@ -73,9 +73,9 @@ if(con == "proximal"){
     serous <- colnames(Epi)[Epi$integrated_snn_res.0.8 == 1]
     object@meta.data[serous,"cell.types"] = "Serous gland cells"
     ESML <- object$integrated_snn_res.0.8==10 &  object@meta.data$UMAP_2 < -3
-    object@meta.data[ESML,"cell.types"] = "Endothelial:Smooth muscle"
+    object@meta.data[ESML,"cell.types"] = "Endothelial cells:Smooth muscle"
     prlif_mf <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_1 < 7.2
-    object@meta.data[prlif_mf,"cell.types"] = "Macrophage:Prolifereating"
+    object@meta.data[prlif_mf,"cell.types"] = "Macrophages:Proliferating"
     monocytes <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_2 < 2
     object@meta.data[monocytes,"cell.types"] = "Monocytes"
     DC <- object$integrated_snn_res.0.8==5 &  object@meta.data$UMAP_1 >10
@@ -132,7 +132,7 @@ if(con == "distal"){
                              "20" = "T cells:7SK.2+",
                              "21" = "Pre-ciliated cells",
                              "22" = "Endothelial cells",
-                             "23" = "Plasma cells",
+                             "23" = "B cells:Plasma",
                              "24" = "Endothelial cells:Arterial",
                              "25" = "Neutrophils",
                              "26" = "Endothelial cells:Proliferating",
@@ -157,7 +157,7 @@ if(con == "distal"){
     
     object@meta.data[DC,"cell.types"]="Dendritic cells"
     macrophage_p = object@assays$SCT@data["MKI67",] > 0 & object$integrated_snn_res.0.8 %in% 12
-    object@meta.data[macrophage_p,"cell.types"]="Macrophage:Proliferating"
+    object@meta.data[macrophage_p,"cell.types"]="Macrophages:Proliferating"
     
     object@meta.data[object$integrated_snn_res.1.5 %in% 21,"cell.types"]="Secretory cells:Distal"
     basal_p <- object@meta.data$UMAP_1 < -5 & object@meta.data$UMAP_2 > 0 & 
@@ -182,7 +182,7 @@ if(con == "distal"){
     object@meta.data[object$integrated_snn_res.1.6 %in% 21,"cell.types"]="Smooth muscle:Airway"
     object@meta.data[object$integrated_snn_res.1.6 %in% 27,"cell.types"]="Endothelial cells:Smooth muscle"
     object@meta.data[object$integrated_snn_res.1.6 %in% 28,"cell.types"]="Pericytes"
-    object@meta.data[object$integrated_snn_res.1.6 %in% 31,"cell.types"]="Plasma cells"
+    object@meta.data[object$integrated_snn_res.1.6 %in% 31,"cell.types"]="B cells:Plasma"
     object@meta.data[object$integrated_snn_res.1.6 %in% 36,"cell.types"]="Alveolar type 1"
     object@meta.data[object$cell.types %in% "Endothelial cells","cell.types"] = "T cells:TRM"
     object@meta.data[object$cell.types %in% "Smooth muscle","cell.types"] = "Ciliated cells"
@@ -209,23 +209,23 @@ if(con == "terminal"){
                              "10" = "B cells", 
                              "11" = "Fibroblasts",
                              "12" = "Alveolar macrophages",
-                             "13" = "Endothelial cells:HEV",
+                             "13" = "Endothelial cells:HEVs",
                              "14" = "Basal cells",
                              "15" = "T cells:TRM",
                              "16" = "Neutrophils",
                              "17" = "Mast cells",
-                             "18" = "Endothelial cells:Smooth muscel",
+                             "18" = "Endothelial cells:Smooth muscle",
                              "19" = "Endothelial cells:Arterial",
                              "20" = "Endothelial cells:Lymphatic",
                              "21" = "B cells:Plasma")
     object@meta.data$cell.types = as.character(Idents(object))
     (load(file="data/Epi_23terminal_20190904.Rda"))
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 11],
-                     "cell.types"] = "Hybrid" # double check
+                     "cell.types"] = "Hybrid cells" # double check
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 1],
                      "cell.types"] = "Secretory cells"
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% c(2,10)],
-                     "cell.types"] = "Distal secretory cells"
+                     "cell.types"] = "Secretory cells:Distal"
     object@meta.data[colnames(Epi)[Epi$integrated_snn_res.1 %in% 9],
                      "cell.types"] = "Basal cells"
     #
@@ -237,7 +237,7 @@ if(con == "terminal"){
     AT1 <- object@meta.data$UMAP_1 < -1 & object@meta.data$UMAP_2 > 7.4 & object@meta.data$UMAP_1 > -2.5
     object@meta.data[AT1,"cell.types"] = "Alveolar type 1"
     object@meta.data[(object$integrated_snn_res.0.8 %in% 14 &
-                         object$UMAP_2 < 5.3),"cell.types"] = "Neuro endocrine"
+                         object$UMAP_2 < 5.3),"cell.types"] = "Neuroendocrine"
     object@meta.data[(object$UMAP_1 < -5 & object$UMAP_2 < -5),"cell.types"] = "B cells"
     object@meta.data[(object$integrated_snn_res.0.8 %in% 9 &
                           object$UMAP_1 < 8.7 & object$UMAP_2 < 3.6),"cell.types"] = "Pericytes"

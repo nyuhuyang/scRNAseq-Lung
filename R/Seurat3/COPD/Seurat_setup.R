@@ -162,12 +162,12 @@ UMAPPlot.1(object = object, label = T,label.repel = T,cols = Singler.colors,
 object@assays$integrated@scale.data = matrix(0,0,0)
 save(object, file = "data/Lung_16_distal_20191017.Rda")
 
-DefaultAssay(object) <- 'integrated'
+DefaultAssay(object) <- 'RNA'
 for(i in c(4:16)/10){
     object %<>% FindClusters(resolution = i)
-    Idents(object) = paste0("integrated_snn_res.",i)
+    Idents(object) = paste0("RNA_snn_res.",i)
     UMAPPlot.1(object = object, label = T,label.repel = T, 
-               group.by = paste0("integrated_snn_res.",i), 
+               group.by = paste0("RNA_snn_res.",i), 
                cols = Singler.colors,legend.size = 15,
                do.return = F, no.legend = T, title = paste("UMAP plot for all clusters in resolution",i),
                pt.size = 0.2,alpha = 0.85, label.size = 3, do.print = T,
