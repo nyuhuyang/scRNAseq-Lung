@@ -18,6 +18,7 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 (load(file="output/singler_Lung_16_distal_20191017.Rda"))
 
 singler@nrows == ncol(object)
+object@meta.data$conditions[grep("COPD",object$group)] = "COPD"
 
 ##############################
 # add singleR label to Seurat
@@ -106,22 +107,19 @@ object@meta.data = object@meta.data[,-grep("UMAP",colnames(object@meta.data))]
 Idents(object) <- "labels"
 object %<>% sortIdent()
 object <- AddMetaColor(object = object, label= "labels", colors = Singler.colors)
-object@meta.data$conditions[grep("COPD",object$group)] = "COPD"
 UMAPPlot.1(object, cols = ExtractMetaColor(object),label = F, label.repel = T,pt.size = 0.3,
-           label.size = 3, repel = T,no.legend = F,do.print = T,
+           label.size = 3, repel = T,no.legend = T,do.print = T,
            do.return = F,alpha = 0.9,
            title = "Minor cell types",unique.name = "conditions")
 
 object@meta.data$major.labels = gsub(":.*","",object@meta.data$labels)
-object <- AddMetaColor(object = object, label= "major.labels", colors = Singler.colors)
 Idents(object) <- "major.labels"
+object %<>% sortIdent()
+object <- AddMetaColor(object = object, label= "major.labels", colors = Singler.colors)
 
-save(object,file="data/Lung_16_distal_20191019.Rda")
-##############################
-# draw tsne plot
-##############################
-UMAPPlot.1(object, cols = ExtractMetaColor(object),split.by = "orig.ident",
-           label = F, label.repel = F,pt.size = 1,border = T, ncol = 2,
-           label.size = 4, repel = T,no.legend = T,do.print = T,
+UMAPPlot.1(object, cols = ExtractMetaColor(object),label = F, label.repel = T,pt.size = 0.3,
+           label.size = 3, repel = T,no.legend = F,do.print = T,
+           do.return = F,alpha = 0.9,
            title = "Major cell types",unique.name = "conditions")
 
+save(object,file="data/Lung_16_distal_20191019.Rda")
