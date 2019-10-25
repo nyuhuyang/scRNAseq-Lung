@@ -23,7 +23,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 df_samples <- readxl::read_excel("doc/20190815_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
 sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:15)))
-sample_n = intersect(sample_n, grep("distal",df_samples$conditions))
+sample_n = intersect(sample_n, grep("distal|COPD",df_samples$conditions))
 df_samples <- df_samples[sample_n,]
 print(df_samples)
 (attach(df_samples))
@@ -41,7 +41,7 @@ sce_list <- sce_list_all[samples]
 names(sce_list)
 
 object_list <- lapply(sce_list, as.Seurat)
-remove(sce_list,sce_list_all,sce_list_COPD);GC()
+remove(sce_list, sce_list_all,sce_list_COPD);GC()
 for(i in 1:length(samples)){
     object_list[[i]]$orig.ident <- df_samples$sample[i]
     object_list[[i]]$conditions <- df_samples$conditions[i]
@@ -97,7 +97,7 @@ p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
 p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
                  no.legend = F,label.size = 4, repel = T, title = "Original")
-save(object, file = "data/Lung_16_distal_20191017.Rda")
+save(object, file = "data/Lung_16_distal_20191022.Rda")
 
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)

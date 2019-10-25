@@ -3,15 +3,10 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr"), function(x) {
+invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr",
+                   "tidyr","gplots","MAST"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
-library(Seurat)
-library(dplyr)
-library(tidyr)
-library(kableExtra)
-library(gplots)
-library(MAST)
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)

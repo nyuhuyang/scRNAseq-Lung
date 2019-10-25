@@ -152,7 +152,7 @@ object_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
 npcs =100
 object_list %<>% lapply(function(x) {
-    x %<>% RunPCA(features = object.features, verbose = FALSE,npcs = npcs)
+    x %<>% RunPCA(features = object.features, verbose = FALSE)
 })
 options(future.globals.maxSize= object.size(object_list)*3)
 object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
@@ -164,7 +164,7 @@ anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT",
 object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
 
 remove(anchors,object_list);GC()
-object %<>% RunPCA(npcs = 100, verbose = FALSE)
+object %<>% RunPCA(npcs = npcs, verbose = FALSE)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
 object <- ScoreJackStraw(object, dims = 1:100)
 jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
