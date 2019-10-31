@@ -23,18 +23,19 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # Rename ident
 (samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
              "Day-56","Day-122"))
-(load(file = "data/Lung_8_20190808.Rda"))
+(load(file = "data/Lung_8_time_20190808.Rda"))
 Idents(object) <-  "Doublets"
-table(Idents(object)) %>% prop.table(margin=2) %>% kable_styling()
+#table(Idents(object)) %>% prop.table(margin=2) %>% kable_styling()
 object %<>% subset(idents = "Singlet")
 Idents(object) <- "orig.ident"
-for(sample in samples[1]){
+for(sample in samples){
         sub_object <- subset(object, idents = (if(sample == "All") samples[-1] else sample))
         Idents(sub_object) <- "integrated_snn_res.0.6"
-        #Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25,
-        #                                   only.pos = T)
+        Lung_markers <- FindAllMarkers.UMI(sub_object, logfc.threshold = 0.25,
+                                           only.pos = T)
         
-        #write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
+        write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
+}
         Lung_markers =read.csv(file = paste0("output/20190808/Lung_6-",sample,"_markers.csv"),
                                row.names = 1, stringsAsFactors=F)
         TSNEPlot.1(sub_object,label = T, repel = T, label.repel = T,no.legend = F,pt.size = 1,

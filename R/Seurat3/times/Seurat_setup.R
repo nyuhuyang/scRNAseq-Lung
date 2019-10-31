@@ -191,6 +191,18 @@ UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_8_20190808.Rda")
+save(object, file = "data/Lung_8_time_20190808.Rda")
 object_data = object@assays$RNA@data
 save(object_data, file = "data/Lung.data_8_20190808.Rda")
+
+(conditions <- unique(object$conditions))
+Idents(object) = "conditions"
+for (i in seq_along(conditions)){
+        sub_object <- subset(object, idents = conditions[i])
+        UMAPPlot.1(object = sub_object, label = F,label.repel = F, group.by = "integrated_snn_res.1.2", 
+                   do.return = F, no.legend = F, title = paste("UMAP plot for",conditions[i]),
+                   pt.size = 1,alpha = 1, label.size = 6, do.print = T,
+                   unique.name = "conditions")
+        Progress(i,length(conditions))
+}
+table(object$integrated_snn_res.0.6,object$orig.ident) %>% kable %>% kable_styling()

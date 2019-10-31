@@ -65,7 +65,7 @@ FindPairMarkers <- function(object, ident.1, ident.2 = NULL, genes.use = NULL,re
                             min.diff.pct = -Inf, print.bar = TRUE, only.pos = FALSE,
                             max.cells.per.ident = Inf, random.seed = 1, latent.vars = "nUMI",
                             min.cells.gene = 3,min.cells.group=3, pseudocount.use = 1, 
-                            assay.type = "RNA",save.path = NULL,save.files = TRUE,...){
+                            assay.type = "RNA",save.path = NULL,save.files = FALSE,...){
         #prepare save folder name
         if(is.null(save.path)){
                 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
