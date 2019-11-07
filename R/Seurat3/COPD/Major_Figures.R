@@ -10,6 +10,7 @@ library(cowplot)
 library(magrittr)
 library(DoubletFinder)
 library(kableExtra)
+library(gplots)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -19,17 +20,40 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 (load(file = "data/Lung_16_distal_20191022.Rda"))
 Lung_markers = read.csv(file = "Yang/distal_COPD/DE analysis/Lung_16_RNA_snn_res.0.8_markers.csv",
                         row.names = 1,stringsAsFactors = F)
-Idents(object) = "RNA_snn_res.0.8"
+Lung_markers = read.csv(file = "Yang/distal_COPD/DE analysis/Lung_16_distal_labels_markers.csv",
+                        row.names = 1,stringsAsFactors = F)
+Lung_markers1 = read.csv(file = "Yang/distal_COPD/DE analysis/Lung_16_COPD_labels_markers.csv",
+                        row.names = 1,stringsAsFactors = F)
+Lung_markers = rbind(Lung_markers,Lung_markers1)
+#Idents(object) = "RNA_snn_res.0.8"
+Idents(object) = "labels"
+object %<>% sortIdent()
 table(Idents(object))
-Top_n = 50
+object_exp <- AverageExpression(object,assays = "RNA")
+Top_n = 500
 top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
-object %<>% ScaleData(features=unique(c(as.character(top$gene))))
+exp =  object_exp$RNA[unique(c(as.character(top$gene))),]
+exp = exp %>% t %>% scale %>% t
+
 features = c(as.character(top$gene))
 featuresNum <- make.unique(features, sep = ".")
-object %<>% MakeUniqueGenes(features = features)
+exp %<>% MakeUniqueGenes(features = features)
 
-DoHeatmap.1(object, features = featuresNum, Top_n = Top_n, do.print=T,
-            angle = 0,group.bar = T, title.size = 13, no.legend = T,size=4,hjust = 0.5,
-            assay = "RNA",
-            label=T, cex.row= 0.1, legend.size = 5,width=10, height=7,unique.name = T,
-            title = paste("Top",Top_n,"markers of each cluster in 16 D+COPD sampels"))
+hc <- hclust(as.dist(1-cor(exp, method="spearman")), method="complete")
+cc = as.character(as.numeric(as.factor(hc$labels)))
+
+jpeg(paste0(path,"Heatmap2_celltype_",Top_n,".jpeg"), units="in", width=10, height=7,res=600)
+heatmap.2(as.matrix(exp),
+          Colv = as.dendrogram(hc),
+          Rowv= TRUE,
+          ColSideColors = cc, 
+          trace ="none",
+          dendrogram = "column",
+          key.xlab = "scale log nUMI",
+          cexRow = 0.5,
+          margins = c(12,5),
+          breaks = seq(-3,3,length.out = 101),
+          col = bluered,
+          main = paste("Clustering dendrogram for all cell types\n (16 D+COPD) based on top",Top_n, 
+                       "genes"))
+dev.off()
