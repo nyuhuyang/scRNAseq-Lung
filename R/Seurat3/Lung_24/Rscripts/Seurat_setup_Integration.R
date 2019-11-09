@@ -53,3 +53,29 @@ TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
            title = paste("tSNE plot of 24 samples"))
 object@assays$integrated@scale.data = matrix(0,0,0)
 save(object, file = paste0("data/Lung_24_20191105.Rda"))
+
+DefaultAssay(object) = "integrated"
+npcs =100
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+for(i in c(4:16)/10){
+        object %<>% FindClusters(resolution = i)
+        Idents(object) = paste0("integrated_snn_res.",i)
+        TSNEPlot.1(object, group.by=paste0("integrated_snn_res.",i),
+                   pt.size = 1,label = T,
+                   label.repel = T,do.print = T,
+                   label.size = 4, repel = T,no.legend = T,
+                   title = paste("resolution =",i))
+}
+
+DefaultAssay(object) = "RNA"
+npcs =100
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+for(i in c(4:16)/10){
+        object %<>% FindClusters(resolution = i)
+        Idents(object) = paste0("RNA_snn_res.",i)
+        TSNEPlot.1(object, group.by=paste0("RNA_snn_res.",i),
+                   pt.size = 1,label = T,
+                   label.repel = T,do.print = T,
+                   label.size = 4, repel = T,no.legend = T,
+                   title = paste("resolution =",i))
+}

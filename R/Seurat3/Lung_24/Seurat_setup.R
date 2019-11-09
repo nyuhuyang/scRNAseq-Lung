@@ -130,7 +130,7 @@ JackStrawPlot(object, dims = 85:95)+
     theme(text = element_text(size=15),	
           plot.title = element_text(hjust = 0.5,size = 18))
 dev.off()
-npcs =100
+npcs =50
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8,dims.use = 1:npcs, print.output = FALSE)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
@@ -138,11 +138,21 @@ object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
-p0 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 no.legend = F,label.size = 4, repel = T, title = "Original")
-p1 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 no.legend = F,label.size = 4, repel = T, title = "Original")
-save(p0,p1, file = "data/object_orig_24_20190918.Rda")
+Idents(object) = "orig.ident"
+Idents(object) = "RNA_snn_res.0.8"
+object %<>% sortIdent(numeric = T)
+TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = T,
+           label.repel = T,alpha = 0.9,
+                 no.legend = F,label.size = 4, repel = T, title = "No Integration",
+                 do.print = T)
+UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = T,
+           label.repel = T,alpha = 0.9,
+           no.legend = F,label.size = 4, repel = T, title = "No Integration",
+                 do.print = T)
+save(object, file = "data/object_orig_24_20190918.Rda")
+object@assays$RNA@scale.data = matrix(0,0,0)
+
+save(object, file = "data/Lung_24_20190918.Rda")
 
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)
@@ -172,13 +182,19 @@ JackStrawPlot(object, dims = 90:100)
 dev.off()
 npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(resolution = 0.6)
+object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
-p2 <- TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 label.size = 4, repel = T,title = "Intergrated tSNE plot")
-p3 <- UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = F,
-                 label.size = 4, repel = T,title = "Intergrated UMAP plot")
+Idents(object) = "integrated_snn_res.0.8"
+object %<>% sortIdent(numeric = T)
+TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T, alpha= 0.9,
+           no.legend = F,label.size = 4, repel = T, title = "No Integration",
+           do.print = T)
+UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T, alpha= 0.9,
+                 no.legend = F,label.size = 4, repel = T, title = "No Integration",
+                 do.print = T)
 save(object, file = "data/Lung_24_20190918.Rda")
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
@@ -195,14 +211,13 @@ plot_grid(p1+ggtitle("Clustering without integration")+NoLegend()+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.6", 
-         do.return = F, no.legend = F, title = "tSNE plot for all clusters",
-         pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
+TSNEPlot.1(object = object, label = F,label.repel = T, group.by = "integrated_snn_res.0.8", 
+         do.return = F, no.legend = F, title = "Integration by regions",
+         pt.size = 0.3,alpha = 0.9, label.size = 5, do.print = T)
 
-UMAPPlot.1(object = object, label = T,label.repel = T, 
-           group.by = "integrated_snn_res.0.6", cols = Singler.colors,
-           do.return = T, no.legend = F, title = "UMAP plot for all clusters",
-           pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.8", 
+           do.return = T, no.legend = F, title = "Integration by regions",
+           pt.size = 0.2,alpha = 0.9, label.size = 5, do.print = T)
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
