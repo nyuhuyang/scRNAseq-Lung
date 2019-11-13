@@ -13,28 +13,36 @@ library(kableExtra)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
+# change the current plan to access parallelization
 ########################################################################
 #
 #  2. DoubletFinder 
 # 
 # ######################################################################
+# SLURM_ARRAY_TASK_ID
+slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
+# coerce the value to an integer
+args <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",args))
 
 # samples
+samples = c("proximal","distal","terminal")
+(con <- samples[args])
+(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
 
-(load(file = "data/Lung_24_20190918.Rda"))
-object = NormalizeData(object)
 Idents(object) = "orig.ident"
 (samples = unique(Idents(object)))
 object_list <- SplitObject(object,split.by = "orig.ident")
-remove(object);GC()
+GC()
 ## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
-npcs =50
+npcs =100
 sweep.res_list <- list()
 for (i in 1:length(object_list)) {
-    sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = F)
-    Progress(i,length(object_list))
+    sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
+    message(paste("Complete", i,":", length(object_list)," ==================="))
 }
-save(sweep.res_list,file = paste0("output/Lung_24_20190918_sweep.res_list.Rda"))
+save(sweep.res_list,file = paste0("output/",con,"_sweep.res_list.Rda"))
 sweep_list <- lapply(sweep.res_list, function(x) summarizeSweep(x, GT = FALSE))
 bcmvn_list <- lapply(sweep_list,find.pK)
 # find histgram local maximam
@@ -101,14 +109,14 @@ Multiplet_Rate(object_list[[1]])
 ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
 for(i in 1:length(object_list)){
     print(paste("processing",unique(object_list[[i]]$orig.ident)))
-    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$cell.type)
+    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$manual)
     nExp_poi <- round(Multiplet_Rate(object_list[[i]])*length(colnames(object_list[[i]])))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
     nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
     
     ## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
     object_list[[i]] <- doubletFinder_v3(object_list[[i]], PCs = 1:50, 
                                                      pN = 0.25, pK = maximal_pk[i], 
-                                                     nExp = nExp_poi, reuse.pANN = FALSE, sct = F)
+                                                     nExp = nExp_poi, reuse.pANN = FALSE, sct = TRUE)
     object_list[[i]] <- doubletFinder_v3(object_list[[i]], PCs = 1:50, pN = 0.25, maximal_pk[i],
                                    nExp = nExp_poi.adj, reuse.pANN = grep("pANN",colnames(object_list[[i]]@meta.data),value = T),
                                    sct = TRUE)
@@ -126,17 +134,16 @@ meta.data = bind_rows(meta.data_list)
 rownames(meta.data) = meta.data$row.names
 meta.data = meta.data[colnames(object),]
 meta.data$doublets = gsub("Doublet","Doublet-Low Confidence",meta.data$Low_confident_doublets)
-meta.data[meta.data$High_confident_doublets %in% "Doublet","doublets"] = "Doublet-High Confidence"
+meta.data[meta.data$High_confident_doublets %in% "Doublet","doublets"] = "Doublet-High Confidence "
 meta.data = cbind(object@meta.data,meta.data$doublets)
 colnames(meta.data)[ncol(meta.data)] = "Doublets"
-meta.data = meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","tests","percent.mt",
-                         "conditions","group","project","RNA_snn_res.0.8",
-                         "cell.types","cell.types.colors","Doublets")]
-(load(file = "data/Lung_24_20190918.Rda"))
-object@meta.data = meta.data
-save(object,file=paste0("data/Lung_24_20190918.Rda"))
 
-TSNEPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
-           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
-UMAPPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
-           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))
+object@meta.data = meta.data
+
+#TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+#           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+#UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+#           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+
+save(object,file=paste0("data/Lung_24",con,"_20191004.Rda"))

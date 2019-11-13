@@ -10,22 +10,54 @@ library(tidyr)
 library(kableExtra)
 library(gplots)
 library(MAST)
+library(future)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-(load(file = paste0("data/Lung_24_20191105.Rda")))
-(load(file = paste0("data/Lung_24_20190918.Rda")))
+# change the current plan to access parallelization
+plan("multiprocess", workers = 4)
+plan()
 
+# SLURM_ARRAY_TASK_ID
+slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
+# coerce the value to an integer
+args <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",args))
+
+if(args == 1){
+        (load(file = paste0("data/Lung_24_20190918.Rda")))
+        Idents(object) = "RNA_snn_res.0.8"
+        DefaultAssay(object)  = "RNA"
+        object %<>% sortIdent(numeric = T)
+        Lung_markers <- FindAllMarkers(object, logfc.threshold = 0.5, only.pos = T,
+                                           test.use = "MAST")
+        Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
+        write.csv(Lung_markers,paste0(path,"Lung_24_Orignal-FC0.5_markers_res=0.8.csv"))
+}
+if(args == 2){
+        (load(file = paste0("data/Lung_24_20191105.Rda")))
+        Idents(object) = "integrated_snn_res.0.8"
+        DefaultAssay(object)  = "SCT"
+        object %<>% sortIdent(numeric = T)
+        Lung_markers <- FindAllMarkers(object, logfc.threshold = 0.5, only.pos = T,
+                                           test.use = "MAST")
+        Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
+        write.csv(Lung_markers,paste0(path,"Lung_24_Integration-FC0.5_markers_res=0.8.csv"))
+        
+}
+if(args == 3){
+        (load(file = paste0("data/Lung_24_20190918.Rda")))
+        Idents(object) = "cell.types"
+        DefaultAssay(object)  = "RNA"
+        object %<>% sortIdent
+        Lung_markers <- FindAllMarkers(object, logfc.threshold = 0.1, only.pos = T,
+                                       test.use = "MAST")
+        Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
+        write.csv(Lung_markers,paste0(path,"Lung_24-FC0.1_markers_cell_types.csv"))
+}
 # Differential analysis
-Idents(object) = "integrated_snn_res.0.8"
-Idents(object) = "RNA_snn_res.0.8"
-DefaultAssay(object)  = "SCT"
-object %<>% sortIdent(numeric = T)
-Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.5, only.pos = T,
-                                   test.use = "MAST")
-Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-write.csv(Lung_markers,paste0(path,"Lung_24_Orignal-FC0.5_markers_res=0.8.csv"))
 #Top_n = 5
 #top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)
 #object %<>% ScaleData(features=unique(c(as.character(top$gene))))

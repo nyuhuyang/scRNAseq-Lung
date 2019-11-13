@@ -1,4 +1,4 @@
-.p .,                                                             ########################################################################
+########################################################################
 #
 #  0 setup environment, install libraries if necessary, load libraries
 # 
@@ -40,14 +40,42 @@ meta.data$cell.types %<>% gsub("^Neuro endocrine$","Neuroendocrine",.)
 meta.data$cell.types %<>% gsub("^Neutrophil$","Neutrophils",.)
 meta.data$cell.types %<>% gsub("^Proliferating basal cells$","Basal cells:Proliferating",.)
 meta.data$cell.types %<>% gsub("^T cells:7SK.2$","T cells:7SK.2+",.)
+meta.data$cell.types %<>% gsub("^Distal secretory cells$","Secretory cells:Distal",.)
+meta.data$cell.types %<>% gsub("^Mucus-producing:Goblet$","Goblet",.)
 
 object@meta.data = meta.data
-Idents(object) = "cell.types"
-object %<>% sortIdent()
-object <- AddMetaColor(object = object, label= "cell.types", colors = Singler.colors)
-UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
-           label.size = 3, repel = T,no.legend = T,do.print = T,
-           title = "Cell types")
-TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
-           label.size = 3, repel = T,no.legend = T,do.print = T,
-           title = "Cell types")
+types <- c("cell.types","major_cell.types","family_cell.types","group_cell.types")
+for(type in types) {
+        Idents(object) = type
+        object %<>% sortIdent()
+        object <- AddMetaColor(object = object, label= type, colors = Singler.colors)
+        
+        TSNEPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
+                   label.size = 3, repel = T,no.legend = T,do.print = T,
+                   title = paste("tSNE plot for", type))
+        TSNEPlot.1(object, cols = ExtractMetaColor(object),label = F, label.repel = T,pt.size = 1,
+                   label.size = 3, repel = T,no.legend = T,do.print = T,
+                   title = paste("tSNE plot for", type))
+}
+
+
+save(object, file = "data/Lung_24_20191105.Rda")
+
+
+object@meta.data$major_cell.types = gsub(":.*","",object@meta.data$cell.types)
+object@meta.data$family_cell.types = object@meta.data$major_cell.types
+
+object$family_cell.types[grep("Alveolar macrophages|Alveolar type 1|Alveolar type 2",
+                          object$family_cell.types)] = "Alveolar epithelial cells"
+object$family_cell.types[grep("Basal cells|Intermediate cells",
+                          object$family_cell.types)] = "Basal cells+Intermediate cells"
+object$family_cell.types[grep("Secretory cells|Mucus-producing|Serous cells",
+                          object$family_cell.types)] = "Secretory family"
+object$family_cell.types[grep("T cells|NK cells", object$family_cell.types)] = "T + NK cells"
+object$family_cell.types[grep("Smooth muscle|Pericytes", object$family_cell.types)] = "Smooth muscle family"
+
+object@meta.data$group_cell.types = object@meta.data$family_cell.types
+object$group_cell.types[grep("Basal cells\\+Intermediate cells|Secretory family|Ciliated cells|Ionocytes/NEC|Neuroendocrine",
+                         object$group_cell.types)] = "All airway epithelial cells"
+object$group_cell.types[grep("Alveolar epithelial cells|Macrophages|Dendritic cells",
+                         object$group_cell.types)] = "Macrophages and dendritic cells"
