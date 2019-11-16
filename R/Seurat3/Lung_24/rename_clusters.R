@@ -79,3 +79,4 @@ object$group_cell.types[grep("Basal cells\\+Intermediate cells|Secretory family|
                          object$group_cell.types)] = "All airway epithelial cells"
 object$group_cell.types[grep("Alveolar epithelial cells|Macrophages|Dendritic cells",
                          object$group_cell.types)] = "Macrophages and dendritic cells"
+write.csv(meta.data[,c("cell.types","barcode")],file=paste0(path,"Lung_24_20191105_cell_types.csv"))

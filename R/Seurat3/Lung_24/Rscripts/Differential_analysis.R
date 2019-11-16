@@ -28,13 +28,13 @@ print(paste0("slurm_arrayid=",args))
 
 if(args == 1){
         (load(file = paste0("data/Lung_24_20190918.Rda")))
-        Idents(object) = "RNA_snn_res.0.8"
         DefaultAssay(object)  = "RNA"
+        Idents(object) = "RNA_snn_res.0.8"
         object %<>% sortIdent(numeric = T)
-        Lung_markers <- FindAllMarkers(object, logfc.threshold = 0.5, only.pos = T,
+        Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
                                            test.use = "MAST")
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-        write.csv(Lung_markers,paste0(path,"Lung_24_Orignal-FC0.5_markers_res=0.8.csv"))
+        write.csv(Lung_markers,paste0(path,"Lung_24-FC0.25_markers_res=0.8.csv"))
 }
 if(args == 2){
         (load(file = paste0("data/Lung_24_20191105.Rda")))
@@ -49,13 +49,13 @@ if(args == 2){
 }
 if(args == 3){
         (load(file = paste0("data/Lung_24_20190918.Rda")))
-        Idents(object) = "cell.types"
         DefaultAssay(object)  = "RNA"
+        Idents(object) = "cell.types"
         object %<>% sortIdent
-        Lung_markers <- FindAllMarkers(object, logfc.threshold = 0.1, only.pos = T,
+        Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
                                        test.use = "MAST")
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-        write.csv(Lung_markers,paste0(path,"Lung_24-FC0.1_markers_cell_types.csv"))
+        write.csv(Lung_markers,paste0(path,"Lung_24-FC0.25_markers_cell_types.csv"))
 }
 # Differential analysis
 #Top_n = 5

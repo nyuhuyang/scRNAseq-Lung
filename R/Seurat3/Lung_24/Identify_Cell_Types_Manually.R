@@ -95,7 +95,7 @@ DC <- meta.data$RNA_snn_res.0.8 %in% 5 & meta.data$tSNE_2 < -21
 object@meta.data[DC,"cell.types"] = "Dendritic cells"
 # Cluster 21 – Submucosal gland serous cells
 meta.data <- cbind(meta.data,FetchData(object, vars = "MUC5B"))
-object@meta.data[meta.data$MUC5B >2.5 & meta.data$RNA_snn_res.0.8 %in% 21,
+object@meta.data[meta.data$MUC5B >1 & meta.data$RNA_snn_res.0.8 %in% 21,
                  "cell.types"] = "Submucosal gland mucous cells"
 # Rename cluster 22:
 object@meta.data[meta.data$RNA_snn_res.0.8 %in% 22 & meta.data$tSNE_1 < 19,
@@ -123,33 +123,58 @@ object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 &
                      meta.data$CD163 >0 & meta.data$CD68 >0, 
                  "cell.types"] = "Macrophages:Proliferating"
 
-object %<>% FindClusters(resolution = 1.6)
+#object %<>% FindClusters(resolution = 1.6)
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 28,"cell.types"] = "Fibroblasts-3"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 33,"cell.types"] = "Secretory cells:Distal"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 41,"cell.types"] = "Pericytes"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 54,"cell.types"] = "Myoepithelial cells (KRT5+ ACTA2+)"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 54,"cell.types"] = "Myoepithelial cells"
 meta.data <- cbind(meta.data,FetchData(object, vars = "FOXI1"))
 object@meta.data[meta.data$RNA_snn_res.0.8 %in% 38 & meta.data$FOXI1 >0,
                  "cell.types"] = "Ionocytes"
-
-Idents(object) = "cell.types"
- 
-object %<>% sortIdent()
-object <- AddMetaColor(object = object, label= "cell.types", colors = Singler.colors)
-Idents(object) = "conditions"
-distal <- subset(object,idents = "distal")
-terminal <- subset(object,idents = "terminal")
-proximal <- subset(object,idents = "proximal")
-
-Idents(proximal) = "cell.types"
-proximal %<>% sortIdent()
-TSNEPlot.1(proximal, group.by = "cell.types",cols = ExtractMetaColor(proximal),label = T,
-           label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
-           do.print = T,do.return = F,title = "Cell types in proximal")
-
+inherited <- read.csv(paste0("output/Lung_24_20191105_cell_types.csv"))
+inherited$barcode %<>% as.character()
+object@meta.data[inherited[inherited$cell.types %in% "Mucous gland cells","barcode"],
+                 "cell.types"] = "Submucosal gland mucous cells"
+                 
+#=======
 object$conditions %<>% factor(levels = c("proximal", "distal", "terminal"))
 df <- table(object$cell.types,object$conditions) %>% as.data.frame() %>% 
     spread(Var2,Freq)
 colnames(df)[1] = "cell.types"
 write.csv(df, file = paste0(path,"Cell_types_by_regions.csv"))
+
+#========
+
+Idents(object) = "cell.types"
+object %<>% sortIdent()
+object <- AddMetaColor(object = object, label= "cell.types", colors = Singler.colors)
+for( label in c(T, F)){
+    TSNEPlot.1(object, group.by = "cell.types",cols = ExtractMetaColor(object),label = label,
+               label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+               do.print = T,do.return = F,title = "Cell types in all 24 samples")
+    UMAPPlot.1(object, group.by = "cell.types",cols = ExtractMetaColor(object),label = label,
+               label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+               do.print = T,do.return = F,title = "Cell types in all 24 samples")
+}
+
+object@meta.data$conditions %<>% as.character()
+Idents(object) = "conditions"
+for (con in c("distal","proximal","terminal")){
+    subset_object <- subset(object,idents = con)
+    Idents(subset_object) = "cell.types"
+    subset_object %<>% sortIdent()
+
+    for( label in c(T, F)){
+        TSNEPlot.1(subset_object, group.by = "cell.types",
+                   cols = ExtractMetaColor(subset_object),label = label,unique.name = "conditions",
+                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+                   do.print = T,do.return = F,title = paste("Cell types in",con))
+        UMAPPlot.1(subset_object, group.by = "cell.types",
+                   cols = ExtractMetaColor(subset_object),label = label,unique.name = "conditions",
+                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+                   do.print = T,do.return = F,title = paste("Cell types in",con))
+    }
+}
+
+
 save(object,file="data/Lung_24_20190918.Rda")
