@@ -18,7 +18,7 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 Pairs = c("P.vs.D","P.vs.(D+T combined)","D.vs.T")
-labels = c("cell.types","major_cell.types","family_cell.types")
+labels = c("cell.types","major.cell.types","family.cell.types")
 Pairs=paste0(labels,"_", rep(Pairs,each =3))
 (p <- Pairs[args])
 
@@ -28,18 +28,18 @@ Idents(object) = "Doublets"
 object %<>% subset(idents = "Singlet")
 object@meta.data$cell.types %<>% gsub("Dendritic Cells","Dendritic cells",.)
 # group cell types
-object@meta.data$major_cell.types = gsub(":.*","",object@meta.data$cell.types)
-object@meta.data$major_cell.types = gsub("-[0-9]","",object@meta.data$major_cell.types)
+object@meta.data$major.cell.types = gsub(":.*","",object@meta.data$cell.types)
+object@meta.data$major.cell.types = gsub("-[0-9]","",object@meta.data$major.cell.types)
 
-object$major_cell.types[grep("Mucus-producing cells",object$major_cell.types)] = "Secretory cells"
-object$major_cell.types[grep("Pre-ciliated cells",object$major_cell.types)] = "Ciliated cells" 
-object$family_cell.types = object@meta.data$major_cell.types
+object$major.cell.types[grep("Mucus-producing cells",object$major.cell.types)] = "Secretory cells"
+object$major.cell.types[grep("Pre-ciliated cells",object$major.cell.types)] = "Ciliated cells" 
+object$family.cell.types = object@meta.data$major.cell.types
 
-object$family_cell.types[grep("Basal.*|Secretory.*|Ciliated.*|Intermediate.*|Ionocytes|Neuroendocrine.*",
-                          object$family_cell.types)] = "Surface Airway Epithelium"
-object$major_cell.types[grep("Smooth.*|Pericytes",object$major_cell.types)] = "Smooth muscle cells & Pericytes" 
-object$family_cell.types[grep("Fibroblasts|Smooth.*",
-                          object$family_cell.types)] = "Stromal cells"
+object$family.cell.types[grep("Basal.*|Secretory.*|Ciliated.*|Intermediate.*|Ionocytes|Neuroendocrine.*",
+                          object$family.cell.types)] = "Surface Airway Epithelium"
+object$major.cell.types[grep("Smooth.*|Pericytes",object$major.cell.types)] = "Smooth muscle cells & Pericytes" 
+object$family.cell.types[grep("Fibroblasts|Smooth.*",
+                          object$family.cell.types)] = "Stromal cells"
 
 # subset
 label = sub("\\_.*","",p)
@@ -56,9 +56,9 @@ if(pair == "P.vs.(D+T combined)"){
 if(pair == "D.vs.T"){
         sub_object <- subset(object, idents = c("distal","terminal"))
 }
-if(label == "family_cell.types"){
-        Idents(object) = "family_cell.types"
-        sub_object <- subset(object, idents = c("Surface Airway Epithelium",
+if(label == "family.cell.types"){
+        Idents(sub_object) = "family.cell.types"
+        sub_object <- subset(sub_object, idents = c("Surface Airway Epithelium",
                                                 "Stromal cells"))
 }
 
@@ -87,7 +87,7 @@ if(pair == "P.vs.D"){
         Lung_markers <- FindPairMarkers(sub_object,
                                         ident.1 = paste0(cell.type,"_distal"), 
                                         ident.2 = paste0(cell.type,"_proximal"),
-                                        logfc.threshold = 0.05, only.pos = T,
+                                        logfc.threshold = 0.05, only.pos = F,
                                         test.use = "MAST",
                                         save.files = FALSE)
 }
@@ -95,7 +95,7 @@ if(pair == "P.vs.(D+T combined)"){
         Lung_markers <- FindPairMarkers(sub_object,
                                         ident.1 = paste0(cell.type,"_distal+terminal"), 
                                         ident.2 = paste0(cell.type,"_proximal"),
-                                        logfc.threshold = 0.05, only.pos = T,
+                                        logfc.threshold = 0.05, only.pos = F,
                                         test.use = "MAST",
                                         save.files = FALSE)
 }

@@ -27,12 +27,12 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 if(args == 1){
-        (load(file = paste0("data/Lung_24_20190918.Rda")))
+        (load(file = paste0("data/Lung_24_20191128.Rda")))
         DefaultAssay(object)  = "RNA"
         Idents(object) = "RNA_snn_res.0.8"
         object %<>% sortIdent(numeric = T)
-        Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
-                                           test.use = "MAST")
+        Sys.time(Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
+                                           test.use = "MAST"))
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
         write.csv(Lung_markers,paste0(path,"Lung_24-FC0.25_markers_res=0.8.csv"))
 }

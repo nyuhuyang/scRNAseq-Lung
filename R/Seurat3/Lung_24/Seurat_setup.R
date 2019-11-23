@@ -15,7 +15,6 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # 
 # ######################################################################
 #======1.1 Setup the Seurat objects =========================
-# Load the mouse.eyes dataset
 
 # setup Seurat objects since both count matrices have already filtered
 # cells, we do no additional filtering here
@@ -29,7 +28,7 @@ print(df_samples)
 
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_24_20190918.Rda"))
+(load(file = "data/sce_24_20191016.Rda"))
 names(sce_list)
 object_list <- lapply(sce_list, as.Seurat)
 
@@ -132,27 +131,26 @@ JackStrawPlot(object, dims = 85:95)+
 dev.off()
 npcs =50
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(resolution = 0.8,dims.use = 1:npcs, print.output = FALSE)
+object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
-Idents(object) = "orig.ident"
 Idents(object) = "RNA_snn_res.0.8"
 object %<>% sortIdent(numeric = T)
-TSNEPlot.1(object, group.by="orig.ident",pt.size = 1,label = T,
+TSNEPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
            label.repel = T,alpha = 0.9,
                  no.legend = F,label.size = 4, repel = T, title = "No Integration",
                  do.print = T)
-UMAPPlot.1(object, group.by="orig.ident",pt.size = 1,label = T,
+UMAPPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
            label.repel = T,alpha = 0.9,
            no.legend = F,label.size = 4, repel = T, title = "No Integration",
                  do.print = T)
 save(object, file = "data/object_orig_24_20190918.Rda")
 object@assays$RNA@scale.data = matrix(0,0,0)
 
-save(object, file = "data/Lung_24_20190918.Rda")
+save(object, file = "data/Lung_24_20191128.Rda")
 
 #======1.5 Performing SCTransform and integration =========================
 set.seed(100)
@@ -243,8 +241,8 @@ for(con in c("proximal","distal","terminal")){
 }
 
 load(file = paste0("data/Lung_24distal_20190918.Rda"))
-DefaultAssay(object) <- 'integrated'
+DefaultAssay(object) <- 'RNA'
 for(i in c(15,16)/10){
     object %<>% FindClusters(resolution = i)
-    Idents(object) = paste0("integrated_snn_res.",i)
+    #Idents(object) = paste0("integrated_snn_res.",i)
 }
