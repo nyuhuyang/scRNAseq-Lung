@@ -23,14 +23,14 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-samples = c("proximal","distal","terminal")
-(con <- samples[args])
+regions = c("proximal","distal","terminal")
+(con <- regions[args])
 
 path <- paste0(path,con,"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 #(load(file = paste0("data/Lung_24-",con,"_20191004.Rda")))
-(load(file = paste0("data/Lung_24_20190918.Rda")))
+(load(file = paste0("data/Lung_24_20191128.Rda")))
 print(unique(object@meta.data$conditions))
 
 # - Table: number of cells per cell types (per each sample and total)
@@ -41,7 +41,7 @@ df %<>% spread("samples","Freq")
 rownames(df) = df$cell.types
 df = df[,-1]
 #write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-write.csv(df, paste0(path,"Lung_24_cell.types_by_samples.csv"))
+#write.csv(df, paste0(path,"Lung_24_cell.types_by_samples.csv"))
 
 # - Table: number of cells per cluster (per each sample and total)
 object$RNA_snn_res.0.8 %<>% as.numeric()
@@ -52,7 +52,7 @@ df %<>% spread("samples","Freq")
 rownames(df) = df$RNA_snn_res.0.8
 df = df[,-1]
 #write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-write.csv(df, paste0(path,"Lung_24_clusters_by_samples.csv"))
+#write.csv(df, paste0(path,"Lung_24_clusters_by_samples.csv"))
 
 #  UMAP, tSNE coordinates 
 meta.data = cbind.data.frame(object@meta.data,
@@ -63,16 +63,30 @@ meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
 
 meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
 print(colnames(meta.data))
-write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.8","cell.types")], 
-          paste0(path,"Lung_24_UMAP_coordinates.csv"))
-write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")], 
-          paste0(path,"Lung_24_tSNE_coordinates.csv"))
-# Expression data =============
+#write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.8","cell.types")], 
+#          paste0(path,"Lung_24_UMAP_coordinates.csv"))
+#write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")], 
+#          paste0(path,"Lung_24_tSNE_coordinates.csv"))
 
-data = summary(object@assays$RNA@data)
-system.time(df <- spread(data, key = j,value = x,drop=FALSE,
-                         fill = 0L))
-fwrite(df, file= paste0(path,"Lung_counts.csv"))
+# For P, D, T separately =============
+Idents(object) = "conditions"
+
+for (con in regions){
+        sub_object <- subset(object,idents = con)
+        #meta
+        meta.data = cbind.data.frame(sub_object@meta.data,
+                                     sub_object@reductions$umap@cell.embeddings,
+                                     sub_object@reductions$tsne@cell.embeddings)
+        meta.data = meta.data[,c("UMAP_1","UMAP_2","tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")]
+        meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
+        
+        meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
+        print(colnames(meta.data))
+        write.csv(meta.data, paste0(path,"Lung_24-",con,"_meta.data.csv"))
+        
+        # counts
+        write.csv(sub_object@assays$RNA@data, paste0(path,"Lung_24-",con,"_counts.csv"))
+}
 
 # - Table: number of expressed genes per cluster (per each sample and total) ==============
 df <- table(object$RNA_snn_res.0.8, object$orig.ident) %>% as.data.frame()
@@ -89,5 +103,5 @@ for(i in seq_len(nrow(df))) {
 df %<>% spread("samples","nGene")
 df[is.na(df)] = 0
 #write.csv(df,paste0(path,"Lung_24-",con,"_nGene_by_samples.csv"))
-write.csv(df,paste0(path,"Lung_24_nGene_by_samples.csv"))
+#write.csv(df,paste0(path,"nGene_by_samples.csv"))
 

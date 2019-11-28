@@ -9,7 +9,8 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_24_20190918.Rda"))
+(load(file="data/Lung_24_20191128.Rda"))
+object %<>% FindClusters(resolution = 1.5)
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -45,125 +46,130 @@ for(i in 1:length(marker.list)){
 
 #======== rename ident =================
 Idents(object) = "RNA_snn_res.0.8"
-object %<>% RenameIdents("0" = "T cells:Central naive(Tcn)",
-                         "1" = "Ciliated cells:1",
-                         "2" = "T cells:Resident memory(Trm)",
-                         "3" = "Endothelial:HEV",
-                         "4" = "Monocytes",
-                         "5" = "Macrophages",
-                         "6" = "Neutrophils",
-                         "7" = "B cells",
-                         "8" = "NK/T cytotoxic",
-                         "9" = "Smooth muscle cells:1",
-                         "10" = "Endothelial cells:Capillary:1",
-                         "11" = "Secretory cells:1",
-                         "12" = "Fibroblasts:1",
-                         "13" = "T cells:7SK.2+",
-                         "14" = "Alveolar type 2 cells:A",
-                         "15" = "Alveolar type 2 cells:B",
-                         "16" = "Ciliated cells:2",
-                         "17" = "Intermediate cells:1",
-                         "18" = "Endothelial cells:Capillary:2",
-                         "19" = "Fibroblasts:2",
-                         "20" = "Basal cells",
-                         "21" = "Submucosal gland serous cells",
-                         "22" = "Mucus-producing cells",
-                         "23" = "Macrophages:2",
-                         "24" = "Mast cells",
-                         "25" = "Hybrid cells",
+object %<>% RenameIdents(#"0" = #"T cells:Central naive(Tcn)",
+                         #"1" = #"Ciliated cells:1",
+                         "2" = "Ciliated cells:1",
+                         "3" = "Endothelial cells:Capillary:1",
+                         "4" = "Endothelial:HEV",
+                         "5" = "Monocytes",
+                         #"6" = #"Neutrophils",
+                         #"7" = #"B cells",
+                         "8" = "Neutrophils",
+                         "9" = "B cells",
+                         #"10" = #"Endothelial cells:Capillary:1",
+                         "11" = "Ciliated cells:2",#"Secretory cells:1",
+                         #"12" = #
+                         "13" = "Alveolar type 2 cells:A",
+                         "14" = "Alveolar type 2 cells:B",
+                         "15" = "Dendritic cells:MDC1",
+                         #"16" = #"Ciliated cells:2",
+                         #"17" = #,
+                         #"18" = 
+                         "19" = "Macrophages:1",
+                         #"20" = #"Basal cells",
+                         "21" = "Macrophages:2",
+                         "22" = "Submucosal gland:Serous cells",
+                         "23" = "Mast cells",#"Macrophages:2",
+                         "24" = "Hybrid cells",
+                         "25" = "Endothelial cells:Smooth muscle-like",
                          "26" = "Ciliated cells:3",
-                         "27" = "Smooth muscle cells:2",
-                         "28" = "Secretory cells:2",
-                         "29" = "Endothelial cells:Lymphatic",
-                         "30" = "Smooth muscle cells:3",
-                         "31" = "Chondrocytes",
-                         "32" = "Pre-ciliated cells",
-                         "33" = "Endothelial cells:Smooth muscle-like",
-                         "34" = "Plasma cells",
-                         "35" = "Proliferating cells",
-                         "36" = "T cells:Interferon-responsive",
-                         "37" = "Endothelial cells:Arterial",
-                         "38" = "Neuroendocrine cells",
-                         "39" = "Alveolar type 1 cells",
-                         "40" = "Neurons",
-                         "41" = "Dendritic Cells:Plasmacytoid")
+                         #"27" = #
+                         "28" = "Endothelial cells:Lymphatic",#"Secretory cells:2",
+                         "29" = "Smooth muscle cells:3",
+                         "30" = "Chondrocytes",
+                         "31" = "Pre-ciliated cells",
+                         "32" = "Plasma cells",
+                         "33" = "T cells:IFN-stimulated",
+                         #"34" = 
+                         "35" = "Neuroendocrine cells",
+                         "36" = "Alveolar type 1 cells",
+                         "37" = "Neurons",
+                         "38" = "Myoepithelial cells")
 object@meta.data$cell.types = Idents(object)
 object@meta.data$cell.types %<>% as.character()
 meta.data = cbind(object@meta.data, object@reductions$tsne@cell.embeddings)
-# Cluster 5 – Macrophages
-DC <- meta.data$RNA_snn_res.0.8 %in% 5 & meta.data$tSNE_2 < -21
-object@meta.data[DC,"cell.types"] = "Dendritic cells:2"
-# Cluster 12
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 12 & meta.data$tSNE_2 < 18,
-                 "cell.types"] = "Fibroblasts:6"
-meta.data <- cbind(meta.data,FetchData(object, vars = "MFAP5"))
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 12 & meta.data$MFAP5 > 1,
-                 "cell.types"] = "Fibroblasts:7"
-# Cluster 21 – Submucosal gland serous cells
-meta.data <- cbind(meta.data,FetchData(object, vars = "MUC5B"))
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 21 & meta.data$tSNE_1 < 0,
-                 "cell.types"] = "T cells:7SK.2+"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 21 & meta.data$tSNE_1 > 7 ,
-                 "cell.types"] = "Submucosal gland mucous cells"
-# Rename cluster 22:
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 22 & meta.data$tSNE_1 < 19,
-                "cell.types"] = "Intermediate cells:2"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 22 & meta.data$tSNE_1 >= 19,
-                 "cell.types"] = "Mucus-producing cells"
-# Rename cluster 31:
 
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 31 & meta.data$tSNE_2 > 10,
-                 "cell.types"] = "Unknwon"
-# Cluster 35 – Proliferating cells
-meta.data <- cbind(meta.data,FetchData(object, vars = c("MKI67","CDH5","CLDN5",
-                                                        "KRT5","DCN","SFTPC",
-                                                        "PTPRC","CD3G","CD3E",
-                                                        "CD163","CD68")))
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                meta.data$CDH5 >0 & meta.data$CLDN5 >0, 
-                "cell.types"] = "Endothelial cells:Proliferating"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                     meta.data$KRT5 >0, "cell.types"] = "Basal cells:Proliferating"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                 meta.data$DCN >0,"cell.types"] = "Fibroblasts:Proliferating"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                 meta.data$SFTPC >0,"cell.types"] = "Alveolar type 2 cells:Proliferating"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                     meta.data$PTPRC >0 & meta.data$CD3G >0, 
-                 "cell.types"] = "T cells:Proliferating"
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 35 & meta.data$MKI67 >0 & 
-                     meta.data$CD163 >0 & meta.data$CD68 >0, 
-                 "cell.types"] = "Macrophages:Proliferating"
+Idents(object) = "RNA_snn_res.0.8"
+meta.data <- cbind(meta.data,FetchData(object, vars = c("IL7R","FCN3","CD36","CXCL12","FBLN5","CA4")))
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 4 & meta.data$FCN3 > 1.5 & meta.data$tSNE_1 < -10,
+                 "cell.types"] = "Endothelial cells:Capillary:2"
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 4 & meta.data$FBLN5>0.1,
+                 "cell.types"] = "Endothelial cells:Artery:2"
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 4 & meta.data$CA4>0.1 & meta.data$FBLN5 <= 0.1,
+                 "cell.types"] = "Endothelial cells:Capillary:3"
+
+meta.data <- cbind(meta.data,FetchData(object, vars = c("SEPP1","IL3RA")))
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 15 & meta.data$SEPP1>0,
+                 "cell.types"] = "Dendritic cells:MDC2"
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 15 & meta.data$tSNE_1 > -14.5 &
+                     meta.data$tSNE_1 < -10 & meta.data$tSNE_2  >3,
+                 "cell.types"] = "Dendritic cells:Plasmacytoid"
+object@meta.data[meta.data$RNA_snn_res.0.8 %in% 22 & meta.data$tSNE_2 > -20,
+                 "cell.types"] = "Submucosal gland:Mucous cells"
+
 #object %<>% FindClusters(resolution = 1.5)
-object@meta.data[meta.data$RNA_snn_res.1.5 %in% 49,"cell.types"] = "Squamous cells"
-object@meta.data[meta.data$RNA_snn_res.1.5 %in% 29 & meta.data$tSNE_1 >20,"cell.types"] = "Mucus-producing cells"
+meta.data = cbind(object@meta.data, object@reductions$tsne@cell.embeddings)
+
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 0,"cell.types"] = "T cells:Central memory,naive(Tcn)"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 1,"cell.types"] = "T cells:Resident memory(Trm)"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 7,"cell.types"] = "T cells:7SK.2+"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 8,"cell.types"] = "Fibroblasts:1"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 10,"cell.types"] = "NK/T cytotoxic cells"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 15,"cell.types"] = "Smooth muscle cells:1"
+
+meta.data <- cbind(meta.data,FetchData(object, vars = c("WNT2","ACTA2")))
 object@meta.data[meta.data$RNA_snn_res.1.5 %in% 28,"cell.types"] = "Fibroblasts:3"
-object@meta.data[meta.data$RNA_snn_res.1.5 %in% 28 & 
-                     meta.data$tSNE_1 < 2 & meta.data$tSNE_2 < 28,"cell.types"] = "Fibroblasts:4"
-object@meta.data[meta.data$RNA_snn_res.1.5 %in% 30 & meta.data$tSNE_1 >20,"cell.types"] = "Hybrid cells:2"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 28 & meta.data$WNT2 > 0,"cell.types"] = "Fibroblasts:4"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 28 & meta.data$tSNE_1 > 26.7,"cell.types"] = "Fibroblasts:5"
 
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 30 & meta.data$tSNE_1 < 8.5,"cell.types"] = "Pericytes"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 30 & meta.data$tSNE_1 > 8.5,"cell.types"] = "Smooth muscle cells:2"
+
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 31,"cell.types"] = "Fibroblasts:2"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 34,"cell.types"] = "Smooth muscle cells:2"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 43,"cell.types"] = "Endothelial cells:Capillary:5"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 45, "cell.types"] = "Squamous"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 46 & meta.data$tSNE_1 > 15,"cell.types"] = "Ionocytes"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 46 & meta.data$tSNE_2 > -10,"cell.types"] = "Unknown"
+object@meta.data[meta.data$RNA_snn_res.1.5 %in% 46 & meta.data$tSNE_1 < 0,"cell.types"] = "Unknown"
+
+ 
 #object %<>% FindClusters(resolution = 1.6)
-meta.data <- cbind(meta.data,FetchData(object, vars = "SEPP1"))
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 11 & meta.data$SEPP1 > 1 ,"cell.types"] = "Dendritic Cells:1"
+meta.data = cbind(object@meta.data, object@reductions$tsne@cell.embeddings)
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 15,"cell.types"] = "Basal cells"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 17,"cell.types"] = "Secretory cells:1"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 24,"cell.types"] = "Intermediate cells:1"
 
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 28 & meta.data$tSNE_1 >5 ,"cell.types"] = "Fibroblasts:5"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 33,"cell.types"] = "Secretory cells:Distal"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 34 & 
-                     meta.data$tSNE_1 >5 & meta.data$tSNE_1 < 12,"cell.types"] = "Secretory cells:Distal"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 36,"cell.types"] = "Endothelial cells:Capillary:3"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 37 & meta.data$tSNE_2 < -15,"cell.types"] = "Endothelial cells:Proliferating"
+meta.data <- cbind(meta.data,FetchData(object, vars = c("MUC5AC")))
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 21 & meta.data$MUC5AC > 0 ,"cell.types"] = "Mucus-producing cells"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 21 & meta.data$MUC5AC == 0 ,"cell.types"] = "Intermediate cells-2"
+meta.data <- cbind(meta.data,FetchData(object, vars = c("SFTPB")))
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27 & meta.data$SFTPB > 0 ,"cell.types"] = "Secretory cells:distal"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27,"cell.types"] = "Secretory cells:3"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 28,"cell.types"] = "Endothelial cells:Capillary:4"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 30 & meta.data$tSNE_2 > 15 & meta.data$tSNE_2 < 20 ,
+                 "cell.types"] = "Endothelial cells:Artery:1"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 30 & meta.data$tSNE_2 > 20 ,
+                 "cell.types"] = "Endothelial cells:Capillary:5"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 37,"cell.types"] = "Secretory cells:2"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 44,"cell.types"] = "Alveolar type 2 cells:c"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 44 & meta.data$RNA_snn_res.0.8 %in% 4,"cell.types"] = "Alveolar type 2 cells:c"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 45 & meta.data$tSNE_1 > -8 &
+                 meta.data$tSNE_1 < 0 & meta.data$tSNE_2  >1 & meta.data$tSNE_2 < 3,"cell.types"] = "Endothelial cells:Proliferating"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 45 & meta.data$tSNE_1 > -8 &
+                     meta.data$tSNE_1 < 0 & meta.data$tSNE_2  >1 & meta.data$tSNE_2 < 3,"cell.types"] = "Endothelial cells:Proliferating"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 45 & meta.data$tSNE_1 > -15 &
+                     meta.data$tSNE_1 < -10 & meta.data$tSNE_2  > -3 & meta.data$tSNE_2 < 1,"cell.types"] = "T cells:Proliferating"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 45 & meta.data$tSNE_1 > -20 &
+                     meta.data$tSNE_1 < -12 & meta.data$tSNE_2  > 1 & meta.data$tSNE_2 < 10,"cell.types"] = "Macrophages:Proliferating"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 47, "cell.types"] = "Basal cells:Proliferating"
 
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 41,"cell.types"] = "Pericytes"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 50 & meta.data$tSNE_2 > 10 ,"cell.types"] = "Ionocytes"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 50 & meta.data$tSNE_1 > 5 ,"cell.types"] = "Unknown"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 54,"cell.types"] = "Myoepithelial cells"
-meta.data <- cbind(meta.data,FetchData(object, vars = "FOXI1"))
-object@meta.data[meta.data$RNA_snn_res.0.8 %in% 38 & meta.data$FOXI1 >0,
-                 "cell.types"] = "Ionocytes"
-inherited <- read.csv(paste0("output/Lung_24_20191105_cell_types.csv"))
-inherited$barcode %<>% as.character()
-object@meta.data[inherited[inherited$cell.types %in% "Mucous gland cells","barcode"],
-                 "cell.types"] = "Submucosal gland mucous cells"
+#== clear up === 
+object@meta.data[object$cell.types %in% 7, "cell.types"] = "Stromal cells:Proliferating"
+object@meta.data[object$cell.types %in% 12, "cell.types"] = "Fibroblasts:6"
+object@meta.data[object$cell.types %in% 10, "cell.types"] = "Secretory cells:distal:2"
+object@meta.data[object$cell.types %in% 17:18, "cell.types"] = "Intermediate cells:1"
+object@meta.data[object$cell.types %in% c(0,1,6,20,34), "cell.types"] = "Unknown"
 
 #=======
 object$conditions %<>% factor(levels = c("proximal", "distal", "terminal"))
@@ -172,13 +178,16 @@ df <- table(object$cell.types,object$conditions) %>% as.data.frame() %>%
 colnames(df)[1] = "cell.types"
 write.csv(df, file = paste0(path,"Cell_types_by_regions.csv"))
 
-
+df <- table(object$cell.types,object$orig.ident) %>% as.data.frame() %>% 
+    spread(Var2,Freq)
+colnames(df)[1] = "cell.types"
+write.csv(df, file = paste0(path,"Cell_types_by_samples.csv"))
 
 #========
 
 Idents(object) = "cell.types"
 object %<>% sortIdent()
-object <- AddMetaColor(object = object, label= "cell.types", colors = Singler.colors)
+object <- AddMetaColor(object = object, label= "cell.types", colors = c(Singler.colors,Singler.colors))
 for( label in c(T,F)){
     TSNEPlot.1(object, group.by = "cell.types",cols = ExtractMetaColor(object),label = label,
                label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
@@ -216,4 +225,4 @@ for (con in c("distal","proximal","terminal")){
 }
 
 
-save(object,file="data/Lung_24_20190918.Rda")
+save(object,file="data/Lung_24_20191128.Rda")

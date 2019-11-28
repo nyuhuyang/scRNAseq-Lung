@@ -136,7 +136,7 @@ meta.data = meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","tests","perce
 object@meta.data = meta.data
 save(object,file=paste0("data/Lung_24_20190918.Rda"))
 
-TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+TSNEPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
 UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)

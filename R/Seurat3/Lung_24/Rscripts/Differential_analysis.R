@@ -31,7 +31,7 @@ if(args == 1){
         DefaultAssay(object)  = "RNA"
         Idents(object) = "RNA_snn_res.0.8"
         object %<>% sortIdent(numeric = T)
-        Sys.time(Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
+        system.time(Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
                                            test.use = "MAST"))
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
         write.csv(Lung_markers,paste0(path,"Lung_24-FC0.25_markers_res=0.8.csv"))
@@ -48,7 +48,7 @@ if(args == 2){
         
 }
 if(args == 3){
-        (load(file = paste0("data/Lung_24_20190918.Rda")))
+        (load(file = paste0("data/Lung_24_20191128.Rda")))
         DefaultAssay(object)  = "RNA"
         Idents(object) = "cell.types"
         object %<>% sortIdent
@@ -67,3 +67,6 @@ if(args == 3){
 #            assay = "SCT",
 #            label=T, cex.row=5, legend.size = 5,width=10, height=7,unique.name = T,
 #            title = paste("Top 5 markers of each clusters in 24 sampels"))
+
+#res = read.csv("~/Downloads/Lung_24-FC0.75_markers_res=0.8.csv")
+#res %>% group_by(cluster) %>% top_n(20,avg_logFC) %>% .["avg_logFC"] %>% min()

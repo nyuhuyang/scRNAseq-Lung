@@ -240,9 +240,13 @@ for(con in c("proximal","distal","terminal")){
     write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
 }
 
-load(file = paste0("data/Lung_24distal_20190918.Rda"))
+load(file = paste0("data/Lung_24_20191128.Rda"))
 DefaultAssay(object) <- 'RNA'
-for(i in c(15,16)/10){
+for(i in c(8,15:16)/10){
     object %<>% FindClusters(resolution = i)
-    #Idents(object) = paste0("integrated_snn_res.",i)
+    Idents(object) = paste0("RNA_snn_res.",i)
+    TSNEPlot.1(object, group.by=paste0("RNA_snn_res.",i),pt.size = 0.3,label = T,
+               label.repel = T,alpha = 0.9,cols = Singler.colors,do.return = F,
+               no.legend = F,label.size = 4, repel = T, title = paste("res =",i),
+               do.print = T)
 }
