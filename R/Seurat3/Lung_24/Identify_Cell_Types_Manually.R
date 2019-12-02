@@ -10,7 +10,6 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
 (load(file="data/Lung_24_20191128.Rda"))
-object %<>% FindClusters(resolution = 1.5)
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
@@ -50,7 +49,7 @@ object %<>% RenameIdents(#"0" = #"T cells:Central naive(Tcn)",
                          #"1" = #"Ciliated cells:1",
                          "2" = "Ciliated cells:1",
                          "3" = "Endothelial cells:Capillary:1",
-                         "4" = "Endothelial:HEV",
+                         "4" = "Endothelial cells:HEV",
                          "5" = "Monocytes",
                          #"6" = #"Neutrophils",
                          #"7" = #"B cells",
@@ -144,15 +143,15 @@ meta.data <- cbind(meta.data,FetchData(object, vars = c("MUC5AC")))
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 21 & meta.data$MUC5AC > 0 ,"cell.types"] = "Mucus-producing cells"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 21 & meta.data$MUC5AC == 0 ,"cell.types"] = "Intermediate cells-2"
 meta.data <- cbind(meta.data,FetchData(object, vars = c("SFTPB")))
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27 & meta.data$SFTPB > 0 ,"cell.types"] = "Secretory cells:distal"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27,"cell.types"] = "Secretory cells:3"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27 & meta.data$SFTPB > 0 ,"cell.types"] = "Secretory cells:Distal"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 27 & meta.data$SFTPB == 0 ,"cell.types"] = "Secretory cells:3"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 28,"cell.types"] = "Endothelial cells:Capillary:4"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 30 & meta.data$tSNE_2 > 15 & meta.data$tSNE_2 < 20 ,
                  "cell.types"] = "Endothelial cells:Artery:1"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 30 & meta.data$tSNE_2 > 20 ,
                  "cell.types"] = "Endothelial cells:Capillary:5"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 37,"cell.types"] = "Secretory cells:2"
-object@meta.data[meta.data$RNA_snn_res.1.6 %in% 44,"cell.types"] = "Alveolar type 2 cells:c"
+object@meta.data[meta.data$RNA_snn_res.1.6 %in% 44,"cell.types"] = "Alveolar type 2 cells:C"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 44 & meta.data$RNA_snn_res.0.8 %in% 4,"cell.types"] = "Alveolar type 2 cells:c"
 object@meta.data[meta.data$RNA_snn_res.1.6 %in% 45 & meta.data$tSNE_1 > -8 &
                  meta.data$tSNE_1 < 0 & meta.data$tSNE_2  >1 & meta.data$tSNE_2 < 3,"cell.types"] = "Endothelial cells:Proliferating"
@@ -167,7 +166,8 @@ object@meta.data[meta.data$RNA_snn_res.1.6 %in% 47, "cell.types"] = "Basal cells
 #== clear up === 
 object@meta.data[object$cell.types %in% 7, "cell.types"] = "Stromal cells:Proliferating"
 object@meta.data[object$cell.types %in% 12, "cell.types"] = "Fibroblasts:6"
-object@meta.data[object$cell.types %in% 10, "cell.types"] = "Secretory cells:distal:2"
+object@meta.data[object$cell.types %in% 10, "cell.types"] = "Secretory cells:Distal:2"
+
 object@meta.data[object$cell.types %in% 17:18, "cell.types"] = "Intermediate cells:1"
 object@meta.data[object$cell.types %in% c(0,1,6,20,34), "cell.types"] = "Unknown"
 
@@ -223,6 +223,5 @@ for (con in c("distal","proximal","terminal")){
                    do.print = T,do.return = F,title = paste("Cell types in",con))
     }
 }
-
 
 save(object,file="data/Lung_24_20191128.Rda")

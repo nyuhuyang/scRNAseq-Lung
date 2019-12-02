@@ -39,48 +39,67 @@ df <- table(object$cell.types, object$orig.ident) %>%
 colnames(df) = c("cell.types","samples","Freq")
 df %<>% spread("samples","Freq")
 rownames(df) = df$cell.types
-df = df[,-1]
+df = df[order(df$cell.types),]
+
 #write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-#write.csv(df, paste0(path,"Lung_24_cell.types_by_samples.csv"))
+write.csv(df, paste0(path,"Cell_types_by_samples.csv"))
+
+# - Table: cluster name - cell type
+df <- table(object$RNA_snn_res.0.8, object$cell.types) %>% 
+        as.data.frame()
+colnames(df) = c("RNA_snn_res.0.8","cell.types","Freq")
+df %<>% spread("RNA_snn_res.0.8","Freq")
+rownames(df) = df$cell.types
+df = df[order(df$cell.types),]
+write.csv(df, paste0(path,"Cluster_name-cell_type.csv"))
 
 # - Table: number of cells per cluster (per each sample and total)
-object$RNA_snn_res.0.8 %<>% as.numeric()
+object$RNA_snn_res.0.8 %<>% as.character() %>% as.numeric()
 df <- table(object$RNA_snn_res.0.8, object$orig.ident) %>% 
         as.data.frame()
 colnames(df) = c("RNA_snn_res.0.8","samples","Freq")
 df %<>% spread("samples","Freq")
 rownames(df) = df$RNA_snn_res.0.8
-df = df[,-1]
+df = df[order(as.numeric(df$RNA_snn_res.0.8)),]
+
+#df = df[,-1]
 #write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-#write.csv(df, paste0(path,"Lung_24_clusters_by_samples.csv"))
+write.csv(df, paste0(path,"Clusters_by_samples.csv"))
 
 #  UMAP, tSNE coordinates 
 meta.data = cbind.data.frame(object@meta.data,
                              object@reductions$umap@cell.embeddings,
                              object@reductions$tsne@cell.embeddings)
-meta.data = meta.data[,c("UMAP_1","UMAP_2","tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")]
+meta.data = meta.data[,c("UMAP_1","UMAP_2","tSNE_1","tSNE_2","RNA_snn_res.0.8",
+                         "cell.types","orig.ident","conditions")]
+colnames(meta.data) %<>% sub("orig.ident","samples",.)
+colnames(meta.data) %<>% sub("conditions","regions",.)
+
 meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
 
-meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
+meta.data = meta.data[order(as.numeric(meta.data$RNA_snn_res.0.8)),]
 print(colnames(meta.data))
-#write.csv(meta.data[,c("UMAP_1","UMAP_2","RNA_snn_res.0.8","cell.types")], 
-#          paste0(path,"Lung_24_UMAP_coordinates.csv"))
-#write.csv(meta.data[,c("tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")], 
-#          paste0(path,"Lung_24_tSNE_coordinates.csv"))
+write.csv(meta.data[,-c(3:4)], 
+          paste0(path,"Lung_24_UMAP_coordinates.csv"))
+write.csv(meta.data[,-c(1:2)], 
+          paste0(path,"Lung_24_tSNE_coordinates.csv"))
 
 # For P, D, T separately =============
 Idents(object) = "conditions"
 
-for (con in regions){
+for (con in  c("proximal","distal","terminal")){
         sub_object <- subset(object,idents = con)
         #meta
         meta.data = cbind.data.frame(sub_object@meta.data,
                                      sub_object@reductions$umap@cell.embeddings,
                                      sub_object@reductions$tsne@cell.embeddings)
-        meta.data = meta.data[,c("UMAP_1","UMAP_2","tSNE_1","tSNE_2","RNA_snn_res.0.8","cell.types")]
+        meta.data = meta.data[,c("UMAP_1","UMAP_2","tSNE_1","tSNE_2","RNA_snn_res.0.8",
+                                 "cell.types","orig.ident","conditions")]
+        colnames(meta.data) %<>% sub("orig.ident","samples",.)
+        colnames(meta.data) %<>% sub("conditions","regions",.)
         meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
         
-        meta.data = meta.data[order(meta.data$RNA_snn_res.0.8),]
+        meta.data = meta.data[order(as.numeric(meta.data$RNA_snn_res.0.8)),]
         print(colnames(meta.data))
         write.csv(meta.data, paste0(path,"Lung_24-",con,"_meta.data.csv"))
         
@@ -102,6 +121,7 @@ for(i in seq_len(nrow(df))) {
 }
 df %<>% spread("samples","nGene")
 df[is.na(df)] = 0
+df = df[order(as.numeric(df$cluster_res.0.8)),]
 #write.csv(df,paste0(path,"Lung_24-",con,"_nGene_by_samples.csv"))
-#write.csv(df,paste0(path,"nGene_by_samples.csv"))
+write.csv(df,paste0(path,"nGene_by_samples.csv"))
 
