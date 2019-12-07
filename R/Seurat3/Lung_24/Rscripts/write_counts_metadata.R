@@ -3,18 +3,9 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-
-library(Seurat)
-library(dplyr)
-library(tidyr)
-library(kableExtra)
-library(gplots)
-library(MAST)
-library(Matrix)
-source("../R/Seurat3_functions.R")
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
-if(!dir.exists(path))dir.create(path, recursive = T)
-
+invisible(lapply(c("Seurat","dplyr","magrittr","MAST"), function(x) {
+                           suppressPackageStartupMessages(library(x,character.only = T))
+                   }))
 # SLURM_ARRAY_TASK_ID
 set.seed=101
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -101,10 +92,14 @@ for (con in  c("proximal","distal","terminal")){
         
         meta.data = meta.data[order(as.numeric(meta.data$RNA_snn_res.0.8)),]
         print(colnames(meta.data))
-        write.csv(meta.data, paste0(path,"Lung_24-",con,"_meta.data.csv"))
+        write.table(meta.data, paste0(path,"Lung_24-",con,"_meta.data.txt"), sep='\t', quote=F)
+        
+        meta_data <- cbind(rownames(sub_object@meta.data), sub_object@meta.data[,"cell.types", drop=F])   #####  cluster is the user’s specific cluster column
+        write.table(meta_data, paste0(path,"Lung_24-",con,"_meta.data_cellphone.txt"), sep='\t', quote=F, row.names=F)
         
         # counts
-        write.csv(sub_object@assays$RNA@data, paste0(path,"Lung_24-",con,"_counts.csv"))
+        write.table(sub_object@assays$RNA@data, paste0(path,"Lung_24-",con,"_counts.txt"), sep='\t', quote=F)
+        
 }
 
 # - Table: number of expressed genes per cluster (per each sample and total) ==============
@@ -125,3 +120,6 @@ df = df[order(as.numeric(df$cluster_res.0.8)),]
 #write.csv(df,paste0(path,"Lung_24-",con,"_nGene_by_samples.csv"))
 write.csv(df,paste0(path,"nGene_by_samples.csv"))
 
+path <- "Yang/proximal_distal_terminal/Non-Integration/Counts and meta/"
+terminal_meta_data <- read.csv(paste0(path,"Lung_24-proximal_meta.data.csv"),row.names = 1)
+terminal_counts <- read.csv(paste0(path,"Lung_24-proximal_counts.csv"),row.names = 1)

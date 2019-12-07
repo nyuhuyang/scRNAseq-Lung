@@ -158,20 +158,23 @@ object_list <- SplitObject(object, split.by = "orig.ident")
 remove(object);GC()
 object_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
-npcs =100
+npcs =30
 object_list %<>% lapply(function(x) {
     x %<>% RunPCA(features = object.features, verbose = FALSE)
 })
 options(future.globals.maxSize= object.size(object_list)*3)
 object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
                                   verbose = FALSE)
+
 anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
                                   anchor.features = object.features,
                                   reference = c(1, 2), reduction = "rpca", 
                                   dims = 1:npcs)
-object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
+remove(object_list);GC()
 
-remove(anchors,object_list);GC()
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
+remove(anchors);GC()
+
 object %<>% RunPCA(npcs = npcs, verbose = FALSE)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
 object <- ScoreJackStraw(object, dims = 1:100)
@@ -219,7 +222,7 @@ UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
-save(object, file = "data/Lung_24_20190918.Rda")
+save(object, file = "data/Lung_24_20191206.Rda")
 object_data = object@assays$SCT@data
 save(object_data, file = "data/Lung.data_24_20190824.Rda")
 
@@ -240,7 +243,7 @@ for(con in c("proximal","distal","terminal")){
     write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
 }
 
-load(file = paste0("data/Lung_24_20191128.Rda"))
+load(file = paste0("data/Lung_24_20191206.Rda"))
 DefaultAssay(object) <- 'RNA'
 for(i in c(8,15:16)/10){
     object %<>% FindClusters(resolution = i)

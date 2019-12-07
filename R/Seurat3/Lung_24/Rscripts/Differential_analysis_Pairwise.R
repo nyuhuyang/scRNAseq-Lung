@@ -18,7 +18,7 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 Pairs = c("P.vs.D","P.vs.T","P.vs.(D+T)","D.vs.T","D.vs.(P+T)","T.vs.(P+D)")
-labels = c("all.cells","cell.types","group1","group2","group2")
+labels = c("all.cells","cell.types","group1","group2","group3","group4","group5")
 labels_Pairs=paste0(rep(labels, each=6),"_", Pairs)
 (p <- labels_Pairs[args])
 
@@ -85,12 +85,7 @@ if(pair == "T.vs.(P+D)"){
         sub_object <- object
         sub_object@meta.data$conditions %<>% gsub("proximal|distal","proximal+distal",.)
 }
-if(label == "all.cells"){
-        Idents(sub_object) = "conditions"
-        Lung_markers <- FindAllMarkers.UMI(sub_object,
-                                        logfc.threshold = 0.5, only.pos = F,
-                                        test.use = "MAST")
-}
+
 if(label == "group1"){
         Idents(sub_object) = "group1"
         sub_object <- subset(sub_object, idents = c("Basal cells",
@@ -125,46 +120,56 @@ if(label == "group5"){
         Idents(sub_object) = "group5"
         sub_object <- subset(sub_object, idents = c("All non-epithelial cells"))
 }
-cell.type = unique(sub_object@meta.data[,label]) %>% sort
-sub_object@meta.data[,paste0(label,"_conditions")] = paste0(sub_object@meta.data[,label],"_",
-                                            as.character(sub_object@meta.data$conditions))
-Idents(sub_object) = paste0(label,"_conditions")
 
-# remove cluster with less than 3 cells======
-label_conditions <- as.factor(sub_object@meta.data[,paste0(label,"_conditions")])
-levels = paste0(cell.type,"_",rep(unique(sub_object$conditions),
-                                  each =length(cell.type)))
-label_conditions %<>% factor(levels = levels)
-table_subset <- table(label_conditions) %>% as.data.frame
-(remove <- table_subset[table_subset$Freq < 3,"label_conditions"] %>% 
-                gsub("\\_.*","",.) %>% unique() %>% as.character())
-(cell.type <- cell.type[!(cell.type %in% remove)])
-Idents(sub_object) = label
-sub_object %<>% subset(idents= remove, invert = T)
+if(label == "all.cells"){
+        Idents(sub_object) = "conditions"
+        Lung_markers <- FindAllMarkers.UMI(sub_object,
+                                           logfc.threshold = 0.5, only.pos = F,
+                                           test.use = "MAST")
+}
 
-# Differential analysis
-DefaultAssay(object) = "RNA"
-Idents(sub_object) = paste0(label,"_conditions")
-sub_object %<>% sortIdent
+if(label != "all.cells"){
+        cell.type = unique(sub_object@meta.data[,label]) %>% sort
+        sub_object@meta.data[,paste0(label,"_conditions")] = paste0(sub_object@meta.data[,label],"_",
+                                                    as.character(sub_object@meta.data$conditions))
+        Idents(sub_object) = paste0(label,"_conditions")
+        
+        # remove cluster with less than 3 cells======
+        label_conditions <- as.factor(sub_object@meta.data[,paste0(label,"_conditions")])
+        levels = paste0(cell.type,"_",rep(unique(sub_object$conditions),
+                                          each =length(cell.type)))
+        label_conditions %<>% factor(levels = levels)
+        table_subset <- table(label_conditions) %>% as.data.frame
+        (remove <- table_subset[table_subset$Freq < 3,"label_conditions"] %>% 
+                        gsub("\\_.*","",.) %>% unique() %>% as.character())
+        (cell.type <- cell.type[!(cell.type %in% remove)])
+        Idents(sub_object) = label
+        sub_object %<>% subset(idents= remove, invert = T)
+        
+        # Differential analysis
+        DefaultAssay(object) = "RNA"
+        Idents(sub_object) = paste0(label,"_conditions")
+        sub_object %<>% sortIdent
+        
+        ident1 =switch(sub(".*vs\\.","",pair),
+                       "P" = "_proximal",
+                       "D" = "_distal",
+                       "T" = "_terminal",
+                       "(D+T)" = "_distal+terminal",
+                       "(P+T)" = "_proximal+terminal",
+                       "(P+D)" = "_proximal+distal")
+        ident2 = switch(sub("\\..*","",pair), 
+                        "P" = "_proximal",
+                        "D" = "_distal", 
+                        "T" = "_terminal")
 
-ident1 = switch(sub("\\..*","",pair), 
-                "P" = "_proximal",
-                "D" = "_distal", 
-                "T" = "_terminal")
-ident2 =switch(sub(".*vs\\.","",pair),
-               "P" = "_proximal",
-               "D" = "_distal",
-               "T" = "_terminal",
-               "(D+T)" = "_distal+terminal",
-               "(P+T)" = "_proximal+terminal",
-               "(P+D)" = "_proximal+distal")
-
-Lung_markers <- FindPairMarkers(sub_object,
-                                ident.1 = paste0(cell.type, ident1), 
-                                ident.2 = paste0(cell.type, ident2),
-                                logfc.threshold = 0.05, only.pos = F,
-                                test.use = "MAST",
-                                save.files = FALSE)
+        Lung_markers <- FindPairMarkers(sub_object,
+                                        ident.1 = paste0(cell.type, ident1), 
+                                        ident.2 = paste0(cell.type, ident2),
+                                        logfc.threshold = 0.05, only.pos = F,
+                                        test.use = "MAST",
+                                        save.files = FALSE)
+}
 
 write.csv(Lung_markers,paste0(path,"Lung_24_",p,"~.csv"))
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
