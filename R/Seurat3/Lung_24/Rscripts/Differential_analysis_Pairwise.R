@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","tidyr","magrittr","gplots","MAST"), functio
         suppressPackageStartupMessages(library(x,character.only = T))
 }))
 source("../R/Seurat3_functions.R")
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/Pairwise_SCT/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 # SLURM_ARRAY_TASK_ID
@@ -23,8 +23,8 @@ labels_Pairs=paste0(rep(labels, each=6),"_", Pairs)
 (p <- labels_Pairs[args])
 
 # load data
-(load(file = "data/Lung_24_20191128.Rda"))
-DefaultAssay(object) = "RNA"
+(load(file = "data/Lung_24_20191206.Rda"))
+DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object %<>% subset(idents = "Singlet")
 # group cell types
@@ -147,7 +147,7 @@ if(label != "all.cells"){
         sub_object %<>% subset(idents= remove, invert = T)
         
         # Differential analysis
-        DefaultAssay(object) = "RNA"
+        DefaultAssay(object) = "SCT"
         Idents(sub_object) = paste0(label,"_conditions")
         sub_object %<>% sortIdent
         
@@ -171,6 +171,6 @@ if(label != "all.cells"){
                                         save.files = FALSE)
 }
 
-write.csv(Lung_markers,paste0(path,"Lung_24_",p,"~.csv"))
+write.csv(Lung_markers,paste0(path,"Lung_24_SCT_",p,"~.csv"))
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-write.csv(Lung_markers,paste0(path,"Lung_24_",p,".csv"))
+write.csv(Lung_markers,paste0(path,"Lung_24_SCT_",p,".csv"))

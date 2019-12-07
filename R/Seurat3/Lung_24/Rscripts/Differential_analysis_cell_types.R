@@ -25,7 +25,7 @@ labels_Pairs = df_labels_Pairs[args,]
 
 
 # load data
-(load(file = "data/Lung_24_20191128.Rda"))
+(load(file = "data/Lung_24_20191206.Rda"))
 df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
 table(df_cell_types$`Cell types` %in% object$cell.types)
 
@@ -34,14 +34,12 @@ object$cell.types %<>% plyr::mapvalues(from = df_cell_types$`Cell types`,
 DefaultAssay(object) = "RNA"
 Idents(object) = "Doublets"
 object %<>% subset(idents = "Singlet")
-
-Lung_markers <- FindPairMarkers(sub_object,
+Idents(object) = "cell.types"
+Lung_markers <- FindMarkers.UMI(object,
                                 ident.1 = ident1, 
                                 ident.2 = ident2,
                                 logfc.threshold = 0, only.pos = F,
-                                return.thresh = 1,
-                                test.use = "MAST",
-                                save.files = FALSE)
+                                test.use = "MAST")
 
 write.csv(Lung_markers,paste0(path,"Lung_24_RNA_pairwise_",args,"_",
                               paste(ident1,collapse = "."),
