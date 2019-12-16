@@ -68,6 +68,7 @@ Lung_markers <- FindPairMarkers(object,
                                 ident.1 = paste0(labels,"_COPD"), 
                                 ident.2 = paste0(labels,"_distal"),
                                 logfc.threshold = 0.05, only.pos = F,
+                                min.cells.group = 1,
                                 test.use = "MAST",
                                 save.files = FALSE)
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]

@@ -57,6 +57,16 @@ if(args == 3){
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
         write.csv(Lung_markers,paste0(path,"Lung_24-FC0.25_markers_cell_types.csv"))
 }
+if(args == 4){
+        (load(file = paste0("data/Lung_24_20191206.Rda")))
+        DefaultAssay(object)  = "SCT"
+        Idents(object) = "cell.types"
+        object %<>% sortIdent
+        Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0, only.pos = F,
+                                           return.thresh = 1,
+                                           test.use = "MAST")
+        write.csv(Lung_markers,paste0(path,"Lung_24-FC0_markers_cell_types.csv"))
+}
 # Differential analysis
 #Top_n = 5
 #top = Lung_markers %>% group_by(cluster) %>% top_n(Top_n, avg_logFC)

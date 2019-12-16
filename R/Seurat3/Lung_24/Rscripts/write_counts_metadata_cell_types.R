@@ -68,7 +68,7 @@ colnames(meta.data) %<>% sub("conditions","regions",.)
 
 meta.data$RNA_snn_res.0.8 = as.numeric(as.character(meta.data$RNA_snn_res.0.8))
 
-meta.data = meta.data[order(as.numeric(meta.data$RNA_snn_res.0.8)),]
+meta.data = meta.data[order(meta.data$regions),] # order by regions PDT
 print(colnames(meta.data))
 write.csv(meta.data[,-c(3:4)], 
           paste0(path,"Lung_24_UMAP_coordinates.csv"))
