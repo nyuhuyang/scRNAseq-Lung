@@ -34,10 +34,10 @@ object %<>% sortIdent
 cell.types <- unique(Idents(object))
 cell.type = cell.types[args]
 print(paste("FindMarkers for=",cell.type))
-sub_object <- subset(object, idents = cell.type)
-Lung_markers <- FindAllMarkers.UMI(sub_object, logfc.threshold = 0, only.pos = F,
-                                   return.thresh = 1,
-                                   test.use = "MAST")
+Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, 
+                                logfc.threshold = 0, only.pos = F,
+                                return.thresh = 1,
+                                test.use = "MAST")
 write.csv(Lung_markers,paste0(path,"Lung_24-FC0_markers_",args,"_",cell.type,".csv"))
 # Differential analysis
 #Top_n = 5

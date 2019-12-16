@@ -10,6 +10,10 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
+#######################
+# box plot
+#######################
+
 # for major cell ===========================
 # load data
 cell_dist <- readxl::read_excel("doc/Cell distribution - for plots.xlsx")
@@ -140,11 +144,9 @@ for(cell in minor_cells) {
         Progress(which(minor_cells %in% cell),length(minor_cells))
 }
 
+#######################
+# GSEA
+#######################
+csv_files <- list.files(path,pattern = "Lung_24-FC0_markers_")
 
-
-#df_minor_cell_dist = df_minor_cell_dist[,-grep("samples",colnames(df_minor_cell_dist))]
-#rownames(df_minor_cell_dist) = df_minor_cell_dist$Cell.categories
-
-
-
-
+        paste0(path,"Lung_24-FC0_markers_",args,"_",cell.type,".csv"))
