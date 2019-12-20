@@ -59,12 +59,12 @@ colnames(res)[grep("Group1.vs.Group2",colnames(res))] = "clusters"
 # Now, run the fgsea algorithm with 1000 permutations:
 fgseaRes = FgseaDotPlot(stats=res, pathways=hallmark, nperm=1000,
                      padj = 0.25,pval = 0.05,
-                     order.by = c("3_BC","NES"),decreasing = F,
-                     order = unique(res$clusters),
+                     order.yaxis.by = c("3_BC","NES"),decreasing = F,
+                     order.x = unique(res$clusters),
                      size = " -log10(pval)", fill = "NES",
                      pathway.name = "Hallmark",rotate.x.text = T,
                      title = "multiple lung cells",
-                     font.xtickslab=12, font.main=17, font.ytickslab = 15,
+                     font.xtickslab=12, font.main=17, font.ytickslab = 8,
                      font.legend = list(size = 15),font.label = list(size = 15),
                      do.return = T,
                      width = 10,height = 7)

@@ -29,13 +29,31 @@ print(paste("Expression data for =",cell.type))
 sub_object <- subset(object, idents = cell.type)
 
 # Expression data =============
-meta.data = sub_object@meta.data[,c("cell.types","conditions","barcode")]
+meta.data = sub_object@meta.data[,c("cell.types","conditions","barcode","orig.ident")]
+colnames(meta.data) %<>% sub("orig.ident","samples",.)
 colnames(meta.data) %<>% sub("conditions","regions",.)
 meta.data %<>% arrange(match(regions, c("proximal","distal","terminal")))
 rownames(meta.data) = meta.data$barcode
 data = DelayedArray::t(sub_object@assays$SCT@data)
-data = cbind(meta.data,data)
-data = data[,-grep("cell.types|barcode",colnames(data))]
-write.table(DelayedArray::t(data), paste0(path,"Lung_24-",args,"_",
-                                          cell.type,"_counts.txt"),
-            sep='\t', quote=F)
+data = merge(meta.data,data,by="row.names",all.x=TRUE)
+rownames(data) = data$Row.names
+data = data[,-grep("Row.names|cell.types|barcode",colnames(data))]
+write.csv(DelayedArray::t(data), paste0(path,"Lung_24-",args,"_",cell.type,".csv"))
+
+
+# test expression data
+#exp <- read.csv("~/Downloads/Lung_24-12_Basal cells.csv",row.names = 1, stringsAsFactors = F)
+#genes <- c("S100A9","ALDH3A1","FST","PLAU","KRT14","MMP10","SFN",
+#           "S100A8","GJB2","LYZ","TNC","KRT6A","AKR1C2","DKK1","S100A2",
+#           "PRR4","S100A11","FGFBP1")
+#regions <- exp["regions",]  %>% unlist %>% as.character()
+#table(regions)
+#ident.1 = names(regions)[regions %in% "proximal"]
+#ident.2 = names(regions)[regions %in% c("distal","terminal")]
+#exp_genes <- data.matrix(exp[genes,])
+#de.results <- FindMarkers(
+#        object = sub_object@assays$SCT@data,
+#        cells.1 = ident.1,
+#        cells.2 = ident.2,
+#        features = genes,
+#        test.use = "MAST")

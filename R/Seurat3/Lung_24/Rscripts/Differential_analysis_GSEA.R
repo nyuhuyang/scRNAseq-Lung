@@ -3,14 +3,10 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-
-library(Seurat)
-library(dplyr)
-library(tidyr)
-library(kableExtra)
-library(gplots)
-library(MAST)
-library(future)
+invisible(lapply(c("Seurat","dplyr","tidyr","magrittr","gplots","MAST",
+                   "future"), function(x) {
+                           suppressPackageStartupMessages(library(x,character.only = T))
+                   }))
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -28,6 +24,7 @@ print(paste0("slurm_arrayid=",args))
 
 # load data
 (load(file = paste0("data/Lung_24_20191206.Rda")))
+object$cell.types %<>%  gsub("/","_",.)
 DefaultAssay(object)  = "SCT"
 Idents(object) = "cell.types"
 object %<>% sortIdent
@@ -36,7 +33,6 @@ cell.type = cell.types[args]
 print(paste("FindMarkers for=",cell.type))
 Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, 
                                 logfc.threshold = 0, only.pos = F,
-                                return.thresh = 1,
                                 test.use = "MAST")
 write.csv(Lung_markers,paste0(path,"Lung_24-FC0_markers_",args,"_",cell.type,".csv"))
 # Differential analysis

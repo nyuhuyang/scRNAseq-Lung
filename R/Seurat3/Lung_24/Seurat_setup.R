@@ -222,10 +222,14 @@ UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_sn
 
 table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
 object@assays$integrated@scale.data = matrix(0,0,0)
+
+DefaultAssay(object) = "SCT"
+object <- FindVariableFeatures(object = object, selection.method = "vst",
+                               num.bin = 20,
+                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
 save(object, file = "data/Lung_24_20191206.Rda")
 object_data = object@assays$SCT@data
 save(object_data, file = "data/Lung.data_24_20190824.Rda")
-
 
 for(con in c("proximal","distal","terminal")){
     print(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))

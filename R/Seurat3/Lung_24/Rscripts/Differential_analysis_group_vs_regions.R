@@ -167,6 +167,7 @@ if(label != "all.cells"){
                                         ident.1 = paste0(cell.type, ident1), 
                                         ident.2 = paste0(cell.type, ident2),
                                         logfc.threshold = 0.05, only.pos = F,
+                                        return.thresh = 0.05,
                                         test.use = "MAST",
                                         save.files = FALSE)
 }
@@ -174,3 +175,21 @@ if(label != "all.cells"){
 write.csv(Lung_markers,paste0(path,"Lung_24_SCT_",p,"~.csv"))
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
 write.csv(Lung_markers,paste0(path,"Lung_24_SCT_",p,".csv"))
+
+
+#========= label correction switch cluster1 vs cluster 2=========
+#DEGs_path <- "Yang/proximal_distal_terminal/Non-Integration/DEGs/Pairwise/"
+#csv_files <- list.files(DEGs_path,pattern = "Lung_24") 
+#length(csv_files)
+#labels_pairs <- gsub(".csv","",csv_files) %>% gsub("Lung_24_","",.)
+#which(!(labels_Pairs %in% labels_pairs))
+#csv_files = csv_files[7:length(csv_files)]
+
+#for (i in seq_along(csv_files)) {
+#        deg <- read.csv(paste0(DEGs_path, csv_files[i]),row.names = 1)
+#        temp <-  stringr::str_split(deg$cluster1.vs.cluster2," vs. ")
+#        temp <- sapply(temp, function(x) paste(x[2],"/",x[1]))
+#        deg$cluster1.vs.cluster2 = temp
+#        write.csv(deg, file = paste0(DEGs_path, csv_files[i]), )
+#        Progress(i,length(csv_files))
+#        }

@@ -43,8 +43,8 @@ Lung_markers <- FindMarkers.UMI(object,
                                 ident.2 = ident2,
                                 logfc.threshold = 0, only.pos = F,
                                 test.use = "MAST")
-Lung_markers$Group1.vs.Group2 <- paste0(paste(ident1,collapse = "."),
-                                        "_vs_",
+Lung_markers$Group1.vs.Group2 <- paste(paste(ident1,collapse = "."),
+                                        "/",
                                         paste(ident2,collapse = "."))
        
 write.csv(Lung_markers,paste0(path,"Lung_24_",slot,"_pairwise_",args,"_",
