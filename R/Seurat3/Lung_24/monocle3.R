@@ -17,21 +17,26 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 # 5.0 Preliminaries: Load the data
 
-(load(file = "data/Lung_24_20190824.Rda"))
-Idents(object) = "group"
-object %<>% subset(idents ="UNC-44", invert = T)
-Idents(object) = "cell.type"
-UMAPPlot.1(object,cols = ExtractMetaColor(object),label.repel = T,label = T,
-           no.legend = T,do.print = T)
-Epi <- subset(object, idents=c("Alveolar cells/Distal secretory cells",
-                               "Ciliated cells","Basal cells","Secretory cells"))
+(load(file = paste0("data/Lung_24_20191206.Rda")))
+object@meta.data$group1 = gsub(":.*","",object@meta.data$cell.types)
+Idents(object) = "group1"
+Epi <- subset(object, idents=c("Alveolar type 1 cells","Alveolar type 2 cells","Basal cells",
+                               "Ciliated cells","Hybrid cells","Intermediate cells",
+                               "Ionocytes","Mucus-producing cells","Myoepithelial cells",
+                               "Neuroendocrine cells","Pre-ciliated cells","Secretory cells",
+                               "Squamous","Submucosal gland"))
 Epi@meta.data = cbind(Epi@meta.data,Epi@reductions$umap@cell.embeddings)
 UMAPPlot.1(Epi,cols = ExtractMetaColor(Epi),label.repel = T,label = T,no.legend = T,
            do.print = T, title = "UMAP plot for Epithelial cells",unique.name = "conditions")
-Epi <- subset(x = Epi, subset = UMAP_1 <5)
-Epi <- subset(x = Epi, subset = UMAP_2 <0)
+Epi <- subset(x = Epi, subset = UMAP_1 < 2.5)
+Epi <- subset(x = Epi, subset = UMAP_2 > -7.5)
+UMAPPlot.1(Epi,cols = ExtractMetaColor(Epi),label.repel = T,label = T,no.legend = T,
+           do.print = T, title = "UMAP plot for Epithelial cells",unique.name = "conditions")
 object <- Epi
 remove(Epi);GC()
+# run Seurat_setup script without integration
+#save(object, file = "data/Epi_24_20191128.Rda")
+
 #Construct monocle cds
 cds <- new_cell_data_set(object@assays$SCT@counts,cell_metadata = object@meta.data)
 ## Step 1: Normalize and pre-process the data
