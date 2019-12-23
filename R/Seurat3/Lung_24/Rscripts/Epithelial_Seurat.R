@@ -11,7 +11,6 @@ source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-
 # SLURM_ARRAY_TASK_ID
 set.seed=101
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -20,14 +19,12 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-# samples
-samples = c("proximal","distal","terminal","All")
-(con <- samples[args])
+# conditions
+conditions = c("proximal","distal","terminal","All")
+(con <- conditions[args])
 
 # Load Seurat
 (load(file="data/Lung_24_20191206.Rda"))
-Idents(object) = "conditions"
-if(con != "All") object %<>% subset(idents = con)
 table(object$orig.ident)
 object$major_cell.types = gsub(":.*","",object$cell.types)
 Idents(object) = "major_cell.types"
@@ -56,6 +53,8 @@ if (con == "terminal") {
                                   "Submucosal gland:Serous cells"),
                        invert = TRUE)
 }
+Idents(object) = "conditions"
+if(con != "All") object <- subset(object, idents = con)
 ######################################
 DefaultAssay(object) = "SCT"
 object <- FindVariableFeatures(object = object, selection.method = "vst",
@@ -79,16 +78,18 @@ object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
-object@meta.data$orig.ident %<>% as.factor()
-object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
+object@assays$RNA@scale.data = matrix(0,0,0)
+save(object, file = paste0("data/Epi_24_",con,"_20191223.Rda"))
 Idents(object) = "RNA_snn_res.0.8"
 object %<>% sortIdent(numeric = T)
-TSNEPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,alpha = 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T,unique.name = "conditions")
 UMAPPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
            label.repel = T,alpha = 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T,unique.name = "conditions")
-save(object, file = paste0("data/Epi_24_",con,"_20191223.Rda"))
+           no.legend = F,label.size = 4, repel = T, title = paste(con,"clusters with No Integration"),
+           do.return = F,do.print = T,unique.name = "conditions")
+Idents(object) = "cell.types"
+object %<>% sortIdent
+UMAPPlot.1(object, group.by="cell.types",pt.size = 1,label = T,
+           label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
+           no.legend = F,label.size = 4, repel = T, title = paste(con,"cell types"),
+           do.return = F,do.print = T,unique.name = "conditions")
+
