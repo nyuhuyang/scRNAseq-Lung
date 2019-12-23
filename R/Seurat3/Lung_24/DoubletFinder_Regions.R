@@ -143,7 +143,7 @@ object@meta.data = meta.data
 
 #TSNEPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
 #           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
-#UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
-#           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
+UMAPPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
+           title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
 
 save(object,file=paste0("data/Lung_24",con,"_20191004.Rda"))

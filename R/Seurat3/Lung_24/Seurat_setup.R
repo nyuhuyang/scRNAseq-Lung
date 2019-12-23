@@ -124,7 +124,7 @@ ElbowPlot(object, ndims = 85)+
 dev.off()
 
 jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 85:95)+
+JackStrawPlot(object, dims = 55:65)+
     ggtitle("JackStrawPlot")+
     theme(text = element_text(size=15),	
           plot.title = element_text(hjust = 0.5,size = 18))
@@ -147,7 +147,6 @@ UMAPPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
            label.repel = T,alpha = 0.9,
            no.legend = F,label.size = 4, repel = T, title = "No Integration",
                  do.print = T)
-save(object, file = "data/object_orig_24_20190918.Rda")
 object@assays$RNA@scale.data = matrix(0,0,0)
 
 save(object, file = "data/Lung_24_20191128.Rda")

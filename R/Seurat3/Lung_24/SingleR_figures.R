@@ -66,9 +66,9 @@ object <- AddMetaData(object = object,metadata = singlerDF)
 object <- AddMetaColor(object = object, label= "singler1main", colors = Singler.colors)
 Idents(object) <- "singler1main"
 
-UMAPPlot.1(object, cols = ExtractMetaColor(object),label = T, label.repel = T,pt.size = 1,
+UMAPPlot.1(object, cols = ExtractMetaColor(object),label = F, label.repel = F,pt.size = 1,
          label.size = 4, repel = T,no.legend = T,do.print = T,
-         title = "Major cell types")
+         title = "Cell types")
 save(object,file="data/Lung_24_20190824.Rda")
 ##############################
 # draw tsne plot
