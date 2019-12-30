@@ -18,3 +18,27 @@ df_labels_Pairs = df_labels_Pairs[!is.na(df_labels_Pairs$`Group 1`),]
 (ident2 <- strsplit(df_labels_Pairs$`Group 2`, "\\+")%>% unlist())
 Uni <- c(ident1,ident2)
 Uni[!Uni %in% Cell.type$Abbreviation]
+
+
+# Add Abbreviation
+args <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",args))
+
+conditions = c("proximal","distal","terminal","All")
+(con <- conditions[args])
+
+df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
+
+(load(file = paste0("data/Epi_24_",con,"_20191223.Rda")))
+object$cell_types <- plyr::mapvalues(object$cell.types,
+                                     from = df_cell_types$`Cell types`,
+                                     to = df_cell_types$Abbreviation)
+object$cell_types.colors = object$cell.types.colors
+Idents(object) = "cell_types"
+
+df <- colData(cds)
+if(table(rownames(df) == colnames(object))) {
+        df$cell_types = object$cell_types
+        df$cell_types.colors = object$cell_types.colors
+}
+colData(cds) = df

@@ -21,7 +21,7 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 DEG_path <- "Yang/proximal_distal_terminal/Non-Integration/DEGs/cell_types_pairwise/SCT/"
 
-# 3.1.1 load plan
+# 3.1.1 load DEGs files
 df_labels_Pairs <- readxl::read_excel("doc/DEG cell types comparison plan.xlsx")
 df_labels_Pairs = df_labels_Pairs[df_labels_Pairs$`GSEA` %in% "GSEA",]
 

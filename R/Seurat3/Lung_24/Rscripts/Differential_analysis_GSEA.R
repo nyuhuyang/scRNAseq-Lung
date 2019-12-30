@@ -24,7 +24,7 @@ print(paste0("slurm_arrayid=",args))
 
 # load data
 (load(file = paste0("data/Lung_24_20191206.Rda")))
-object$cell.types %<>%  gsub("/","_",.)
+object$cell.types %<>%  gsub("/","-",.) #NK-T
 DefaultAssay(object)  = "SCT"
 Idents(object) = "cell.types"
 object %<>% sortIdent
