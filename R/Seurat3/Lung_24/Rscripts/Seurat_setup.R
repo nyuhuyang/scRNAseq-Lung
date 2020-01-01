@@ -68,7 +68,6 @@ TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
 object@assays$integrated@scale.data = matrix(0,0,0)
 save(object, file = paste0("data/Lung_24",con,"_20190918.Rda"))
 
-
 # Differential analysis
 Idents(object) = "integrated_snn_res.0.8"
 Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.1, only.pos = T,

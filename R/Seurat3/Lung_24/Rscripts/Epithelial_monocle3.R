@@ -25,8 +25,8 @@ df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
 
 (load(file = paste0("data/Epi_24_",con,"_20191223.Rda")))
 object$cell_types <- plyr::mapvalues(object$cell.types,
-                                       from = df_cell_types$`Cell types`,
-                                       to = df_cell_types$Abbreviation)
+                                     from = df_cell_types$`Cell types`,
+                                     to = df_cell_types$Abbreviation)
 object$cell_types.colors = object$cell.types.colors
 Idents(object) = "cell_types"
 
@@ -39,7 +39,7 @@ UMAPPlot.1(object, group.by="cell_types",pt.size = 1,label = F,
 #cds <- new_cell_data_set(object@assays$SCT@counts,
 #                         cell_metadata = object@meta.data,
 #                         gene_metadata = data.frame("gene_short_name" = rownames(object),
-                                                      row.names = rownames(object)))
+row.names = rownames(object)))
 ## Step 1: Normalize and pre-process the data
 #cds <- preprocess_cds(cds, num_dim = 50)
 ## Step 2: Reduce the dimensions using UMAP

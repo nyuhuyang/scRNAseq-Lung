@@ -71,11 +71,12 @@ jpeg(paste0(path,"VariableFeaturePlot_",con,".jpeg"), units="in", width=10, heig
 print(plot2)
 dev.off()
 #======1.3 1st run of pca-tsne  =========================
-object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = 50)
 npcs =50
+object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = npcs)
+
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8)
-object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
+#object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
 object@assays$RNA@scale.data = matrix(0,0,0)
