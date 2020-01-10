@@ -4,9 +4,9 @@
 # 
 # ######################################################################
 invisible(lapply(c("R.utils","Seurat","dplyr","kableExtra","ggplot2","scater",
-                   "scran","scran","BiocSingular"), function(x) {
-                           suppressPackageStartupMessages(library(x,character.only = T))
-                   }))
+        "scran","scran","BiocSingular"), function(x) {
+        suppressPackageStartupMessages(library(x,character.only = T))
+        }))
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
@@ -26,11 +26,11 @@ df_samples <- readxl::read_excel(args[1])
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
 sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:15)))
-sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
+#sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
 df_samples <- df_samples[sample_n,]
 print(df_samples)
 (samples = df_samples$sample)
-
+nrow(df_samples)
 # check missing data
 current <- list.files("data")
 (current <- current[!grepl(".Rda|RData",current)])
@@ -64,13 +64,13 @@ Seurat_list <- list()
 sample_n = which(df_samples$tests %in% c("control",paste0("test",1:3)))
 for(i in sample_n){
         Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
-                                                     "/outs/filtered_gene_bc_matrices/",species))
+                                   "/outs/filtered_gene_bc_matrices/",species))
         colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
         Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
-                                               min.cells = 0,
+                                                 min.cells = 0,
                                                min.features = 0)
         Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
-        
+
 }
 ## Load the new version 10X dataset
 sample_n = which(df_samples$tests %in% c("control",paste0("test",5:15)))
@@ -91,18 +91,14 @@ args[2] = as.character(args[2])
 if(is.na(args[2])){
         message("QC")
         cell.number <- sapply(Seurat_list, function(x) length(colnames(x)))
-        QC_list <- lapply(Seurat_list, function(x) as.matrix(GetAssayData(x, slot = "counts")))
-        median.nUMI <- sapply(QC_list, function(x) median(colSums(x)))
-        median.nGene <- sapply(QC_list, function(x) median(apply(x,2,function(y) sum(length(y[y>0])))))
+        raw_nCount_RNA <- sapply(Seurat_list, function(x) mean(x$nCount_RNA))
+        raw_nFeature_RNA <- sapply(Seurat_list, function(x) mean(x$nFeature_RNA))
         
-        min.nUMI <- sapply(QC_list, function(x) min(colSums(x)))
-        min.nGene <- sapply(QC_list, function(x) min(apply(x,2,function(y) sum(length(y[y>0])))))
-        
-        QC.list <- cbind(df_samples,cell.number, median.nUMI, median.nGene,
-                         min.nUMI,min.nGene, row.names = df_samples$sample)
-        write.csv(QC.list,paste0(path,"test24_QC_list.csv"))
-        #QC.list %>% kable() %>% kable_styling()
-        remove(QC_list,median.nUMI,median.nGene,min.nUMI,min.nGene,QC.list);GC()
+        QC.list <- cbind(df_samples,cell.number, raw_nCount_RNA, raw_nFeature_RNA,
+                         row.names = df_samples$sample)
+        write.csv(QC.list,paste0(path,"test28_QC_list.csv"))
+        QC.list %>% kable() %>% kable_styling()
+        remove(QC.list,cell.number,raw_nCount_RNA,raw_nFeature_RNA);GC()
 }
 #========1.1.3 g1 QC plots before filteration=================================
 object <- Reduce(function(x, y) merge(x, y, do.normalize = F), Seurat_list)
@@ -134,7 +130,7 @@ for(i in 1:length(df_samples$sample)){
         low.genes <- isOutlier(log10(Seurat_list[[i]]$nFeature_RNA), type="lower", nmad=3)
         discard <- high.mito | low.lib | low.genes
         print(data.frame(HighMito= sum(high.mito),LowLib=sum(low.lib), 
-                         LowNgenes=sum(low.genes),Discard=sum(discard)))
+                   LowNgenes=sum(low.genes),Discard=sum(discard)))
         Seurat_list[[i]] <- Seurat_list[[i]][,!discard]
         #print(summary(!discard))
         print(i)

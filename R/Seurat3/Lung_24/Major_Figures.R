@@ -111,7 +111,7 @@ for(cell in minor_cells) {
                   size = NULL,
                   ylab = "Cell percenrage", 
                   xlab = "",
-                  palette = c('#3D9970','#FF4136','#FF851B'),
+                  palette = c("#ffa500","#0000ff","#008000"),
                   color = "regions",
                   add = "jitter",
                   #add.params = list(size = 0, jitter = 0),

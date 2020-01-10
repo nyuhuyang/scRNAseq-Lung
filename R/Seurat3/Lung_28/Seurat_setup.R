@@ -4,8 +4,8 @@
 # 
 # ######################################################################
 invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr"), function(x) {
-    suppressPackageStartupMessages(library(x,character.only = T))
-}))
+                       suppressPackageStartupMessages(library(x,character.only = T))
+                   }))
 source("../R/Seurat3_functions.R")
 path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -21,40 +21,40 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 df_samples <- readxl::read_excel("doc/20190815_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
 sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:15)))
-sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
+#sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
 df_samples <- df_samples[sample_n,]
 print(df_samples)
 (samples = df_samples$sample)
-
+nrow(df_samples)
 
 #======1.2 load  SingleCellExperiment =========================
-(load(file = "data/sce_24_20191016.Rda"))
+(load(file = "data/sce_28_20200102.Rda"))
 names(sce_list)
-object_list <- lapply(sce_list, as.Seurat)
+Seurat_list <- lapply(sce_list, as.Seurat)
 
 for(i in 1:length(samples)){
-    object_list[[i]]$orig.ident <- df_samples$sample[i]
-    object_list[[i]]$conditions <- df_samples$conditions[i]
-    object_list[[i]]$group <- df_samples$group[i]
-    object_list[[i]]$project <- df_samples$project[i]
-    object_list[[i]]$tests <- df_samples$tests[i]
-    Idents(object_list[[i]]) <- df_samples$sample[i]
+    Seurat_list[[i]]$orig.ident <- df_samples$sample[i]
+    Seurat_list[[i]]$conditions <- df_samples$conditions[i]
+    Seurat_list[[i]]$group <- df_samples$group[i]
+    Seurat_list[[i]]$project <- df_samples$project[i]
+    Seurat_list[[i]]$tests <- df_samples$tests[i]
+    Idents(Seurat_list[[i]]) <- df_samples$sample[i]
 }
 
 #========1.3 merge ===================================
-object <- Reduce(function(x, y) merge(x, y, do.normalize = F), object_list)
+object <- Reduce(function(x, y) merge(x, y, do.normalize = F), Seurat_list)
 object@assays$RNA@data = object@assays$RNA@data *log(2)
-remove(sce_list,object_list);GC()
+remove(sce_list,Seurat_list);GC()
 
 (remove <- which(colnames(object@meta.data) %in% "ident"))
 meta.data = object@meta.data[,-remove]
-object@meta.data = meta.data 
+object@meta.data = object@meta.data[,-remove]
 remove(meta.data);GC()
-#======1.2 QC, pre-processing and normalizing the data=========================
+#======1.4 QC, pre-processing the data=========================
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 Idents(object) = "orig.ident"
-(load(file = "output/20190918/g1_24_20190918.Rda"))
+(load(file = "output/20200102/g1_28_20200102.Rda"))
 
 object %<>% subset(subset = nFeature_RNA > 200  & #nCount_RNA > 1500 & 
                        percent.mt < 25)
@@ -63,33 +63,38 @@ g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
     VlnPlot(object = object, features = features, ncol = 3, pt.size = 0.01)+
         theme(axis.text.x = element_text(size=12),legend.position="none")
 })
-save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
                     scale_y_log10(limits = c(100,10000))+
-                    theme(plot.title = element_text(hjust = 0.5)),
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5)),
                 g2[[1]]+ggtitle("nFeature_RNA after filteration")+
                     scale_y_log10(limits = c(100,10000))+
-                    theme(plot.title = element_text(hjust = 0.5))))
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5))))
 dev.off()
 jpeg(paste0(path,"S1_nUMI.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[2]]+ggtitle("nCount_RNA before filteration")+
                     scale_y_log10(limits = c(500,100000))+
-                    theme(plot.title = element_text(hjust = 0.5)),
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5)),
                 g2[[2]]+ggtitle("nCount_RNA after filteration")+ 
                     scale_y_log10(limits = c(500,100000))+
-                    theme(plot.title = element_text(hjust = 0.5))))
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5))))
 dev.off()
 jpeg(paste0(path,"S1_mito.jpeg"), units="in", width=10, height=7,res=600)
 print(plot_grid(g1[[3]]+ggtitle("mito % before filteration")+
                     ylim(c(0,50))+
-                    theme(plot.title = element_text(hjust = 0.5)),
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5)),
                 g2[[3]]+ggtitle("mito % after filteration")+ 
                     ylim(c(0,50))+
-                    theme(plot.title = element_text(hjust = 0.5))))
+                    theme(axis.text.x = element_text(size=10),
+                          plot.title = element_text(hjust = 0.5))))
 dev.off()
+save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 
-######################################
 
 # After removing unwanted cells from the dataset, the next step is to normalize the data.
 #object <- NormalizeData(object = object, normalization.method = "LogNormalize", 
@@ -110,9 +115,78 @@ dev.off()
 hvf.info <- HVFInfo(object = object)
 hvf.info = hvf.info[VariableFeatures(object),]
 write.csv(hvf.info, file = paste0(path,"high_variable_genes.csv"))
-#======1.3 1st run of pca-tsne  =========================
-object <- ScaleData(object = object,features = rownames(object))
-object <- RunPCA(object, features = VariableFeatures(object),verbose =F,npcs = 100)
+
+set.seed(100)
+Seurat_list <- SplitObject(object, split.by = "orig.ident")
+
+QC.list = read.csv(paste0(path,"test28_QC_list.csv"),row.names = 1, stringsAsFactors = F)
+args = ""
+if(is.na(args[2])){
+    message("QC")
+    nCount_RNA <- sapply(Seurat_list, function(x) mean(x$nCount_RNA))
+    nFeature_RNA <- sapply(Seurat_list, function(x) mean(x$nFeature_RNA))
+    
+    QC.list <- cbind(QC.list, nCount_RNA, nFeature_RNA,
+                     row.names = df_samples$sample)
+    write.csv(QC.list,paste0(path,"test28_QC_list.csv"))
+    QC.list %>% kable() %>% kable_styling()
+    remove(QC.list,nCount_RNA,nFeature_RNA);GC()
+}
+
+remove(object);GC()
+
+#======1.5 Performing SCTransform and integration =========================
+Seurat_list %<>% lapply(SCTransform)
+object.features <- SelectIntegrationFeatures(Seurat_list, nfeatures = 3000)
+npcs =30
+Seurat_list %<>% lapply(function(x) {
+    x %<>% RunPCA(features = object.features, verbose = FALSE)
+})
+options(future.globals.maxSize= object.size(Seurat_list)*3)
+Seurat_list <- PrepSCTIntegration(object.list = Seurat_list, anchor.features = object.features, 
+                                  verbose = FALSE)
+
+anchors <- FindIntegrationAnchors(Seurat_list, normalization.method = "SCT", 
+                                  anchor.features = object.features,
+                                  reference = c(1, 2), reduction = "rpca", 
+                                  dims = 1:npcs)
+remove(Seurat_list);GC()
+
+object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
+remove(anchors);GC()
+
+npcs = 100
+object %<>% RunPCA(npcs = npcs, verbose = FALSE)
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindClusters(resolution = 0.8)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
+Idents(object) = "integrated_snn_res.0.8"
+object %<>% sortIdent(numeric = T)
+p2 <- TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T, alpha= 0.9,
+           no.legend = F,label.size = 4, repel = T, title = "With Integration",
+           do.print = T, do.return = T)
+p3 <- UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T, alpha= 0.9,
+           no.legend = F,label.size = 4, repel = T, title = "With Integration",
+           do.print = T, do.return = T)
+g3 <- UMAPPlot.1(object, group.by="conditions",pt.size = 1,label = T,
+                 cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+                 label.repel = T, alpha= 0.9,
+                 no.legend = F,label.size = 4, repel = T, title = "With Integration",
+                 do.print = T, do.return = T)
+save(object, file = "data/Lung_28_20200102.Rda")
+
+
+#======1.6 without intergration =========================
+DefaultAssay(object) = "SCT"
+#object <- FindVariableFeatures(object = object, selection.method = "vst",
+#                               num.bin = 20,
+#                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
+object@assays$SCT@var.features = rownames(object@assays$SCT@scale.data)
+#object <- ScaleData(object = object,features = rownames(object))
+object <- RunPCA(object, verbose =F,npcs = 100)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
 object <- ScoreJackStraw(object, dims = 1:100)
 
@@ -124,12 +198,12 @@ ElbowPlot(object, ndims = 85)+
 dev.off()
 
 jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 55:65)+
+JackStrawPlot(object, dims = 90:100)+
     ggtitle("JackStrawPlot")+
     theme(text = element_text(size=15),	
           plot.title = element_text(hjust = 0.5,size = 18))
 dev.off()
-npcs =50
+npcs =100
 object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8)
 object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
@@ -139,63 +213,23 @@ object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
 Idents(object) = "RNA_snn_res.0.8"
 object %<>% sortIdent(numeric = T)
-TSNEPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
+p0 <- TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
+           label.repel = T,alpha = 0.9,
+             no.legend = F,label.size = 4, repel = T, title = "No Integration",
+             do.print = T, do.return = T)
+p1 <- UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
            label.repel = T,alpha = 0.9,
            no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T)
-UMAPPlot.1(object, group.by="RNA_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,alpha = 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T)
-object@assays$RNA@scale.data = matrix(0,0,0)
+           do.print = T, do.return = T)
 
-save(object, file = "data/Lung_24_20191128.Rda")
+g1 <- UMAPPlot.1(object, group.by="conditions",pt.size = 1,label = T,
+                 cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+                 label.repel = T,alpha = 0.9,
+                 no.legend = F,label.size = 4, repel = T, title = "No Integration",
+                 do.print = T, do.return = T)
+save(object, file = "data/Lung_28_20200103.Rda")
 
-#======1.5 Performing SCTransform and integration =========================
-set.seed(100)
-object_list <- SplitObject(object, split.by = "orig.ident")
-remove(object);GC()
-object_list %<>% lapply(SCTransform)
-object.features <- SelectIntegrationFeatures(object_list, nfeatures = 3000)
-npcs =30
-object_list %<>% lapply(function(x) {
-    x %<>% RunPCA(features = object.features, verbose = FALSE)
-})
-options(future.globals.maxSize= object.size(object_list)*3)
-object_list <- PrepSCTIntegration(object.list = object_list, anchor.features = object.features, 
-                                  verbose = FALSE)
 
-anchors <- FindIntegrationAnchors(object_list, normalization.method = "SCT", 
-                                  anchor.features = object.features,
-                                  reference = c(1, 2), reduction = "rpca", 
-                                  dims = 1:npcs)
-remove(object_list);GC()
-
-object <- IntegrateData(anchorset = anchors, normalization.method = "SCT",dims = 1:npcs)
-remove(anchors);GC()
-
-object %<>% RunPCA(npcs = npcs, verbose = FALSE)
-object <- JackStraw(object, num.replicate = 20,dims = 100)
-object <- ScoreJackStraw(object, dims = 1:100)
-jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 90:100)
-dev.off()
-npcs =100
-object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
-object %<>% FindClusters(resolution = 0.8)
-object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
-object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
-Idents(object) = "integrated_snn_res.0.8"
-object %<>% sortIdent(numeric = T)
-TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T, alpha= 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T)
-UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T, alpha= 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T)
-save(object, file = "data/Lung_24_20190918.Rda")
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
 plot_grid(p0+ggtitle("Clustering without integration")+NoLegend()+
@@ -211,24 +245,16 @@ plot_grid(p1+ggtitle("Clustering without integration")+NoLegend()+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-TSNEPlot.1(object = object, label = F,label.repel = T, group.by = "integrated_snn_res.0.8", 
-           do.return = F, no.legend = F, title = "Integration by regions",
-           pt.size = 0.3,alpha = 0.9, label.size = 5, do.print = T)
+jpeg(paste0(path,"S1_conditions_umap.jpeg"), units="in", width=10, height=7,res=600)
+plot_grid(g1+ggtitle("Clustering without integration")+NoLegend()+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)),
+          g3+ggtitle("Clustering with integration")+NoLegend()+
+              theme(plot.title = element_text(hjust = 0.5,size = 18)))
+dev.off()
 
-UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "integrated_snn_res.0.8", 
-           do.return = T, no.legend = F, title = "Integration by regions",
-           pt.size = 0.2,alpha = 0.9, label.size = 5, do.print = T)
 
-table(object$orig.ident,object$integrated_snn_res.0.6) %>% kable %>% kable_styling()
-object@assays$integrated@scale.data = matrix(0,0,0)
 
-DefaultAssay(object) = "SCT"
-object <- FindVariableFeatures(object = object, selection.method = "vst",
-                               num.bin = 20,
-                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
-save(object, file = "data/Lung_24_20191206.Rda")
-object_data = object@assays$SCT@data
-save(object_data, file = "data/Lung.data_24_20190824.Rda")
+
 
 for(con in c("proximal","distal","terminal")){
     print(load(file = paste0("data/Lung_24",con,"_20190918.Rda")))

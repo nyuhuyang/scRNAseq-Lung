@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","magrittr","MAST"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/Expression/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 # SLURM_ARRAY_TASK_ID
@@ -25,19 +25,32 @@ conditions = c("proximal","distal","terminal")
 df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
 # Load Seurat
 (load(file = paste0("data/Epi_24_",con,"_20191223.Rda")))
-object$cell_types <- plyr::mapvalues(object$cell_types,
+object$cell_types <- plyr::mapvalues(object$cell.types,
                                      from = df_cell_types$`Cell types`,
                                      to = df_cell_types$Abbreviation)
 DefaultAssay(object)  = "SCT"
+data = object@assays$SCT@data
+# 1. gene list =============
+write.csv(rownames(data), paste0(path,"Epi_24-",con,"_gene_list.csv"),
+          row.names = FALSE,col.names = FALSE)
 
-# Expression data =============
-meta.data = object@meta.data[,c("cell_types","conditions","barcode","orig.ident")]
+# 2. Cell grouping =========
+meta.data = object@meta.data[,c("cell_types","orig.ident")]
 colnames(meta.data) %<>% sub("orig.ident","samples",.)
-colnames(meta.data) %<>% sub("conditions","regions",.)
-rownames(meta.data) = meta.data$barcode
-data = DelayedArray::t(object@assays$SCT@data)
-data = merge(meta.data,data,by="row.names",all.x=TRUE)
-data %<>% arrange(match(regions, c("proximal","distal","terminal")))
-rownames(data) = data$Row.names
-data = data[,-grep("Row.names|barcode",colnames(data))]
-write.csv(DelayedArray::t(data), paste0(path,"Lung_24-",args,"_",cell.type,".csv"))
+table(rownames(meta.data) == colnames(data))
+rownames(meta.data) = NULL
+write.csv(t(meta.data), paste0(path,"Epi_24-",con,"_Cell_grouping.csv"),
+          row.names = TRUE,col.names = FALSE)
+# Expression data =============
+rownames(data) =NULL
+colnames(data) =NULL
+write.csv(data, paste0(path,"Epi_24-",con,"_exp.csv"),
+          row.names = FALSE,col.names = FALSE)
+
+
+#data = DelayedArray::t(object@assays$SCT@data)
+#data = merge(meta.data,data,by="row.names",all.x=TRUE)
+#data %<>% arrange(match(regions, c("proximal","distal","terminal")))
+#rownames(data) = data$Row.names
+#data = data[,-grep("Row.names|barcode",colnames(data))]
+#write.csv(DelayedArray::t(data), paste0(path,"Epi_24-",con,"_exp.csv"))
