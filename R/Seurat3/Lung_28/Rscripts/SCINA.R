@@ -7,6 +7,14 @@ source("../R/SingleR_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
+# SLURM_ARRAY_TASK_ID
+set.seed=101
+slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
+# coerce the value to an integer
+args <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",args))
+
 # load Seurat object
 (load(file = "data/Lung_28_20200103.Rda"))
 # load DEGs and prepare signatures
@@ -24,7 +32,7 @@ signatures <- df2list(df_signatures)
 sapply(signatures,length)
 
 print(system.time(results <- BigSCINA(exp = object@assays$SCT@data, signatures,
-                                N = 10000, max_iter = 100, convergence_n = 10, 
+                                N = args, max_iter = 100, convergence_n = 10, 
                                 convergence_rate = 0.999, sensitivity_cutoff = 0.9, rm_overlap=FALSE, allow_unknown=FALSE, 
                                 log_file=paste0(path,'SCINA.log'))))
 table(results$cell_labels)
