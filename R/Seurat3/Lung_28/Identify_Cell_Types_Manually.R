@@ -251,7 +251,7 @@ anyNA(meta.data_all$cell.types)
 meta.data_all$cell.types[is.na(meta.data_all$cell.types)] = "Unknown"
 object@meta.data = meta.data_all
 
-Idents(object) = "cell.types"
+Idents(object) = "cell_types"
 object %<>% sortIdent()
 object <- AddMetaColor(object = object, label= "cell.types", colors = c(Singler.colors,Singler.colors))
 
@@ -260,27 +260,35 @@ df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
 object$cell_types <- plyr::mapvalues(object$cell.types,
                                      from = df_cell_types$`Cell types`,
                                      to = df_cell_types$Abbreviation)
+
 object$cell_types.colors = object$cell.types.colors
-Idents(object) = "cell_types"
-lapply(c(T,F), function(x) {
-    UMAPPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = x,
-               label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = x,
-               unique.name = "conditions",
-               do.print = T,do.return = F,title = "Cell types in all 28 samples")}
-)
+UMAPPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = T,
+           label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+           unique.name = "conditions",
+           do.print = T,do.return = F,
+           title = "Cell types in all 28 samples")
+TSNEPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = T,
+           label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+           unique.name = "conditions",
+           do.print = T,do.return = F,title = "Cell types in all 28 samples")
+
 
 conditions = c("proximal", "distal","terminal","COPD")
 Idents(object) = "conditions"
 for(i in seq_along(conditions)){
     sub_object <- subset(object, idents = conditions[i])
     Idents(sub_object) = "cell_types"
-    lapply(c(T,F), function(x) {
-        UMAPPlot.1(sub_object, group.by = "cell_types",cols = ExtractMetaColor(sub_object),label = x,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,
-                   no.legend = x,
-                   unique.name = "conditions",
-                   do.print = T,do.return = F,title = paste("Cell types in",unique(sub_object$conditions)))}
     
-    )
+    UMAPPlot.1(sub_object, group.by = "cell_types",cols = ExtractMetaColor(sub_object),label = T,
+               label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+               unique.name = "conditions",
+               do.print = T,do.return = F,
+               title = paste("Cell types in",conditions[i]))
+    TSNEPlot.1(sub_object, group.by = "cell_types",cols = ExtractMetaColor(sub_object),label = T,
+               label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+               unique.name = "conditions",
+               do.print = T,do.return = F,
+               title = paste("Cell types in",conditions[i]))
     Progress(i,length(conditions))
 }
+

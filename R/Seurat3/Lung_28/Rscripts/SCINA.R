@@ -49,10 +49,33 @@ object %<>% subset(idents = "Singlet")
 Idents(object) = "SCINA"
 object %<>% sortIdent()
 object %<>% AddMetaColor(label= "SCINA", colors = c(Singler.colors,Singler.colors))
+UMAPPlot.1(object, group.by = "SCINA",cols = ExtractMetaColor(object),label = T,
+           label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+           unique.name = "conditions",
+           do.print = T,do.return = F,
+           title = "Cell types in all 28 samples")
+TSNEPlot.1(object, group.by = "SCINA",cols = ExtractMetaColor(object),label = T,
+           label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+           unique.name = "conditions",
+           do.print = T,do.return = F,title = "Cell types in all 28 samples")
 
-lapply(c(T,F), function(x) {
-        UMAPPlot.1(object, group.by = "SCINA",cols = ExtractMetaColor(object),label = x,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = x,
+Idents(object) = "conditions"
+conditions <- c("proximal", "distal", "terminal", "COPD")
+Idents(object) = "conditions"
+for(i in seq_along(conditions)){
+        sub_object <- subset(object, idents = conditions[i])
+        Idents(sub_object) = "SCINA"
+        
+        UMAPPlot.1(sub_object, group.by = "SCINA",cols = ExtractMetaColor(sub_object),label = T,
+                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
                    unique.name = "conditions",
-                   do.print = T,do.return = F,title = "Cell types in all 28 samples")}
-)
+                   do.print = T,do.return = F,
+                   title = paste("Cell types in",conditions[i]))
+        TSNEPlot.1(sub_object, group.by = "SCINA",cols = ExtractMetaColor(sub_object),label = T,
+                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+                   unique.name = "conditions",
+                   do.print = T,do.return = F,
+                   title = paste("Cell types in",conditions[i]))
+        Progress(i,length(conditions))
+}
+
