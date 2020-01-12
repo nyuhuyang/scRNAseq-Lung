@@ -29,7 +29,7 @@ GC()
 ## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
 npcs =100
 sweep.res_list <- list()
-for (i in 1:length(object_list)) {
+for (i in 23:length(object_list)) {
     sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
     Progress(i,length(object_list))
 }
@@ -117,6 +117,7 @@ for(i in 1:length(object_list)){
     colName[grep("DF.classifications",colName)] = c("Low_confident_doublets",
                                                     "High_confident_doublets")
     colnames(object_list[[i]]@meta.data) = colName
+    Progress(i,length(object_list))
 }
 
 for(i in 1:length(object_list)){
