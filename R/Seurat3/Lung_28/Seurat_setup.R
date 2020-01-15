@@ -184,7 +184,7 @@ DefaultAssay(object) = "SCT"
 #object <- FindVariableFeatures(object = object, selection.method = "vst",
 #                               num.bin = 20,
 #                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
-object@assays$SCT@var.features = rownames(object@assays$SCT@scale.data)
+VariableFeatures(object) = rownames(object@assays$SCT@scale.data)
 #object <- ScaleData(object = object,features = rownames(object))
 object <- RunPCA(object, verbose =F,npcs = 100)
 object <- JackStraw(object, num.replicate = 20,dims = 100)
@@ -228,7 +228,6 @@ g1 <- UMAPPlot.1(object, group.by="conditions",pt.size = 1,label = T,
                  no.legend = F,label.size = 4, repel = T, title = "No Integration",
                  do.print = T, do.return = T)
 save(object, file = "data/Lung_28_20200103.Rda")
-
 
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)

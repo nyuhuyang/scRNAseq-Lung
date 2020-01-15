@@ -29,7 +29,7 @@ GC()
 ## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
 npcs =100
 sweep.res_list <- list()
-for (i in 23:length(object_list)) {
+for (i in 1:length(object_list)) {
     sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
     Progress(i,length(object_list))
 }
@@ -100,7 +100,7 @@ Multiplet_Rate(object_list[[1]])
 ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
 for(i in 1:length(object_list)){
     print(paste("processing",unique(object_list[[i]]$orig.ident)))
-    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$cell.type)
+    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$SCINA)
     nExp_poi <- round(Multiplet_Rate(object_list[[i]])*length(colnames(object_list[[i]])))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
     nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
     
@@ -127,13 +127,14 @@ meta.data_list <- lapply(object_list, function(x) x@meta.data)
 meta.data = bind_rows(meta.data_list)
 rownames(meta.data) = meta.data$row.names
 meta.data = meta.data[colnames(object),]
-meta.data$doublets = gsub("Doublet","Doublet-Low Confidence",meta.data$Low_confident_doublets)
+meta.data$doublets = gsub("Doublets","Doublet-Low Confidence",meta.data$Low_confident_doublets)
 meta.data[meta.data$High_confident_doublets %in% "Doublet","doublets"] = "Doublet-High Confidence"
 meta.data = cbind(object@meta.data,meta.data$doublets)
 colnames(meta.data)[ncol(meta.data)] = "Doublets"
 meta.data = meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","tests","percent.mt",
                          "conditions","group","project","RNA_snn_res.0.8",
-                         "cell.types","cell.types.colors","Doublets")]
+                         "cell.types","cell.types.colors","SCINA","Doublets")]
+
 (load(file = "data/Lung_28_20200103.Rda"))
 object@meta.data = meta.data
 save(object,file=paste0("data/Lung_28_20200103.Rda"))

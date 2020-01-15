@@ -44,6 +44,8 @@ for(label in c(TRUE, FALSE)){
         }
 }
 
-meta.data = cbind(object@reductions$pca@cell.embeddings[,1:2],object[["SCINA"]])
-meta.data %<>% cbind(object[["conditions"]])
+meta.data = cbind(object@reductions$pca@cell.embeddings[,1:2],
+                  object[["cell_types"]]) %>%
+        cbind(object[["SCINA"]]) %>%
+        cbind(object[["conditions"]])
 write.csv(meta.data, paste0(path,"PCA_all_coordinates.csv"))

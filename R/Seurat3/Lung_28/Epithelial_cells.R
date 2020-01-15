@@ -58,6 +58,11 @@ for(label in c(TRUE, FALSE)){
         }
 }
 
-meta.data = cbind(Epi@reductions$pca@cell.embeddings[,1:2],Epi[["SCINA"]])
-meta.data %<>% cbind(Epi[["conditions"]])
+meta.data = cbind(Epi@reductions$pca@cell.embeddings[,1:2],
+                  Epi[["cell_types"]]) %>%
+        cbind(Epi[["SCINA"]]) %>%
+        cbind(Epi[["conditions"]])
 write.csv(meta.data, paste0(path,"PCA_Epi_coordinates.csv"))
+
+
+object$SCINA %in% object$

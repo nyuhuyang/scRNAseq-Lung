@@ -53,8 +53,6 @@ lapply(c(T,F), function(x) {
 )
 save(results_COPD, file = paste0("output/SCINA_COPD_",gsub("-","",Sys.Date()),".Rda"))
 
-
-
 system.time(results <- BigSCINA(exp = object@assays$SCT@data, signatures,
                                 N = 5000, max_iter = 100, convergence_n = 10, 
                 convergence_rate = 0.999, sensitivity_cutoff = 0.9, rm_overlap=FALSE, allow_unknown=FALSE, 
