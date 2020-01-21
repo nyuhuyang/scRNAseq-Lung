@@ -186,28 +186,13 @@ DefaultAssay(object) = "SCT"
 #                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
 VariableFeatures(object) = rownames(object@assays$SCT@scale.data)
 #object <- ScaleData(object = object,features = rownames(object))
-object <- RunPCA(object, verbose =F,npcs = 100)
-object <- JackStraw(object, num.replicate = 20,dims = 100)
-object <- ScoreJackStraw(object, dims = 1:100)
+object <- RunICA(object, verbose =F,nics = 100)
 
-jpeg(paste0(path,"ElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
-ElbowPlot(object, ndims = 85)+
-    ggtitle("ElbowPlot")+
-    theme(text = element_text(size=15),							
-          plot.title = element_text(hjust = 0.5,size = 18)) 
-dev.off()
-
-jpeg(paste0(path,"JackStrawPlot.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 90:100)+
-    ggtitle("JackStrawPlot")+
-    theme(text = element_text(size=15),	
-          plot.title = element_text(hjust = 0.5,size = 18))
-dev.off()
 npcs =100
-object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
+object %<>% FindNeighbors(reduction = "ica",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8)
-object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
-object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
+object %<>% RunTSNE(reduction = "ica", dims = 1:npcs, check_duplicates = FALSE)
+object %<>% RunUMAP(reduction = "ica", dims = 1:npcs)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
@@ -271,13 +256,18 @@ for(con in c("proximal","distal","terminal")){
     write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
 }
 
-load(file = paste0("data/Lung_24_20191206.Rda"))
-DefaultAssay(object) <- 'RNA'
-for(i in c(8,15:16)/10){
-    object %<>% FindClusters(resolution = i)
-    Idents(object) = paste0("RNA_snn_res.",i)
-    TSNEPlot.1(object, group.by=paste0("RNA_snn_res.",i),pt.size = 0.3,label = T,
-               label.repel = T,alpha = 0.9,cols = Singler.colors,do.return = F,
-               no.legend = F,label.size = 4, repel = T, title = paste("res =",i),
+(load(file = "data/Lung_28_20200116.Rda"))
+DefaultAssay(object) <- 'SCT'
+object@reductions= readRDS(file = "output/20200114/reductions_4_SCT_2000.rds")
+res = c(6:20)/10
+for(i in seq_along(res)){
+    object %<>% FindClusters(resolution = res[i])
+    Idents(object) = paste0("RNA_snn_res.",res[i])
+    TSNEPlot.1(object, group.by=paste0("SCT_snn_res.",res[i]),pt.size = 0.3,label = T,
+               label.repel = T,alpha = 0.9,cols = c(Singler.colors,Singler.colors),
+               do.return = F,
+               no.legend = T,label.size = 4, repel = T, 
+               title = paste("res =",res[i]," based on ICA"),
                do.print = T)
+    Progress(i,length(res))
 }

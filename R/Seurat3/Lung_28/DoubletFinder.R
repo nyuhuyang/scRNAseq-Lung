@@ -21,9 +21,56 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # samples
 
-(load(file = "data/Lung_28_20200103.Rda"))
-Idents(object) = "orig.ident"
-(samples = unique(Idents(object)))
+(load(file = "data/Lung_28_20200116.Rda"))
+(samples = unique(object$orig.ident))
+colnames(object@meta.data) %<>% gsub("Doublets","Doublets_pca",.)
+Idents(object) = "SCT_snn_res.0.8"
+object %<>% RenameIdents("0" = "T",
+                         "1" = "En",
+                         "2" = "F",
+                         "3" = "T",
+                         "4" = "En",
+                         "5" = "Mon",
+                         "6" = "SAE-H",
+                         "7" = "T",
+                         "8" = "Neu",
+                         "9" = "B",
+                         "10" = "SM",
+                         "11" = "SAE-Sec1",
+                         "12" = "SAE-C1",
+                         "13" = "SAE",
+                         "14" = "SAE-BC",
+                         "15" = "AT2",
+                         "16" = "Mac",
+                         "17" = "DC",
+                         "18" = "D",
+                         "19" = "AT2",
+                         "20" = "Mac",
+                         "21" = "SAE-Ion",
+                         "22" = "MC",
+                         "23" = "SAE-IC1",
+                         "24" = "SMG",
+                         "25" = "SAE-IC2",
+                         "26" = "SM",
+                         "27" = "T",
+                         "28" = "En-Lym",
+                         "29" = "SM3",
+                         "30" = "Per",
+                         "31" = "P",
+                         "32" = "SAE-C",
+                         "33" = "SAE-C-pre",
+                         "34" = "Car",
+                         "35" = "PC",
+                         "36" = "SAE-C",
+                         "37" = "SAE-Sq",
+                         "38" = "T",
+                         "39" = "NEC",
+                         "40" = "AT1",
+                         "41" = "Nr",
+                         "42" = "SAE",
+                         "43" = "SAE")
+object[["cell_types"]] = as.character(Idents(object))
+object$cell_types %<>% gsub("-.*","",.) %>% gsub("[0-9]+","",.)
 object_list <- SplitObject(object,split.by = "orig.ident")
 GC()
 ## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
@@ -33,7 +80,7 @@ for (i in 1:length(object_list)) {
     sweep.res_list[[i]] <- paramSweep_v4(object_list[[i]], PCs = 1:npcs, sct = T)
     Progress(i,length(object_list))
 }
-save(sweep.res_list,file = "output/Lung_28_20200111_sweep.res_list.Rda")
+save(sweep.res_list,file = "output/Lung_28_20200118_sweep.res_list.Rda")
 sweep_list <- lapply(sweep.res_list, function(x) summarizeSweep(x, GT = FALSE))
 bcmvn_list <- lapply(sweep_list,find.pK)
 # find histgram local maximam
@@ -100,7 +147,7 @@ Multiplet_Rate(object_list[[1]])
 ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
 for(i in 1:length(object_list)){
     print(paste("processing",unique(object_list[[i]]$orig.ident)))
-    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$SCINA)
+    homotypic.prop <- modelHomotypic(object_list[[i]]@meta.data$cell_types)
     nExp_poi <- round(Multiplet_Rate(object_list[[i]])*length(colnames(object_list[[i]])))  ## Assuming 7.5% doublet formation rate - tailor for your dataset
     nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
     
@@ -123,23 +170,28 @@ for(i in 1:length(object_list)){
 for(i in 1:length(object_list)){
     object_list[[i]]@meta.data$row.names = rownames(object_list[[i]]@meta.data)
 }
-meta.data_list <- lapply(object_list, function(x) x@meta.data)
+meta.data_list <- lapply(object_list, function(x) {
+    temp <- x@meta.data
+    temp$row.names = rownames(temp)
+    return(temp)
+    })
 meta.data = bind_rows(meta.data_list)
 rownames(meta.data) = meta.data$row.names
-meta.data = meta.data[colnames(object),]
-meta.data$doublets = gsub("Doublets","Doublet-Low Confidence",meta.data$Low_confident_doublets)
+meta.data = meta.data[rownames(object@meta.data),]
+meta.data$doublets = gsub("Doublet","Doublet-Low Confidence",meta.data$Low_confident_doublets)
 meta.data[meta.data$High_confident_doublets %in% "Doublet","doublets"] = "Doublet-High Confidence"
 meta.data = cbind(object@meta.data,meta.data$doublets)
 colnames(meta.data)[ncol(meta.data)] = "Doublets"
+table(meta.data$Doublets_pca,meta.data$Doublets)
 meta.data = meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","tests","percent.mt",
-                         "conditions","group","project","RNA_snn_res.0.8",
-                         "cell.types","cell.types.colors","SCINA","Doublets")]
+                         "conditions","group","project","SCT_snn_res.0.8",
+                         "cell.types","SCINA","cell_types","Doublets_pca","Doublets")]
 
-(load(file = "data/Lung_28_20200103.Rda"))
+(load(file = "data/Lung_28_20200116.Rda"))
 object@meta.data = meta.data
-save(object,file=paste0("data/Lung_28_20200103.Rda"))
+save(object,file=paste0("data/Lung_28_20200116.Rda"))
 
 TSNEPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)
-UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
+UMAPPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
            title = "Singlets and possible Doublets", do.print = T,pt.size = 0.3)

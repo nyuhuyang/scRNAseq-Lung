@@ -188,7 +188,7 @@ write.csv(df, file = paste0(path,"Cell_types_by_samples.csv"))
 Idents(object) = "cell.types"
 object %<>% sortIdent()
 object <- AddMetaColor(object = object, label= "cell.types", colors = c(Singler.colors,Singler.colors))
-for( label in c(T,F)){
+for( label in T){
     TSNEPlot.1(object, group.by = "cell.types",cols = ExtractMetaColor(object),label = label,
                label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
                do.print = T,do.return = F,title = "Cell types in all 24 samples")
