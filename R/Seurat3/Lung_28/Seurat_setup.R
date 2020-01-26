@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr"), function
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
-path <- paste0("./output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 ########################################################################
 #
@@ -100,8 +100,9 @@ save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys
 #object <- NormalizeData(object = object, normalization.method = "LogNormalize", 
 #                      scale.factor = 10000)
 object <- FindVariableFeatures(object = object, selection.method = "vst",
-                               num.bin = 20,
-                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
+                               num.bin = 20,nfeatures = 3000,
+                               mean.cutoff = c(0.1, 8), 
+                               dispersion.cutoff = c(1, Inf))
 
 # Identify the 20 most highly variable genes
 top20 <- head(VariableFeatures(object), 20)
@@ -186,8 +187,13 @@ DefaultAssay(object) = "SCT"
 #                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
 VariableFeatures(object) = rownames(object@assays$SCT@scale.data)
 #object <- ScaleData(object = object,features = rownames(object))
-object <- RunICA(object, verbose =F,nics = 100)
-
+object %<>% RunICA(verbose =F,nics = 100)
+object <- JackStraw(object, reduction = "ica",num.replicate = 20,dims = 100)
+object <- ScoreJackStraw(object, dims = 1:100)
+jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
+JackStrawPlot(object, dims = 90:100)
+dev.off()
+npcs =100
 npcs =100
 object %<>% FindNeighbors(reduction = "ica",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8)
