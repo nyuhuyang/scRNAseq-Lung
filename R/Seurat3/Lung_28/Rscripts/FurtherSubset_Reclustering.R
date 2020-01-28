@@ -4,7 +4,7 @@
 # 
 # ######################################################################
 invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot",
-                   "magrittr","MAST","future"), function(x) {
+                   "magrittr","MAST","future","ggplot2"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
@@ -288,20 +288,28 @@ if(step == 4){
         if(!dir.exists(ElbowPlot_path))dir.create(ElbowPlot_path, recursive = T)
         load(file = paste0("data/Lung_28_",g,"_20200126.Rda"))
         DefaultAssay(object) <- 'integrated'
-        object <- RunICA(object, verbose =F,nics = 100)
-        ElbowPlot.1(object, object, ndims = 100, reduction = "ica",
-                    title = paste("Standard Deviation against ICA numbers in cell type",g),
-                    do.print = T,do.return = F, save.path = ElbowPlot_path)
-        res = c(seq(0.01,0.1, by = 0.01),seq(0.2,1.6, by = 0.1))
+        #nics <- min(20, ncol(x = object) - 1)
+        #assay.data <- GetAssay(object = object)
+        #assay.data = assay.data@scale.data
+        #ica.results <- ica::icafast(assay.data, nc = nics)
+        #object@reductions$ica@stdev = sqrt(ica.results$vafs)
+        #plot = ElbowPlot(object, reduction = "ica",ndims = 100)
+        #jpeg(paste0(ElbowPlot_path,"ElbowPlot_ica.jpeg"), 
+        #     units="in", width=10, height=7,res=600)
+        #print(plot+ ggtitle(paste("Stdve against ICA numbers in cell type",g)))
+        #dev.off()
+        
+        res = c(seq(0.01,0.1, by = 0.01),seq(0.2,2, by = 0.1))
         for(i in seq_along(res)){
                 object %<>% FindClusters(resolution = res[i])
                 Progress(i,length(res))
         }
-        ElbowPlot.2(object, graph.name = "integrated_snn",check.by = "Cluster.numbers",
+        ElbowPlot.1(object, graph.name = "integrated_snn",
+                    check.by = c("Resolutions","Cluster.numbers"),
                     unique.name = "groups",
                     title = paste("Total distance against different cluster numbers in cell type",g),
                     do.print = T,do.return = F, save.path = ElbowPlot_path)
-        ElbowPlot.2(object, graph.name = "integrated_snn",check.by = "Resolutions",
+        ElbowPlot.1(object, graph.name = "integrated_snn",check.by = "Resolutions",
                     unique.name = "groups",
                     title = paste("Total distance against different resolutions in cell type",g),
                     do.print = T,do.return = F, save.path = ElbowPlot_path)
