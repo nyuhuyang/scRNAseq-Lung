@@ -3,7 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr"), function(x) {
+invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","magrittr","harmony"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
@@ -137,6 +137,8 @@ if(is.na(args[2])){
 remove(object);GC()
 
 #======1.5 Performing SCTransform and integration =========================
+save.path <- paste0(path,"ICA/")
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 Seurat_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(Seurat_list, nfeatures = 3000)
 npcs =30
@@ -164,61 +166,128 @@ object %<>% RunTSNE(reduction = "pca", dims = 1:npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 Idents(object) = "integrated_snn_res.0.8"
 object %<>% sortIdent(numeric = T)
-p2 <- TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T, alpha= 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "With Integration",
-           do.print = T, do.return = T)
-p3 <- UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T, alpha= 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "With Integration",
-           do.print = T, do.return = T)
-g3 <- UMAPPlot.1(object, group.by="conditions",pt.size = 1,label = T,
-                 cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
-                 label.repel = T, alpha= 0.9,
-                 no.legend = F,label.size = 4, repel = T, title = "With Integration",
-                 do.print = T, do.return = T)
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
+    fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
+        label.repel = T,alpha = 0.9,cols = Singler.colors,
+        no.legend = T,label.size = 4, repel = T, title = "CCA Integration",
+        do.print = T, do.return = F)),save.path = save.path))
+
+meta.data = readRDS(file = "output/20200131/cell_types.rds")
+object[["cell_types"]] = meta.data$cell_types
+object[["cell_types.colors"]] = meta.data$cell_types.colors
+
+Idents(object) = "cell_types"
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="cell_types",pt.size = 0.5,label = T,
+        label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
+        no.legend = T,label.size = 4, repel = T, title = "CCA Integration",
+        do.print = T, do.return = F,save.path = save.path))
+
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="conditions",pt.size = 0.5,label = T,
+        cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+        label.repel = T, alpha= 0.9,
+        no.legend = F,label.size = 4, repel = T, title = "CCA Integration",
+        do.print = T, do.return = F,save.path = save.path))
 save(object, file = "data/Lung_28_20200102.Rda")
 
-
 #======1.6 without intergration =========================
+save.path <- paste0(path,"NoIntergration/")
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
 DefaultAssay(object) = "SCT"
-#object <- FindVariableFeatures(object = object, selection.method = "vst",
-#                               num.bin = 20,
-#                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
-VariableFeatures(object) = rownames(object@assays$SCT@scale.data)
-#object <- ScaleData(object = object,features = rownames(object))
+object <- FindVariableFeatures(object = object, selection.method = "vst",
+                               num.bin = 20,
+                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
+object %<>% ScaleData
+object %<>% RunPCA(verbose = T,npcs = 100)
+PCAPlot.1(object, do.print = T,save.path = save.path)
 object %<>% RunICA(verbose =F,nics = 100)
-object <- JackStraw(object, reduction = "ica",num.replicate = 20,dims = 100)
-object <- ScoreJackStraw(object, dims = 1:100)
-jpeg(paste0(path,"JackStrawPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)
-JackStrawPlot(object, dims = 90:100)
-dev.off()
 npcs =100
-npcs =100
-object %<>% FindNeighbors(reduction = "ica",dims = 1:npcs)
+object %<>% FindNeighbors(reduction = "pca",dims = 1:npcs)
 object %<>% FindClusters(resolution = 0.8)
-object %<>% RunTSNE(reduction = "ica", dims = 1:npcs, check_duplicates = FALSE)
-object %<>% RunUMAP(reduction = "ica", dims = 1:npcs)
+object %<>% RunTSNE(reduction = "pca", dims = 1:npcs, check_duplicates = FALSE)
+object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 
 object@meta.data$orig.ident %<>% as.factor()
 object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
-Idents(object) = "RNA_snn_res.0.8"
-object %<>% sortIdent(numeric = T)
-p0 <- TSNEPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,alpha = 0.9,
-             no.legend = F,label.size = 4, repel = T, title = "No Integration",
-             do.print = T, do.return = T)
-p1 <- UMAPPlot.1(object, group.by="integrated_snn_res.0.8",pt.size = 1,label = T,
-           label.repel = T,alpha = 0.9,
-           no.legend = F,label.size = 4, repel = T, title = "No Integration",
-           do.print = T, do.return = T)
 
-g1 <- UMAPPlot.1(object, group.by="conditions",pt.size = 1,label = T,
-                 cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
-                 label.repel = T,alpha = 0.9,
-                 no.legend = F,label.size = 4, repel = T, title = "No Integration",
-                 do.print = T, do.return = T)
-save(object, file = "data/Lung_28_20200103.Rda")
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
+    fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
+               label.repel = T,alpha = 0.9,
+               no.legend = T,label.size = 4, repel = T, title = "No Integration",
+               do.print = T, do.return = F,save.path = save.path))
+
+Idents(object) = "cell_types"
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="cell_types",pt.size = 0.5,label = T,
+               label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
+               no.legend = T,label.size = 4, repel = T, title = "No Integration",
+               do.print = T, do.return = F,save.path = save.path))
+
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="conditions",pt.size = 0.5,label = T,
+        cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+        label.repel = T, alpha= 0.9,
+        no.legend = F,label.size = 4, repel = T, title = "No Integration",
+        do.print = T, do.return = F,save.path = save.path))
+
+save(object, file = "data/Lung_28_Nointeg_20200131.Rda")
+
+#======1.7 harmony =========================
+save.path <- paste0(path,"harmony/")
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
+object@assays$integrated = NULL
+DefaultAssay(object) = "SCT"
+object <- FindVariableFeatures(object = object, selection.method = "vst",
+                               num.bin = 20,
+                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
+object %<>% ScaleData
+object %<>% RunPCA(verbose = T,npcs = 100)
+PCAPlot.1(object, do.print = T)
+
+jpeg(paste0(path,"S1_ElbowPlot.jpeg"), units="in", width=10, height=7,res=600)
+ElbowPlot(object, ndims = 100)
+dev.off()
+
+npcs = 100
+jpeg(paste0(path,"S1_RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
+system.time(object %<>% RunHarmony.1(group.by = "orig.ident", dims.use = 1:npcs,
+theta = 2, plot_convergence = TRUE,
+nclust = 50, max.iter.cluster = 100))
+dev.off()
+
+object %<>% FindNeighbors(reduction = "harmony",dims = 1:npcs)
+object %<>% FindClusters(resolution = 0.8)
+object %<>% RunTSNE(reduction = "harmony", dims = 1:npcs, check_duplicates = FALSE)
+object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
+
+object@meta.data$orig.ident %<>% factor(levels = df_samples$sample)
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
+    fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
+        label.repel = T,alpha = 0.9,
+        no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
+        do.print = T, do.return = F,save.path = save.path))
+
+meta.data = readRDS(file = "output/20200131/cell_types.rds")
+object[["cell_types"]] = meta.data$cell_types
+object[["cell_types.colors"]] = meta.data$cell_types.colors
+
+Idents(object) = "cell_types"
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="cell_types",pt.size = 0.5,label = T,
+        label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
+        no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
+        do.print = T, do.return = F,save.path = save.path))
+
+lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+    fun(object, group.by="conditions",pt.size = 0.5,label = T,
+        cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+        label.repel = T, alpha= 0.9,
+        no.legend = F,label.size = 4, repel = T, title = "Harmony Integration",
+        do.print = T, do.return = F,save.path = save.path))
+save(object, file = "data/Lung_28_harmony_20200131.Rda")
 
 #=======1.9 summary =======================================
 jpeg(paste0(path,"S1_remove_batch_tsne.jpeg"), units="in", width=10, height=7,res=600)
@@ -235,15 +304,13 @@ plot_grid(p1+ggtitle("Clustering without integration")+NoLegend()+
               theme(plot.title = element_text(hjust = 0.5,size = 18)))
 dev.off()
 
-jpeg(paste0(path,"S1_conditions_umap.jpeg"), units="in", width=10, height=7,res=600)
-plot_grid(g1+ggtitle("Clustering without integration")+NoLegend()+
-              theme(plot.title = element_text(hjust = 0.5,size = 18)),
-          g3+ggtitle("Clustering with integration")+NoLegend()+
-              theme(plot.title = element_text(hjust = 0.5,size = 18)))
-dev.off()
+TSNEPlot.1(object = object, label = T,label.repel = T, group.by = "orig.ident",
+           do.return = F, no.legend = F, title = "Harmony intergrated tSNE plot",
+           pt.size = 0.3,alpha = 1, label.size = 5, do.print = T)
 
-
-
+UMAPPlot.1(object = object, label = T,label.repel = T, group.by = "SCT_snn_res.0.8",
+           do.return = F, no.legend = F, title = "Harmony intergrated UMAP plot",
+           pt.size = 0.2,alpha = 1, label.size = 5, do.print = T)
 
 
 for(con in c("proximal","distal","terminal")){
@@ -262,18 +329,21 @@ for(con in c("proximal","distal","terminal")){
     write.csv(meta.data, paste0(path,"object_",con,"_meta.data.csv"))
 }
 
-(load(file = "data/Lung_28_20200116.Rda"))
+(load(file = "data/Lung_28_harmony_20200131.Rda"))
 DefaultAssay(object) <- 'SCT'
-object@reductions= readRDS(file = "output/20200114/reductions_4_SCT_2000.rds")
-res = c(6:20)/10
+options(scipen=999)
+(res = c(seq(0.0001,0.0009,by = 0.0001)))
+    
 for(i in seq_along(res)){
     object %<>% FindClusters(resolution = res[i])
-    Idents(object) = paste0("RNA_snn_res.",res[i])
-    TSNEPlot.1(object, group.by=paste0("SCT_snn_res.",res[i]),pt.size = 0.3,label = T,
+    Idents(object) = paste0("SCT_snn_res.",res[i])
+    
+    lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+        fun(object, group.by=paste0("SCT_snn_res.",res[i]),pt.size = 0.3,label = T,
                label.repel = T,alpha = 0.9,cols = c(Singler.colors,Singler.colors),
                do.return = F,
                no.legend = T,label.size = 4, repel = T, 
-               title = paste("res =",res[i]," based on ICA"),
-               do.print = T)
+               title = paste("res =",res[i]," based on harmony"),
+               do.print = T))
     Progress(i,length(res))
 }

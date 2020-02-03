@@ -25,7 +25,7 @@ print(paste0("slurm_arrayid=",args))
 groups <- c("AT","B","D","En","F","Mon","SAE","SMG","SMP","T")
 (g <- groups[args])
 
-
+step = 1
 # ==================================================
 # generate ElbowPlot
 if(step == 1){
@@ -51,19 +51,25 @@ if(step == 1){
                 object %<>% FindClusters(resolution = res[1])
         }
         if(g == "F") {
-                res = c(0.4)
+                res = c(0.5,1.5)
+                object %<>% FindClusters(resolution = res[2])
+                Idents(object) = paste0("integrated_snn_res.",res[2])
+                UMAPPlot.1(object, group.by = paste0("integrated_snn_res.",res[2]),
+                           do.print = T, do.return = F,label = T, label.repel = T,
+                           save.path = DEG_path)
+                markers <- FindAllMarkers.UMI(object,assay = "SCT", logfc.threshold = 0.1,only.pos = T)
+                write.csv(markers, file = paste0(DEG_path, "DEGs_",g,"_res.",res[2],".csv"))
                 object %<>% FindClusters(resolution = res[1])
-                object %<>% subset(idents = c(8,9), invert = T)
         }
         if(g == "Mon") {
                 res = c(0.2)
                 object %<>% FindClusters(resolution = res[1])
                 object %<>% subset(idents = 7, invert = T)
         }
-        if(g == "SAT") {
+        if(g == "SAE") {
                 res = c(0.3,0.8,1.5)
-                object %<>% FindClusters(resolution = res[1])
                 for(i in 2:3){
+                        object %<>% FindClusters(resolution = res[i])
                         Idents(object) = paste0("integrated_snn_res.",res[i])
                         UMAPPlot.1(object, group.by = paste0("integrated_snn_res.",res[i]),
                                    do.print = T, do.return = F,label = T, label.repel = T,
@@ -71,6 +77,7 @@ if(step == 1){
                         markers <- FindAllMarkers.UMI(object,assay = "SCT", logfc.threshold = 0.1,only.pos = T)
                         write.csv(markers, file = paste0(DEG_path, "DEGs_",g,"_res.",res[i],".csv"))
                 }
+                object %<>% FindClusters(resolution = res[1])
         }
         if(g == "SMG") {
                 res = c(0.9)
@@ -115,7 +122,7 @@ if(step == 1){
         df = df[order(df$samples),]
         df = df[order(match(df$Region, c("P","D","T"))),]
         df %<>% select("Region", everything())
-        write.csv(markers, file = paste0(DEG_path, "Cell.num_",g,"_res.",res[1],".csv"))
+        write.csv(df, file = paste0(DEG_path, "Cell.num_",g,"_res.",res[1],".csv"))
         #==== genes in each cluster ===== 
         df <- table(object@meta.data[,paste0("integrated_snn_res.",res[1])], object$orig.ident) %>% 
                 as.data.frame()
@@ -135,5 +142,5 @@ if(step == 1){
         df$Region = gsub("-R","",df$samples) %>% gsub(".*-","",.)
         df = df[order(match(df$Region, c("P","D","T"))),]
         df %<>% select("Region", everything())
-        write.csv(markers, file = paste0(DEG_path, "Gene.num_",g,"_res.",res[1],".csv"))
+        write.csv(df, file = paste0(DEG_path, "Gene.num_",g,"_res.",res[1],".csv"))
 }

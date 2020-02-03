@@ -314,3 +314,55 @@ if(step == 4){
                     title = paste("Total distance against different resolutions in cell type",g),
                     do.print = T,do.return = F, save.path = ElbowPlot_path)
 }
+if(step == 5){
+        # create folder
+        save.path <- paste0(path,g,"/re-run-umap2/")
+        if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+        # load data
+        load(file = paste0("data/Lung_28_",g,"_20200126.Rda"))
+        DefaultAssay(object) = "SCT"
+        #======1.6 intergration =========================
+        DefaultAssay(object) = "SCT"
+        Seurat_list <- SplitObject(object, split.by = "conditions")
+        (size <- sapply(Seurat_list, ncol))
+        Seurat_list[size < 20] = NULL
+        Seurat_list %<>% lapply(SCTransform)
+        object.features <- SelectIntegrationFeatures(Seurat_list, nfeatures = 3000)
+        options(future.globals.maxSize= object.size(Seurat_list)*3)
+        Seurat_list %<>% PrepSCTIntegration(anchor.features = object.features, verbose = FALSE)
+        size <- sapply(Seurat_list, ncol)
+        (k.filter <- min(size - 1, 200))
+        (dims <- min(size - 2, 50))
+        anchors <- FindIntegrationAnchors(Seurat_list, normalization.method = "SCT", 
+                                          k.filter = k.filter,
+                                          dims = 1:dims,
+                                          anchor.features = object.features)
+        remove(Seurat_list);GC()
+        object <- IntegrateData(anchorset = anchors, normalization.method = "SCT", k.weight=30)
+        remove(anchors);GC()
+        object <- RunICA(object, verbose =F,nics = 50)
+        npcs = 50
+        object %<>% FindNeighbors(reduction = "ica",dims = 1:npcs)
+        object %<>% FindClusters(resolution = 0.1)
+        object %<>% RunTSNE(reduction = "ica", dims = 1:npcs, check_duplicates = FALSE)
+        object %<>% RunUMAP(reduction = "ica", dims = 1:npcs)
+        # cluster
+        UMAPPlot.1(object, group.by = "integrated_snn_res.0.1",
+                   label = T,
+                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
+                   do.print = T,do.return = F, unique.name = "groups",
+                   save.path = save.path,
+                   title = paste("Clusters in", g))
+        # cell types
+        Idents(object) = "cell_types"
+        object %<>% sortIdent()
+        object <- AddMetaColor(object = object, label= "cell_types", colors = c(Singler.colors,Singler.colors))
+        
+        UMAPPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = T,
+                   label.repel = T, pt.size = 1,label.size = 4, repel = T,no.legend = T,
+                   do.print = T,do.return = F,
+                   unique.name = "groups", save.path = save.path,
+                   title = paste("Cell types in", g))
+        
+        save(object, file = paste0("data/Lung_28_",g,"_20200126.Rda"))
+}

@@ -22,22 +22,17 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
-
-if(args == 1){
-        (load(file = "data/Lung_28_20200103.Rda"))
+res = c(1.9,2.7)
+(r <- res[args])
+step = 1
+if(step == 1){
+        (load(file = "data/Lung_28_harmony_20200131.Rda"))
         DefaultAssay(object)  = "SCT"
-        (load(file = paste0("output/SCINA_20200110.Rda")))
-        object@meta.data$SCINA = results$cell_labels
-        df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
-        object$SCINA %<>% plyr::mapvalues(
-                from = df_cell_types$`Cell types`,
-                to = df_cell_types$Abbreviation)
-        Idents(object) = "Doublets"
-        object %<>% subset(idents = "Singlet")
-        Idents(object) = "SCINA"
-        object %<>% sortIdent()
-        system.time(Lung_markers <- FindAllMarkers.UMI(object, logfc.threshold = 0.25, only.pos = T,
+        object %<>% FindClusters(resolution = r)
+        Idents(object) = paste0("SCT_snn_res.",r)
+        system.time(Lung_markers <- FindAllMarkers.UMI(object, 
+                                                       logfc.threshold = 0.25, only.pos = T,
                                            test.use = "MAST"))
         Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
-        write.csv(Lung_markers,paste0(path,"Lung_28-FC0.25_markers_SCINA.csv"))
+        write.csv(Lung_markers,paste0(path,"Lung_28-FC0.25_res=",r,".csv"))
 }
