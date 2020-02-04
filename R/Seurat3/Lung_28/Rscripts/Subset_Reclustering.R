@@ -22,77 +22,29 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-groups <- c("AT","B","D","En","F","Mon","SAE","SMG","SMP","T")
+groups <- c("B","En_&_SM","Epi","F_&_Nr","Myeloid","T")
 (g <- groups[args])
 
-step = 5
-# initial cluster
+step = 1
+# serial resolution and ICA heatmap
 if(step == 1){
-        (load(file = "data/Lung_28_20200116.Rda"))
-        object$groups <- gsub("-.*","",object$cell_types) %>% gsub("[0-9]+","",.)
-        object$groups %<>% plyr::mapvalues(from = c("AT","B","Car","D","DC",
-                                                    "En","F","Mac","MC","Mon",
-                                                    "NEC","Neu","Nr","P","PC",
-                                                    "Per","SAE","SM","SMG","T"),
-                                           to = c("AT","B","Car","D","Mon",
-                                                  "En","F","Mon","MC","Mon",
-                                                  "SAE","Neu","Nr","P","PC",
-                                                  "SMP","SAE","SMP","SMG","T"))
-        Idents(object) = "groups"
+        path <- paste0(path,g,"/")
+        if(!dir.exists(path))dir.create(path, recursive = T)
+        (load(file = "data/Lung_28_harmony_20200131.Rda"))
+        Idents(object) = "cell.types"
         object %<>% subset(idents = g)
-        Idents(object) = "Doublets"
-        object %<>% subset(idents = "Singlet")
-        #======1.6 without intergration =========================
         DefaultAssay(object) = "SCT"
         object <- FindVariableFeatures(object = object, selection.method = "vst",
-                                       num.bin = 20,nfeatures = 3000,
+                                       num.bin = 20,nfeatures = 2000,
                                        mean.cutoff = c(0.1, 8), 
                                        dispersion.cutoff = c(1, Inf))
         object <- ScaleData(object = object,features = VariableFeatures(object))
-        object <- RunICA(object, verbose =F,nics = 50)
-        npcs =50
-        object %<>% FindNeighbors(reduction = "ica",dims = 1:npcs)
-        object %<>% FindClusters(resolution = 0.6)
-        object %<>% RunTSNE(reduction = "ica", dims = 1:npcs, check_duplicates = FALSE)
-        object %<>% RunUMAP(reduction = "ica", dims = 1:npcs)
+        object <- RunPCA(object, verbose =F,nics = 100)
+        npcs = 100
         
-        # cluster
-        TSNEPlot.1(object, group.by = "SCT_snn_res.0.6",label = T,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
-                   do.print = T,do.return = F, unique.name = "groups",
-                   title = paste("Clusters in", g))
-        UMAPPlot.1(object, group.by = "SCT_snn_res.0.6",label = T,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
-                   do.print = T,do.return = F, unique.name = "groups",
-                   title = paste("Clusters in", g))
-        # cell types
-        df_cell_types <- readxl::read_excel("doc/Cell type abbreviation.xlsx")
-        object$cell_types %<>% plyr::mapvalues(
-                from = df_cell_types$`Cell types`,
-                to = df_cell_types$Abbreviation)
-        Idents(object) = "cell_types"
-        object %<>% sortIdent()
-        object <- AddMetaColor(object = object, label= "cell_types", colors = c(Singler.colors,Singler.colors))
-        
-        TSNEPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = T,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
-                   do.print = T,do.return = F,
-                   unique.name = "groups",
-                   title = paste("Cell types in", g))
-        UMAPPlot.1(object, group.by = "cell_types",cols = ExtractMetaColor(object),label = T,
-                   label.repel = T, pt.size = 0.5,label.size = 3, repel = T,no.legend = T,
-                   do.print = T,do.return = F,
-                   unique.name = "groups",
-                   title = paste("Cell types in", g))
-        
-        save(object, file = paste0("data/Lung_28_",g,"_20200121.Rda"))
-}
-# serial resolution and ICA heatmap
-if(step == 2){
-        path <- paste0(path,g,"/")
-        if(!dir.exists(path))dir.create(path, recursive = T)
-        load(file = paste0("data/Lung_28_",g,"_20200121.Rda"))
-        DefaultAssay(object) <- 'SCT'
+        jpeg(paste0(path,"ElbowPlot.jpeg"),units="in", width=10, height=7,res=600)
+        ElbowPlot(object, ndims = npcs)
+        dev.off()
         
         res = c(1:12)/10
         for(i in seq_along(res)){
@@ -102,19 +54,18 @@ if(step == 2){
                            label.repel = T,alpha = 0.9,
                            do.return = F,
                            no.legend = T,label.size = 4, repel = T, 
-                           title = paste("res =",res[i],"in",g," based on ICA"),
-                           unique.name = "groups",
+                           title = paste("res =",res[i],"in",g," based on PCA"),
+                           unique.name = "group",
                            do.print = T, save.path = path)
                 Progress(i,length(res))
         }
         
-        object <- RunICA(object, verbose =F,nics = 100)
         a <- seq(1,97, by = 6)
         b <- a+5
         for(i in seq_along(a)){
                 jpeg(paste0(path,"DimHeatmap_ica_",g,"_",a[i],"_",min(b[i],100),".jpeg"), units="in", width=10, height=7,res=600)
                 DimHeatmap(object, dims = a[i]:min(b[i],100),
-                           nfeatures = 30,reduction = "ica")
+                           nfeatures = 30,reduction = "pca")
                 dev.off() 
         }
 }
@@ -149,7 +100,6 @@ if(step == 3){
         object %<>% FindClusters(resolution = 0.6)
         object %<>% RunTSNE(reduction = "ica", dims = 1:npcs, check_duplicates = FALSE)
         object %<>% RunUMAP(reduction = "ica", dims = 1:npcs)
-        ElbowPlot()
         # cluster
         TSNEPlot.1(object, group.by = "integrated_snn_res.0.6",
                    label = T,
@@ -229,13 +179,3 @@ if(step == 5){
         FeaturePlot.1(object, markers,border = T,do.print = T, do.return = F,
                       unique.name = "groups", save.path = path)
 }
-FeaturePlot(object, markers)
-# En (CDH5) 
-# SAE:C (CAPS, FOXJ1) 
-# F (DCN, LUM)
-# SAE (KRT5, SFTPC,SCGB1A1)
-# SMG (KRT5, SCGB1A1)
-# SAE:Basal cells (KRT5) 
-# AT (SFTPC,SCGB1A1+)
-# B, T, Mon (SRGN, LAPTM5)
-# SAE:Sec (SCGB1A1-very high)
