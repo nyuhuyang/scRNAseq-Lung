@@ -28,7 +28,7 @@ res = list(c(1.9,1),
            c(2.7,0.25))
 (r <- res[[args]])
 step = 1
-if(step == 1){
+if(step == 1){ # need 128 GB
         (load(file = "data/Lung_28_harmony_20200131.Rda"))
         DefaultAssay(object)  = "SCT"
         object %<>% FindClusters(resolution = r[1])
