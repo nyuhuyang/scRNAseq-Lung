@@ -16,6 +16,10 @@ annotation <- readxl::read_excel("doc/Harmony annotation Yang.xlsx")
 (groups <- unique(annotation$UMAP))
 (rds_files <-list.files("data", pattern = paste(groups,collapse = "|")))
 
+# SLURM_ARRAY_TASK_ID
+slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
+if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
+# coerce the value to an integer
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 (g <- groups[args])
@@ -23,7 +27,7 @@ print(paste0("slurm_arrayid=",args))
 g_anno = annotation[annotation$UMAP %in% g,]
 #======== rename ident =================
 object = readRDS(file = paste0("data/",rds))
-resolutions = g_anno["res"] %>% pull %>% sort
+resolutions = g_anno["res"] %>% pull
 (res = unique(resolutions))
 for(i in seq_along(res)) object %<>% FindClusters(resolution = res[i])
 str2int <- function(char){
@@ -44,13 +48,17 @@ if(g == "Global"){
                 meta.data[meta.data[,paste0("SCT_snn_res.",resolutions[i])] %in% g_anno$cluster[i],
                           "cell.labels"] = g_anno$`cell label`[i]
         }
+        cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
+        write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
 }
-object[["cell.labels"]] = 0
-meta.data = object@meta.data
-meta.data["barcodes"] = rownames(meta.data)
-for(i in seq_along(resolutions)){
-        meta.data[meta.data[,paste0("SCT_snn_res.",resolutions[i])] %in% str2int(g_anno$cluster[i]),
-                  "cell.labels"] = g_anno$`cell label`[i]
+if(g != "Global"){
+        object[["cell.labels"]] = 0
+        meta.data = object@meta.data
+        meta.data["barcodes"] = rownames(meta.data)
+        for(i in seq_along(resolutions)){
+                meta.data[meta.data[,paste0("SCT_snn_res.",resolutions[i])] %in% str2int(g_anno$cluster[i]),
+                          "cell.labels"] = g_anno$`cell label`[i]
+        }
+        cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
+        write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
 }
-cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
-write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
