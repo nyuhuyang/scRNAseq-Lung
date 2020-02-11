@@ -138,8 +138,6 @@ if(is.na(args[2])){
 remove(object);GC()
 
 #======1.5 Performing SCTransform and integration =========================
-save.path <- paste0(path,"ICA/")
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 Seurat_list %<>% lapply(SCTransform)
 object.features <- SelectIntegrationFeatures(Seurat_list, nfeatures = 3000)
 npcs =30
@@ -283,3 +281,5 @@ for(i in seq_along(res)){
                do.print = T))
     Progress(i,length(res))
 }
+
+format(object.size(object@assays$SCT), units = "GB")

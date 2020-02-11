@@ -9,9 +9,9 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_28_harmony_20200131.Rda"))
+(load(file="data/Lung_28_harmony_rmD_20200205.Rda"))
 #======== rename ident =================
- object %<>% FindClusters(resolution = 0.06)
+object %<>% FindClusters(resolution = 0.06)
 Idents(object) = "SCT_snn_res.0.06"
 object %<>% RenameIdents("0" = "T",
                          "1" = "Myeloid",
