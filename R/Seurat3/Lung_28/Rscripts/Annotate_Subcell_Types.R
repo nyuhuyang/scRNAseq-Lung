@@ -48,8 +48,6 @@ if(g == "Global"){
                 meta.data[meta.data[,paste0("SCT_snn_res.",resolutions[i])] %in% g_anno$cluster[i],
                           "cell.labels"] = g_anno$`cell label`[i]
         }
-        cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
-        write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
 }
 if(g != "Global"){
         object[["cell.labels"]] = 0
@@ -59,6 +57,6 @@ if(g != "Global"){
                 meta.data[meta.data[,paste0("SCT_snn_res.",resolutions[i])] %in% str2int(g_anno$cluster[i]),
                           "cell.labels"] = g_anno$`cell label`[i]
         }
-        cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
-        write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
 }
+cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
+write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
