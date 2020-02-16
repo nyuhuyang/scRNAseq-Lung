@@ -4,6 +4,7 @@
 # 
 # ######################################################################
 invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot",
+                   
                    "magrittr","MAST","future","ggplot2","tidyr"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))

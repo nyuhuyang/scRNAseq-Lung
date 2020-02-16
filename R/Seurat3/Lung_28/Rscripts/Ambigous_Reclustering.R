@@ -8,9 +8,10 @@ invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot",
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
+doc.path <- paste0("Yang/proximal_distal_terminal_COPD/Harmony/Annotations/")
+if(!dir.exists(doc.path))dir.create(doc.path, recursive = T)
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
@@ -21,7 +22,7 @@ print(paste0("slurm_arrayid=",args))
 # re-run the KNN with and without intergration
 reductions = c("harmony", "pca")
 (reduction <- reductions[args])
-
+g <- c(23, "ambigous",2)   #9
 # ========== cell types and markers ==============
 # En (CDH5) 
 # SAE:C (CAPS, FOXJ1) 
@@ -33,25 +34,29 @@ reductions = c("harmony", "pca")
 # B, T, Mon (SRGN, LAPTM5)
 # SAE:Sec (SCGB1A1-very high)
 
-ambigous = read.csv("Yang/proximal_distal_terminal_COPD/Harmony/Annotations/Lung_28_ambigous_nolabel_barcodes.csv",row.names = 1,
-                    stringsAsFactors = F) %>% pull
-g_name = "ambigous"
-args = 21
+(clusters <- as.numeric(g[1]))
+(g_name <- g[2])
+(res <- as.numeric(g[3]))
+step = 1
 # use ElbowPlot, PCA heatmap and JackStrawPlot to select PCA number 
 if(step == 1){ # DimHeatmap 32GB, JackStraw need 128 GB
-        save.path <- paste0(path,"21-ambigous","/Select_npcs/")
+        save.path <- paste0(path,"21-",g_name,"/Select_npcs/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
-        (load(file = "data/Lung_28_harmony_rmD_20200205.Rda"))
-        object %<>% subset(cells = ambigous)
-        GC()
+        object = readRDS(file = "data/Lung_28_Global_20200206.rds")
+        object %<>% FindClusters(resolution = res)
+        SMG <- subset(object, idents = clusters)
+        ambigous = read.csv(paste0(doc.path,"Lung_28_ambigous_unkown_nolabel_barcodes.csv"),row.names = 1,
+                            stringsAsFactors = F) %>% pull
+        object %<>% subset(cells = unique(c(ambigous,colnames(SMG))))
+        rm(SMG); GC()
         table(object$cell_types)
         DefaultAssay(object) = "SCT"
         object <- FindVariableFeatures(object = object, selection.method = "vst",
                                        num.bin = 20,nfeatures = 2000,
                                        mean.cutoff = c(0.1, 8), 
                                        dispersion.cutoff = c(1, Inf))
-        object <- ScaleData(object = object,features = VariableFeatures(object))
-        object <- RunPCA(object, verbose =F, npcs = 100)
+        object %<>% ScaleData(eatures = VariableFeatures(object))
+        object %<>% RunPCA(verbose = F, npcs = 100)
         npcs = 100
         
         p <- ElbowPlot(object, ndims = npcs)+
@@ -68,7 +73,7 @@ if(step == 1){ # DimHeatmap 32GB, JackStraw need 128 GB
                 DimHeatmap(object, dims = a[i]:min(b[i],100),
                            nfeatures = 30,reduction = "pca")
                 dev.off()
-                Process(i,length(a))
+                Progress(i,length(a))
         }
         
         object %<>% JackStraw(num.replicate = 20,dims = 100)
@@ -111,13 +116,15 @@ if(step == 2){ # need 16 GB ?
             cols = Singler.colors,
             no.legend = T,label.size = 4, repel = T, 
             title = paste("Harmony Integration in",g_name),
-            do.print = T, do.return = F,save.path = save.path)
+            do.print = T, do.return = F,
+            save.path = paste0(save.path,reduction,"-"))
         UMAPPlot.1(object, group.by="conditions",pt.size = 0.5,label = T,
             cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
             label.repel = T, alpha= 0.9,
             no.legend = F,label.size = 4, repel = T, 
             title = paste("Harmony Integration in",g_name),
-            do.print = T, do.return = F,save.path = save.path)
+            do.print = T, do.return = F,
+            save.path = paste0(save.path,reduction,"-"))
 }
 
 if(step == 3){        # test serial_resolutions
