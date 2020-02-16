@@ -88,7 +88,6 @@ if(step == 1){ # DimHeatmap 32GB, JackStraw need 128 GB
         }
         saveRDS(object, file = paste0("data/Lung_28_",args,"-",g_name,"_20200206.rds"))
 }
-saveRDS(object, file = paste0("data/Lung_28_Global_20200206.rds"))
 
 # run harmony
 if(step == 2){ # need 16 GB ?
@@ -145,37 +144,5 @@ if(step == 3){        # test serial_resolutions
                 file.rename(paste0(save.path,"UMAPPlot_object_SCT_snn_res.",resolutions[i],".jpeg"),
                             paste0(save.path,i,"-UMAPPlot_object_SCT_snn_res.",resolutions[i],".jpeg"))
                 Progress(i,length(resolutions))
-        }
-}
-
-# serial resolution and ICA heatmap on integrated data
-if(step == 4){
-        save.path <- paste0(path,g,"/")
-        if(!dir.exists(save.path))dir.create(save.path, recursive = T)
-        load(file = paste0("data/Lung_28_",g,"_20200122.Rda"))
-        DefaultAssay(object) <- 'integrated'
-        
-        res = seq(0.01,0.09, by = 0.01)
-        for(i in seq_along(res)){
-                object %<>% FindClusters(resolution = res[i])
-                Idents(object) = paste0("integrated_snn_res.",res[i])
-                UMAPPlot.1(object, group.by=paste0("integrated_snn_res.",res[i]),pt.size = 0.3,label = T,
-                           label.repel = T,alpha = 0.9,
-                           do.return = F,
-                           no.legend = T,label.size = 4, repel = T, 
-                           title = paste("res =",res[i],"in",g_name," based on ICA"),
-                           unique.name = "groups",
-                           do.print = T, save.path = save.path)
-                Progress(i,length(res))
-        }
-        
-        object <- RunICA(object, verbose =F,nics = 100)
-        a <- seq(1,50, by = 6)
-        b <- a+5
-        for(i in seq_along(a)){
-                jpeg(paste0(save.path,"DimHeatmap_ica_",g,"_",a[i],"_",min(b[i],50),".jpeg"), units="in", width=10, height=7,res=600)
-                DimHeatmap(object, dims = a[i]:min(b[i],50),
-                           nfeatures = 30,reduction = "ica")
-                dev.off() 
         }
 }
