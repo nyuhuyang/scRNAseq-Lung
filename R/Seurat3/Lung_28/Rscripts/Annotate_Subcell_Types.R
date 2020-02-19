@@ -13,7 +13,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 #  ====== read annotation excel =================
 annotation <- readxl::read_excel("doc/Harmony annotation Yang.xlsx")
-(groups <- unique(annotation$UMAP))
+(groups <- unique(annotation$UMAP) %>% sort)
 (rds_files <-list.files("data", pattern = paste(groups,collapse = "|")))
 
 # SLURM_ARRAY_TASK_ID
@@ -58,5 +58,20 @@ if(g != "Global"){
                           "cell.labels"] = g_anno$`cell label`[i]
         }
 }
+if(g == "21-ambigous-pca"){
+        object %<>% AddModuleScore(features = list(c("ACTA2","ELN","COL1A1","BGN")), name = "F5")
+        colnames(object@meta.data)[grep("F51",colnames(object@meta.data))] = "ACTA2+ELN+COL1A1+BGN"
+        
+        m <- cbind(meta.data, object[["umap"]]@cell.embeddings, object[["ACTA2+ELN+COL1A1+BGN"]])
+        m[m$UMAP_1 > -2.5 & m$UMAP_1 < -1.8 & m$UMAP_2 > -8 & m$UMAP_2 < -7.2,
+          "cell.labels"] = "Cr"
+        m[((m$UMAP_1 > -4.6 & m$UMAP_1 < -4.1 & m$UMAP_2 < -4.7 & m$UMAP_2 > -5.5) |
+                   (m$UMAP_1 > -3.8 & m$UMAP_1 < -3.1 & m$UMAP_2 < -6 & m$UMAP_2 > -6.5)) &
+                  m$`ACTA2+ELN+COL1A1+BGN` > 0.5,
+          "cell.labels"] = "F5"  
+        m[m$UMAP_1 > 0.7 & m$UMAP_1 < 1.3 & m$UMAP_2 > -4.6 & m$UMAP_2 < -3.9,
+          "cell.labels"] = "DC"
+        meta.data = m
+}
 cell.labels = meta.data[meta.data[,"cell.labels"] != 0,c("barcodes","cell.labels")]
-write.csv(cell.labels, file = paste0(path,sub("rds","csv",rds)),row.names = FALSE)
+write.csv(cell.labels, file = paste0(path,sub("0206","0219",sub("rds","csv",rds))),row.names = FALSE)
