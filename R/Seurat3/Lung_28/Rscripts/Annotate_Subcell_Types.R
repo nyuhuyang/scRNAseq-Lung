@@ -11,6 +11,7 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
+# Need 32 GB
 #  ====== read annotation excel =================
 annotation <- readxl::read_excel("doc/Harmony annotation Yang.xlsx")
 (groups <- unique(annotation$UMAP) %>% sort)
