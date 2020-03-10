@@ -28,12 +28,12 @@ cell.types = c("AT-p","AT1","AT2","B","BC","BC-p",
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 # load files
-object = readRDS(file = "data/Lung_28_Global_20200206.rds") 
-
+object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+# Need 64GB
 Idents(object) = "cell.labels"
 system.time(Lung_markers <- FindMarkers.UMI(object, ident.1 = c, ident.2 = NULL,
-                                               logfc.threshold = 0.5, only.pos = T,
+                                               logfc.threshold = 0.1, only.pos = T,
                                                test.use = "MAST",min.cells.group = 2))
 Lung_markers = Lung_markers[Lung_markers$p_val_adj<0.05,]
 if(args < 10) args = paste0("0", args)
-write.csv(Lung_markers,paste0(path,"Lung_28-",args,"_",c,".csv"))
+write.csv(Lung_markers,paste0(path,"Lung_28-",args,"_FC0.1",c,".csv"))

@@ -64,5 +64,4 @@ meta.data = cbind(Epi@reductions$pca@cell.embeddings[,1:2],
         cbind(Epi[["conditions"]])
 write.csv(meta.data, paste0(path,"PCA_Epi_coordinates.csv"))
 
-
-object$SCINA %in% object$
+c("AGER","CLDN18","AQP4","EMP2","SCEL")

@@ -8,7 +8,7 @@ invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot",
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
-path <- paste0("Yang/proximal_distal_terminal_COPD/Harmony/Annotations/")
+path <- paste0("Yang/proximal_distal_terminal_COPD/Harmony/Expression/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 #======== read csv =================
@@ -107,3 +107,50 @@ df2[is.na(df2)] = 0
 rownames(df2) = df2$cell.labels
 
 write.csv(df2,paste0(path,"nGene_by_samples.csv"))
+
+# 4. Expression data for all cells in the S-d, S, SMG-Muc, SMG-Ser, IC clusters per samples (per region P, D, T, COPD; with sample ID) for the following genes: SCGB3A2, SFTPB, SCGB1A1, SFTPC, AGER, PRB4, AZGP1, SERPINB3, SERPINB4, MUC5B, MUC5AC, FOXJ1, KRT5. 
+object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+Idents(object) = "cell.labels"
+groups <- list(c("S-d", "S", "SMG-Muc", "SMG-Ser", "IC"),
+               c("AT1","AT2","AT-p"),
+               "MEC",
+               c("BC", "BC-p", "Sq"),
+               c("Ion", "NEC"),
+               "H",
+               c("C1", "C2", "C3", "C4"))
+unlist(groups) %in% Idents(object) %>% table
+for(i in seq_along(groups)){
+        print(groups[i])
+        sub_object <- subset(object, idents = groups[[i]])
+        genes = FilterGenes(sub_object,marker.genes = c("SCGB3A2", "SFTPB", "SCGB1A1", "SFTPC", "AGER", "PRB4", "AZGP1", 
+                                                        "SERPINB3", "SERPINB4", "MUC5B", "MUC5AC", "FOXJ1", "KRT5",
+                                                        "KRT14", "ACTA2",
+                                                        "KRT15","MIR205HG","MKI67","KRT19","BPIFB1","LCN2","AGR2",
+                                                        "WFDC2","TMEM45A","NAPSA ","SFTPD","CLDN18","SCEL","AQP4",
+                                                        "EMP2","PIP","LTF","SAA1","SAA2","PRB3","TFF3","BPIFB2",
+                                                        "LY6D","SPRR2D","SPRR3","SPRR2A","SPRR1A","S100A9","S100A14",
+                                                        "KRT6A","SFN","UPK1B","GPX2","ADH7","FOXI1","HEPACAM2","ATP6V0B",
+                                                        "TMEM61","CFTR","GRP","SEC11C","CPE","PCSK1N","CHGB","CHGA",
+                                                        "CDH19","L1CAM","DCN","SRGN","LAPTM5","CD3E","CDH5","CAPS","TPPP3"))
+        exp = sub_object[["SCT"]]@data[genes,]
+        meta.data = sub_object@meta.data[,c("orig.ident","conditions","cell.labels")]
+        table(rownames(meta.data) == colnames(exp))
+        meta.data %<>% cbind(Matrix::t(exp))
+        meta.data = meta.data[order(meta.data$cell.labels),]
+        write.csv(meta.data,paste0(path,"Expression ",paste(groups[[i]],collapse = ","),".csv"))
+        }
+
+
+
+
+
+Idents(object) = "cell.labels"
+sub_object <- subset(object, idents = c("MEC"))
+genes = FilterGenes(sub_object,marker.genes = c("KRT14","ACTA2","SCGB3A2", "SFTPB", "SCGB1A1", "SFTPC", "AGER", "PRB4", "AZGP1", 
+                                                "SERPINB3", "SERPINB4", "MUC5B", "MUC5AC", "FOXJ1", "KRT5"))
+exp = sub_object[["SCT"]]@data[genes,]
+meta.data = sub_object@meta.data[,c("orig.ident","conditions","cell.labels")]
+table(rownames(meta.data) == colnames(exp))
+meta.data %<>% cbind(Matrix::t(exp))
+meta.data = meta.data[order(meta.data$cell.labels),]
+write.csv(meta.data,paste0(path,"Expression MEC.csv"))
