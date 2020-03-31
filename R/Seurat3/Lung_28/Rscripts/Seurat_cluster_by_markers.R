@@ -3,8 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot",
-                   
+invisible(lapply(c("Seurat","dplyr","cowplot",
                    "magrittr","MAST","future","ggplot2","tidyr"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -24,22 +23,25 @@ args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
 sheets = c("T20","IE", "DS", "3C")
-(sheet <- groups[args])
-df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
-                                 sheet = sheet)
+npcs_list = c(60, 60, 60, 80)
+(sheet <- sheets[args])
+(npcs = npcs_list[args])
 
 save.path <- paste0(path,sheet,"/")
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 # ==================================================
-step = 1
+step = 2
 # Find pc number
 if(step == 1){
         #======1.2 load  Seurat =========================
+        df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
+                                         sheet = sheet)
         (load(file = "data/Lung_28_20200102.Rda"))
+        DefaultAssay(object) = "SCT"
         object[["integrated"]] = NULL
         object@neighbors = list()
         object@reductions = list()
-        DefaultAssay(object) = "SCT"
+        GC()
         object <- FindVariableFeatures(object = object, selection.method = "vst",
                                        num.bin = 20,nfeatures = 10000,
                                        mean.cutoff = c(0.1, 8), 
@@ -47,7 +49,7 @@ if(step == 1){
         # keep the VariableFeatures in marker list only
         marker_genes = FilterGenes(object, df_samples$genes)
         VariableFeatures(object) %<>% .[. %in% marker_genes]
-        length(VariableFeatures(object))
+        print(length(VariableFeatures(object)))
         # Identify the 20 most highly variable genes
         top20 <- head(VariableFeatures(object), 20)
         # plot variable features with and without labels
@@ -76,5 +78,53 @@ if(step == 1){
                 Progress(i,length(a))
                 dev.off()
         }
+        saveRDS(object, file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
+}
+
+if(step == 2){
+        object = readRDS(file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
+        object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
+        
+        jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
+        system.time(object %<>% RunHarmony(group.by.vars = "orig.ident", 
+                                           assay.use="SCT",dims.use = 1:npcs,
+                                           theta = 2, plot_convergence = TRUE,
+                                           nclust = 50, max.iter.cluster = 100))
+        dev.off()
+        
+        object %<>% FindNeighbors(reduction = "harmony",dims = 1:npcs)
+        object %<>% FindClusters(resolution = 0.8)
+        object %<>% RunTSNE(reduction = "harmony", dims = 1:npcs, check_duplicates = FALSE)
+        object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
+        
+        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
+                fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
+                    cols = ExtractMetaColor(object),
+                    label.repel = T,alpha = 0.9,
+                    no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
+                    do.print = T, do.return = F,save.path = save.path))
+        
+        meta.data = readRDS(file = "output/20200131/cell_types.rds")
+        meta.data = meta.data[rownames(object@meta.data),]
+        object[["cell_types"]] = meta.data$cell_types
+        object[["cell_types.colors"]] = meta.data$cell_types.colors
+        
+        Idents(object) = "cell_types"
+        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+                fun(object, group.by="cell_types",pt.size = 0.5,label = T,
+                    label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
+                    no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
+                    do.print = T, do.return = F,save.path = save.path))
+        
+        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+                fun(object, group.by="conditions",pt.size = 0.5,label = T,
+                    cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+                    label.repel = T, alpha= 0.9,
+                    no.legend = F,label.size = 4, repel = T, title = "Harmony Integration",
+                    do.print = T, do.return = F,save.path = save.path))
+        
+        object@assays$RNA@scale.data = matrix(0,0,0)
+        object@assays$SCT@scale.data = matrix(0,0,0)
+        format(object.size(object[["RNA"]]),unit = "GB")
         saveRDS(object, file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
 }
