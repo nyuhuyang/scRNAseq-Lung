@@ -3,8 +3,8 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","cowplot",
-                   "magrittr","MAST","future","ggplot2","tidyr"), function(x) {
+invisible(lapply(c("Seurat","dplyr","cowplot","magrittr","MAST",
+                   "future","ggplot2","tidyr","harmony"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("../R/Seurat3_functions.R")
@@ -22,20 +22,20 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-sheets = c("T20","IE", "DS", "3C")
-npcs_list = c(60, 60, 60, 80)
-(sheet <- sheets[args])
+methods = c("T20","IE", "DS", "3C", "T20_non-modified","IE_non-modified", "DS_non-modified", "3C_non-modified")
+npcs_list = c(60, 60, 60, 80, 60, 60, 60, 80)
+(method <- methods[args])
 (npcs = npcs_list[args])
 
-save.path <- paste0(path,sheet,"/")
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 # ==================================================
-step = 2
+step = 1
 # Find pc number
 if(step == 1){
+        save.path <- paste0(path,method,"/Find_pc_number/")
+        if(!dir.exists(save.path))dir.create(save.path, recursive = T)
         #======1.2 load  Seurat =========================
         df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
-                                         sheet = sheet)
+                                         sheet = sub("_.*","",method))
         (load(file = "data/Lung_28_20200102.Rda"))
         DefaultAssay(object) = "SCT"
         object[["integrated"]] = NULL
@@ -48,7 +48,9 @@ if(step == 1){
                                        dispersion.cutoff = c(1, Inf))
         # keep the VariableFeatures in marker list only
         marker_genes = FilterGenes(object, df_samples$genes)
-        VariableFeatures(object) %<>% .[. %in% marker_genes]
+        if(grepl("non-modified", method)) {
+                VariableFeatures(object) = marker_genes
+        } else VariableFeatures(object) %<>% .[. %in% marker_genes]
         print(length(VariableFeatures(object)))
         # Identify the 20 most highly variable genes
         top20 <- head(VariableFeatures(object), 20)
@@ -62,12 +64,29 @@ if(step == 1){
         hvf.info = hvf.info[VariableFeatures(object),]
         write.csv(hvf.info, file = paste0(save.path,"high_variable_genes.csv"))
         
-        #======1.7 harmony =========================
+        #====== find best pc number =========================
         object %<>% ScaleData
         object %<>% RunPCA(verbose = T,npcs = 100, features = VariableFeatures(object))
         PCAPlot.1(object, do.print = T, save.path = save.path)
         
         npcs= 100
+        
+        p <- ElbowPlot(object, ndims = npcs)+
+                ggtitle(paste("ElbowPlot for",methods))+
+                TitleCenter()
+        jpeg(paste0(save.path,"ElbowPlot.jpeg"),units="in", width=10, height=7,res=600)
+        print(p)
+        dev.off()
+        
+        a <- seq(1,97, by = 6)
+        b <- a+5
+        for(i in seq_along(a)){
+                jpeg(paste0(save.path,"DimHeatmap_",i,"_",methods,"_",a[i],"_",min(b[i],100),".jpeg"), units="in", width=10, height=7,res=600)
+                DimHeatmap(object, dims = a[i]:min(b[i],100),
+                           nfeatures = 30,reduction = "pca")
+                dev.off() 
+        }
+        
         object %<>% JackStraw(num.replicate = 20,dims = 100)
         object %<>% ScoreJackStraw(dims = 1:npcs)
         a <- seq(1,100, by = 10)
@@ -78,11 +97,13 @@ if(step == 1){
                 Progress(i,length(a))
                 dev.off()
         }
-        saveRDS(object, file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
+        saveRDS(object, file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
 }
 
 if(step == 2){
-        object = readRDS(file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
+        save.path <- paste0(path,method,"/ReductionsPlots/")
+        if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+        object = readRDS(file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
         object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
         
         jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
@@ -97,6 +118,7 @@ if(step == 2){
         object %<>% RunTSNE(reduction = "harmony", dims = 1:npcs, check_duplicates = FALSE)
         object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
         
+        Idents(object) = "orig.ident"
         lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
                 fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
                     cols = ExtractMetaColor(object),
@@ -105,26 +127,40 @@ if(step == 2){
                     do.print = T, do.return = F,save.path = save.path))
         
         meta.data = readRDS(file = "output/20200131/cell_types.rds")
+        meta.data$barcode = rownames(meta.data)
+        object1 = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+        object1$barcode = colnames(object1)
+        meta.data %<>% full_join(object1@meta.data[,c("barcode","cell.labels",
+                                                      "cell.labels.colors")],
+                                 by = "barcode")
+        rownames(meta.data) = meta.data$barcode
         meta.data = meta.data[rownames(object@meta.data),]
         object[["cell_types"]] = meta.data$cell_types
         object[["cell_types.colors"]] = meta.data$cell_types.colors
-        
+        object[["cell.labels"]] = meta.data$cell.labels
+        object[["cell.labels.colors"]] = meta.data$cell.labels.colors        
         Idents(object) = "cell_types"
         lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
                 fun(object, group.by="cell_types",pt.size = 0.5,label = T,
                     label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
-                    no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
+                    no.legend = T,label.size = 4, repel = T, title = "First annotation",
+                    do.print = T, do.return = F,save.path = save.path))
+        Idents(object) = "cell.labels"
+        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
+                fun(object, group.by="cell.labels",pt.size = 0.5,label = T,
+                    label.repel = T,alpha = 0.9,cols = Singler.colors,
+                    no.legend = T,label.size = 4, repel = T, title = "Final annotation",
                     do.print = T, do.return = F,save.path = save.path))
         
         lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
                 fun(object, group.by="conditions",pt.size = 0.5,label = T,
                     cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
                     label.repel = T, alpha= 0.9,
-                    no.legend = F,label.size = 4, repel = T, title = "Harmony Integration",
+                    no.legend = F,label.size = 4, repel = T, title = "Conditions",
                     do.print = T, do.return = F,save.path = save.path))
         
         object@assays$RNA@scale.data = matrix(0,0,0)
         object@assays$SCT@scale.data = matrix(0,0,0)
         format(object.size(object[["RNA"]]),unit = "GB")
-        saveRDS(object, file = paste0("data/Lung_28_",args,"-",sheet,"-harmony_2020330.rds"))
+        saveRDS(object, file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
 }
