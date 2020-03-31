@@ -105,7 +105,7 @@ age_markers <- FindPairMarkers(object,
                                ident.1 = Young_ages,
                                ident.2 = old_ages,
                                p.adjust.methods = "BH",
-                               logfc.threshold = 1,only.pos = F, 
+                               logfc.threshold = 0,only.pos = F, 
                                min.pct = 0.1)
 
 age_markers$FC = 2^(age_markers$avg_logFC)
@@ -122,34 +122,9 @@ age_markers %>% group_by()
 grep("SCGB3A2", age_markers$gene)
 
 
-GCT <- c("BC-BC-p-Sq-IC-output","S-d-SMG-S-morpheus-output","SMG-MEC-morpheus-output")
+GCT <- c("Ion-NEC-morpheus-output-re","C1-C4-H-morpheus-output-re.gct")
 for(i in seq_along(GCT)){
         counts = read.gct(paste0("data/RNA-seq/",GCT[i],".gct"))
         colnames(counts) = gsub("\\.","-",colnames(counts))
         write.csv(counts,paste0(path,GCT[i],".csv"))
 }
-
-gene = "SCGB3A2"
-object[[gene]] = as.vector(object@assays$SCT[gene,])
-df = cbind(object[["Age.Bracket"]], object[[gene]]) %>% as.data.frame()
-df %>%
-        group_by(Age.Bracket) %>%
-        summarize(SCGB3A2 = mean(SCGB3A2)) %>% kable %>% kable_styling()
-
-SCGB3A2_marker <- list()
-for(i in seq_along(Young_ages)){
-        SCGB3A2_marker[[i]]<- FindMarkers.UMI(object, ident.1 = Young_ages[[i]],
-                                              ident.2 = old_ages[[i]],
-                                              features = "SCGB3A2",
-                                              p.adjust.methods = "fdr",
-                                              return.thresh = 1,
-                                              logfc.threshold = 0,only.pos = F, 
-                                              min.pct = 0.1)
-        ident.1vs2 <- paste(ident.1[i],"/", ident.2[i])
-        SCGB3A2_marker[[i]]$cluster1.vs.cluster2 <- ident.1vs2
-        
-}
-SCGB3A2_marker = bind_rows(SCGB3A2_marker)
-SCGB3A2_marker$gene = "SCGB3A2"
-SCGB3A2_marker$FC = 2^(SCGB3A2_marker$avg_logFC)
-write.csv(SCGB3A2_marker,paste0(path,"SCGB3A2_marker.csv"))
