@@ -29,14 +29,29 @@ for(i in seq_along(cell_labels)){
         meta[, paste0(g[1],"_",g[2])] %<>% as.integer()
         df = aggregate(x = meta[,-1], by = list(meta[,group_by]), FUN = sum)
         df$sample = table(meta[,group_by]) %>% as.vector()
-        
+
+        fisher <- function(vector, g = g){
+                vector = c(vector["sample"], vector[c(g[1],g[2],paste0(g[1],"_",g[2]))])
+                vector %<>% unlist %>% matrix(nrow = 2)
+                vector[1,2] = vector[1,2] - vector[2,2]
+                vector[2,1] = vector[2,1] - vector[2,2]
+                vector[1,1] = vector[1,1] - vector[2,1] - vector[2,1]
+                FISH <- fisher.test(vector,workspace = 2000000)
+                output <- vector()
+                output["p_value"] = FISH$p.value
+                output["p_val_adj"] = p.adjust(p = FISH$p.value, method = "BH", 
+                                        n = nrow(df))
+                return(output)
+        }
+        df_fisher = apply(df[, -1],1,fisher, g = g)
+        df %<>% cbind(t(df_fisher))
         df_percentage = aggregate(x = meta[,-1], by = list(meta[,group_by]), 
                                   FUN = function(x) sum(x >0) / length(x) *100)
         colnames(df_percentage) %<>% paste0("_%")
         df %<>% cbind(df_percentage[,-1])
         
         df = df[,c("Group.1","sample", g[1],paste0(g[1],"_%"),g[2],paste0(g[2],"_%"),
-                   paste0(g[1],"_",g[2]),paste0(g[1],"_",g[2],"_%"))]
+                   paste0(g[1],"_",g[2]),paste0(g[1],"_",g[2],"_%"),"p_value","p_val_adj")]
         
         Idents(single_object) = "orig.ident"
         exp = AverageExpression(single_object, assays = "SCT", features = c("ACE2","TMPRSS2","ST14","FURIN"))
@@ -47,6 +62,7 @@ for(i in seq_along(cell_labels)){
                          "Number of ACE+ cells", "% ACE2+ cells (% of A)",
                          "Number of TMPRSS+ cells","% TMPRSS2+ cells (% of A)",
                          "Number of double+ cells","% double+ cells (% of A)",
+                         "p_value","p_val_adj",
                          "ACE2","TMPRSS2","ST14","FURIN")
         df_list[[label]] = df
         Progress(i, length(cell_labels))
