@@ -1,0 +1,94 @@
+# ######################################################################
+invisible(lapply(c("Seurat","dplyr","cowplot","openxlsx",
+                   "magrittr"), function(x) {
+                           suppressPackageStartupMessages(library(x,character.only = T))
+                   }))
+source("../R/Seurat3_functions.R")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path))dir.create(path, recursive = T)
+#======1.2 load  Seurat =========================
+object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+
+#=======3.2 gene co-expression summary ================
+cell_labels <- c("All_cells",sort(unique(object$cell.labels)))
+Idents(object) = "cell.labels"
+group_by = "orig.ident"
+g = c("ACE2","TMPRSS2")
+df_list <- list()
+for(i in seq_along(cell_labels)){
+        label = cell_labels[i]
+        if(label == "All_cells") {
+                single_object <- object
+        } else single_object <- subset(object, idents = label)
+        meta = single_object[[group_by]]
+        meta[, g[1]] = as.vector(single_object@assays$SCT[g[1],]) >0 
+        meta[, g[2]] = as.vector(single_object@assays$SCT[g[2],]) >0
+        meta[, paste0(g[1],"_",g[2])] = meta[, g[1]] & meta[, g[2]]
+        meta[, g[1]] %<>% as.integer()
+        meta[, g[2]] %<>% as.integer()
+        meta[, paste0(g[1],"_",g[2])] %<>% as.integer()
+        df = aggregate(x = meta[,-1], by = list(meta[,group_by]), FUN = sum)
+        df$sample = table(meta[,group_by]) %>% as.vector()
+        
+        df_percentage = aggregate(x = meta[,-1], by = list(meta[,group_by]), 
+                                  FUN = function(x) sum(x >0) / length(x) *100)
+        colnames(df_percentage) %<>% paste0("_%")
+        df %<>% cbind(df_percentage[,-1])
+        
+        df = df[,c("Group.1","sample", g[1],paste0(g[1],"_%"),g[2],paste0(g[2],"_%"),
+                   paste0(g[1],"_",g[2]),paste0(g[1],"_",g[2],"_%"))]
+        
+        Idents(single_object) = "orig.ident"
+        exp = AverageExpression(single_object, assays = "SCT", features = c("ACE2","TMPRSS2","ST14","FURIN"))
+        exp = exp$SCT %>% t()
+        
+        df %<>% cbind(exp[df[,1],])
+        colnames(df) = c("Sample ID","Total number of cells (A)",
+                         "Number of ACE+ cells", "% ACE2+ cells (% of A)",
+                         "Number of TMPRSS+ cells","% TMPRSS2+ cells (% of A)",
+                         "Number of double+ cells","% double+ cells (% of A)",
+                         "ACE2","TMPRSS2","ST14","FURIN")
+        df_list[[label]] = df
+        Progress(i, length(cell_labels))
+}
+write.xlsx(df_list, file = "Yang/Covid19/CoV target gene summary.xlsx",
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+
+#=======3.2 dotplot================
+markers.to.plot <- c("ACE2", "TMPRSS2", "ST14", "FURIN")
+Idents(object) = "orig.ident"
+Idents(object) %<>% factor(levels = rev(levels(object)))
+jpeg(paste0(path,"dotplot_sample.jpeg"), units="in", width=5, height=7,res=600)
+DotPlot(object, features = rev(markers.to.plot), assay = "SCT",
+        cols = c("blue","red")) + RotatedAxis()
+dev.off()
+
+Idents(object) = "cell.labels"
+Idents(object) %<>% factor(levels = rev(levels(object)))
+jpeg(paste0(path,"dotplot_celltypes.jpeg"), units="in", width=5, height=10,res=600)
+DotPlot(object, features = rev(markers.to.plot), assay = "SCT",
+        cols = c("blue","red")) + RotatedAxis()
+dev.off()
+
+#=======3.2 dotplot================
+(load("data/Lung_GTEx_20200307.Rda"))
+markers.to.plot <- c("ACE2", "TMPRSS2", "ST14", "FURIN")
+Idents(object) = "Age"
+object %<>% sortIdent()
+Idents(object) %<>% factor(levels = rev(levels(object)))
+jpeg(paste0(path,"dotplot_age.jpeg"), units="in", width=5, height=7,res=600)
+DotPlot(object, features = rev(markers.to.plot), assay = "SCT",
+        split.by = "Sex",
+        cols = c("blue","red")) + RotatedAxis()
+dev.off()
+
+write.csv(table(object$Sex, object$Age), file = paste0(path, "bulk_sex.csv"))
+
+
+object[["Age_Sex"]] = paste0(object$Age, "_", object$Sex)
+Idents(object) = "Age_Sex"
+exp = AverageExpression(object, assays = "SCT", features = c("ACE2","TMPRSS2","ST14","FURIN"))
+exp = exp$SCT
+write.csv(t(exp), file = paste0(path, "cov_target_bulk_expression.csv"))
