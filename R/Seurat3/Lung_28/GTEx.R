@@ -4,6 +4,7 @@ library(dplyr)
 library(magrittr)
 library(Seurat)
 library(kableExtra)
+library(openxlsx)
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -82,11 +83,9 @@ df_counts = df_counts[order(df_counts[,"Age.Bracket"]),]
 write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-counts.csv")
 df_counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 
-#  ======== DE ============
+#  ======== DE Between different age groups, males and females separately============
 (load(file = "data/Lung_GTEx_20200307.Rda"))
-Idents(object) = "Age.Bracket"
-object %<>% sortIdent()
-table(Idents(object))
+Idents(object) = "Sex"
 Young_ages <- list(c("20-29","30-39"),
                    c("20-29","30-39"),
                    c("20-29","30-39"),
@@ -101,17 +100,54 @@ old_ages <- list(c("60-69","70-79"),
                  c("50-59","60-69","70-79"),
                  c("40-49","50-59","60-69","70-79"),
                  c("30-39","40-49","50-59","60-69","70-79"))
+age_markers_list <- list()
+for(gender in c("male","female")){
+        sub_object = subset(object, idents = gender)
+        Idents(sub_object) = "Age.Bracket"
+        sub_object %<>% sortIdent()
+        table(Idents(sub_object))
+        age_markers <- FindPairMarkers(sub_object, 
+                                       ident.1 = Young_ages[1],
+                                       ident.2 = old_ages[1],
+                                       p.adjust.methods = "BH",
+                                       logfc.threshold = 0,only.pos = F, 
+                                       min.pct = 0.1)
+        
+        age_markers$FC = 2^(age_markers$avg_logFC)
+        age_markers_list[[gender]] = age_markers
+        age_markers = age_markers[age_markers$p_val_adj<0.05,]
+        write.csv(age_markers,paste0(path,"age_markers",gender,"_FC0.csv"))
+}
+write.xlsx(age_markers_list, file = paste0(path,"2a-age_gender_markers_FC0.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+#  ======== DE Between different age groups, males and females separately============
+(load(file = "data/Lung_GTEx_20200307.Rda"))
+object$Age_Sex = paste0(object$Age.Bracket, "_", object$Sex)
+ages <- list(c("20-29","30-39"),
+             c("40-49","50-59","60-69","70-79"),
+             c("50-59","60-69","70-79"),
+             c("60-69","70-79"))
+ages_male = lapply(ages, function(x) paste0(x, "_","male"))
+ages_female = lapply(ages, function(x) paste0(x, "_","female"))
+Idents(object) = "Age_Sex"
 age_markers <- FindPairMarkers(object, 
-                               ident.1 = Young_ages,
-                               ident.2 = old_ages,
+                               ident.1 = ages_male,
+                               ident.2 = ages_female,
                                p.adjust.methods = "BH",
                                logfc.threshold = 0,only.pos = F, 
                                min.pct = 0.1)
-
 age_markers$FC = 2^(age_markers$avg_logFC)
-write.csv(age_markers,paste0(path,"age_markers_FC0.csv"))
 age_markers = age_markers[age_markers$p_val_adj<0.05,]
-write.csv(age_markers,paste0(path,"age_markers_FC0-p_val_adj0.05.csv"))
+write.csv(age_markers,paste0(path,"2b-age_gender_markers_FC0.csv"))
+
+Idents(object) = "Sex"
+gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
+                                    logfc.threshold = 0,only.pos = T, 
+                                    min.pct = 0.1)
+write.csv(gender_marker,paste0(path,"2b-gender_markers_FC0.csv"))
+
+#=======
 
 age_markers <- read.csv(paste0("Yang/GTEx/","age_markers_FC0.csv"),row.names = 1)
 
@@ -128,3 +164,13 @@ for(i in seq_along(GCT)){
         colnames(counts) = gsub("\\.","-",colnames(counts))
         write.csv(counts,paste0(path,GCT[i],".csv"))
 }
+#  ======== expression ============
+(load(file = "data/Lung_GTEx_20200307.Rda"))
+meta.data = object@meta.data
+meta.data = meta.data[,c("Sex","Age.Bracket" ,"Hardy.Scale","Pathology.Notes")]
+
+meta.data = meta.data[order(meta.data$Age.Bracket, decreasing = F),]
+meta.data = meta.data[order(meta.data$Sex, decreasing = T),]
+counts <- object@assays$SCT@data %>% as.matrix() %>% t
+counts_meta <- cbind(meta.data, counts[rownames(meta.data),])
+write.csv(t(counts_meta), paste0(path, "GTEx_counts.csv"))

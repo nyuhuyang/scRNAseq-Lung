@@ -108,3 +108,26 @@ Idents(object) = "Age_Sex"
 exp = AverageExpression(object, assays = "SCT", features = c("ACE2","TMPRSS2","ST14","FURIN"))
 exp = exp$SCT
 write.csv(t(exp), file = paste0(path, "cov_target_bulk_expression.csv"))
+
+#=======3.3 scatterplot================
+object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+cell_labels <- sort(unique(object$cell.labels))
+Idents(object) = "cell.labels"
+group_by = "orig.ident"
+genes = c("ACE2","TMPRSS2")
+for(i in seq_along(cell_labels)){
+        label = cell_labels[i]
+        if(label == "All_cells") {
+                single_object <- object
+        } else single_object <- subset(object, idents = label)
+        jpeg(paste0(path,"ScatterPlot_",paste(genes,collapse = "_"),"_",label,".jpeg"), 
+             units="in", width=7, height=7,res=600)
+        g <- FeatureScatter(single_object, 
+                            feature1 = genes[1],
+                            feature2 = genes[2],
+                            pt.size = 2,#cols = "black",
+                            slot = "data")+ NoLegend()
+        print(g)
+        dev.off()
+        Progress(i, length(cell_labels))
+}
