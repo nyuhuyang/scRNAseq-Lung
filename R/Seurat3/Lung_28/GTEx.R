@@ -107,8 +107,8 @@ for(gender in c("male","female")){
         sub_object %<>% sortIdent()
         table(Idents(sub_object))
         age_markers <- FindPairMarkers(sub_object, 
-                                       ident.1 = Young_ages[1],
-                                       ident.2 = old_ages[1],
+                                       ident.1 = Young_ages,
+                                       ident.2 = old_ages,
                                        p.adjust.methods = "BH",
                                        logfc.threshold = 0,only.pos = F, 
                                        min.pct = 0.1)
