@@ -29,7 +29,7 @@ gene_pairs <- list(c("ACE2","TMPRSS2"),
                    c("BSG" , "CTSL"),
                    c("MUC16" , "TMPRSS2"),
                    c("MUC16" , "CTSL"))
-g = gene_pairs[[args]]
+(g <- gene_pairs[[args]])
 df_list <- list()
 for(i in seq_along(cell_labels)){
         label = cell_labels[i]
@@ -48,11 +48,11 @@ for(i in seq_along(cell_labels)){
 
         fisher <- function(vector, g = g){
                 vector = c(vector["sample"], vector[c(g[1],g[2],paste0(g[1],"_",g[2]))])
-                vector %<>% unlist %>% matrix(nrow = 2)
-                vector[1,2] = vector[1,2] - vector[2,2]
-                vector[2,1] = vector[2,1] - vector[2,2]
-                vector[1,1] = vector[1,1] - vector[2,1] - vector[2,1]
-                FISH <- fisher.test(vector,workspace = 2000000)
+                m  <- matrix(unlist(vector), nrow = 2)
+                m[1,2] = m[1,2] - m[2,2]
+                m[2,1] = m[2,1] - m[2,2]
+                m[1,1] = m[1,1] - m[2,1] - m[1,2] - m[2,2]
+                FISH <- fisher.test(m,workspace = 2000000)
                 output <- vector()
                 output["p_value"] = FISH$p.value
                 output["p_val_adj"] = p.adjust(p = FISH$p.value, method = "BH", 

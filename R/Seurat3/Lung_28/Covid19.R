@@ -31,13 +31,15 @@ for(i in seq_along(cell_labels)){
         df$sample = table(meta[,group_by]) %>% as.vector()
 
         fisher <- function(vector, g = g){
-                vector = c(vector["sample"], vector[c(g[1],g[2],paste0(g[1],"_",g[2]))])
+                output <- vector()
+                #if(vector[g[1]] == 0 | vector[g[2]] == 0) return(c(1,1))
+                vector = c(vector["sample"], vector[c(g[1], g[2],paste0(g[1],"_",g[2]))])
                 vector %<>% unlist %>% matrix(nrow = 2)
                 vector[1,2] = vector[1,2] - vector[2,2]
                 vector[2,1] = vector[2,1] - vector[2,2]
                 vector[1,1] = vector[1,1] - vector[2,1] - vector[2,1]
                 FISH <- fisher.test(vector,workspace = 2000000)
-                output <- vector()
+                
                 output["p_value"] = FISH$p.value
                 output["p_val_adj"] = p.adjust(p = FISH$p.value, method = "BH", 
                                         n = nrow(df))
@@ -73,24 +75,24 @@ write.xlsx(df_list, file = "Yang/Covid19/CoV target gene summary.xlsx",
 
 
 #=======3.2 dotplot================
-markers.to.plot <- c("ACE2", "TMPRSS2", "ST14", "FURIN")
+markers.to.plot <- c("ACE2","TMPRSS2","ST14","FURIN","ANPEP","BSG","CTSL","MUC16")
 Idents(object) = "orig.ident"
 Idents(object) %<>% factor(levels = rev(levels(object)))
-jpeg(paste0(path,"dotplot_sample.jpeg"), units="in", width=5, height=7,res=600)
+jpeg(paste0(path,"dotplot_sample.jpeg"), units="in", width=6, height=7,res=600)
 DotPlot(object, features = rev(markers.to.plot), assay = "SCT",
         cols = c("blue","red")) + RotatedAxis()
 dev.off()
 
 Idents(object) = "cell.labels"
 Idents(object) %<>% factor(levels = rev(levels(object)))
-jpeg(paste0(path,"dotplot_celltypes.jpeg"), units="in", width=5, height=10,res=600)
+jpeg(paste0(path,"dotplot_celltypes.jpeg"), units="in", width=6, height=10,res=600)
 DotPlot(object, features = rev(markers.to.plot), assay = "SCT",
         cols = c("blue","red")) + RotatedAxis()
 dev.off()
 
 #=======3.2 dotplot================
 (load("data/Lung_GTEx_20200307.Rda"))
-markers.to.plot <- c("ACE2", "TMPRSS2", "ST14", "FURIN")
+markers.to.plot <- c("ACE2","TMPRSS2","ST14","FURIN","ANPEP","BSG","CTSL","MUC16")
 Idents(object) = "Age"
 object %<>% sortIdent()
 Idents(object) %<>% factor(levels = rev(levels(object)))
@@ -105,7 +107,9 @@ write.csv(table(object$Sex, object$Age), file = paste0(path, "bulk_sex.csv"))
 
 object[["Age_Sex"]] = paste0(object$Age, "_", object$Sex)
 Idents(object) = "Age_Sex"
-exp = AverageExpression(object, assays = "SCT", features = c("ACE2","TMPRSS2","ST14","FURIN"))
+exp = AverageExpression(object, assays = "SCT", 
+                        features = c("ACE2","TMPRSS2","ST14","FURIN","ANPEP","BSG","CTSL","MUC16")
+)
 exp = exp$SCT
 write.csv(t(exp), file = paste0(path, "cov_target_bulk_expression.csv"))
 
@@ -131,3 +135,29 @@ for(i in seq_along(cell_labels)){
         dev.off()
         Progress(i, length(cell_labels))
 }
+
+#=======3.2 gene co-expression summary ================
+Idents(object) = "cell.labels"
+Alveolar_epithelium <- subset(object, idents = c("AT1", "AT2"))
+write.csv(Alveolar_epithelium[["SCT"]]@data, file = paste0(path,"Alveolar_epithelium.csv"))
+
+Airway_epithelium <- subset(object, idents = c("BC", "BC-p", "IC", "Sq", "S", "S-d", "C1",
+                                               "C2", "C3", "C4", "p-C", "H", "Ion", "NEC",
+                                               "SMG-Muc", "SMG-Ser", "MEC"))
+write.csv(Airway_epithelium[["SCT"]]@data, file = paste0(path,"Airway_epithelium.csv"))
+
+epithelium <- subset(object, idents = c("AT1", "AT2","BC", "BC-p", "IC", "Sq", "S", "S-d", "C1",
+                                        "C2", "C3", "C4", "p-C", "H", "Ion", "NEC",
+                                        "SMG-Muc", "SMG-Ser", "MEC"))
+write.csv(epithelium[["SCT"]]@data, file = paste0(path,"epithelium.csv"))
+
+Macrophages <- subset(object, idents = c("M0", "M1", "M2"))
+write.csv(Macrophages[["SCT"]]@data, file = paste0(path,"Macrophages.csv"))
+
+cell_labels <- sort(as.character(unique(Idents(object))))
+for(i in seq_along(cell_labels)){
+        sub_object <- subset(object, idents = cell_labels[i])
+        write.csv(sub_object[["SCT"]]@data, file = paste0(path,cell_labels[i],".csv"))
+        Progress(i, length(cell_labels))
+}
+
