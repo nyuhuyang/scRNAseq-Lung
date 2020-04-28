@@ -7,7 +7,6 @@ invisible(lapply(c("Seurat","dplyr","cowplot","magrittr","MAST",
                    "future","ggplot2","tidyr","harmony"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
-SCTransform
 source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
