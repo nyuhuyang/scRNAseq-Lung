@@ -24,10 +24,18 @@ cell_types <- rep(c("T","En","C","Mon","BC_S",
                 "B_PC_Mon","Epithelial","Lymphoid","Mesenchymal","Myeloid"), each = 4)
 
 methods = rep(c("T20","IE", "DS", "3C"), times = 20)
+if(args > 80 & args <= 84){
+        i = args; args=66
+        resolution = c( 0.5,1.0,2.0,3.3)[i-80]
+}
+if(args > 84 & args <= 86){
+        i = args; args=77
+        resolution = c( 0.5,0.7)[i-84]
+}
 (method <- methods[args])
 (cell_type = cell_types[args])
 # ==================================================
-step = 2
+step = 3
 # Find pc number and generate seurat
 if(step == 1){
         save.path <- paste0(path,args,"_",cell_type,"_",method,"/Find_pc_number/")
@@ -162,4 +170,14 @@ if(step == 2){
                            do.print = T, save.path = paste0(path,args,"_",cell_type,"_",method,"/"))
                 Progress(i,length(resolutions))
         }
+}
+
+# DE analysis
+if(step == 3){
+        object = readRDS(file = paste0("output/Lung_28_",args,"_",cell_type,"_",method,"-2020406.rds"))
+        DefaultAssay(object) = "SCT"
+        object %<>% FindClusters(resolution = resolution)
+        Idents(object) = paste0("SCT_snn_res.",resolution)
+        res = FindAllMarkers.UMI(object,logfc.threshold = 0.5)
+        write.csv(res, file = paste0(path,"DE_",args,"_",cell_type,"_",method,"_res=",resolution,".csv"))
 }
