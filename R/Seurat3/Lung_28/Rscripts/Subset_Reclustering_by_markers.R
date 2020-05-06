@@ -181,3 +181,6 @@ if(step == 3){
         res = FindAllMarkers.UMI(object,logfc.threshold = 0.5)
         write.csv(res, file = paste0(path,"DE_",args,"_",cell_type,"_",method,"_res=",resolution,".csv"))
 }
+
+write.xlsx(df_list, file = paste0(path,"cor-pvalue-genes-",label,".xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
