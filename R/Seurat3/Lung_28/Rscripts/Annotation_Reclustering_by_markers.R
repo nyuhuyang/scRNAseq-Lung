@@ -28,5 +28,5 @@ if(step == 1){ # 32GB
         DefaultAssay(object) = "SCT"
         object %<>% FindClusters(resolution = sample$Resolution)
         object %<>% subset(idents = as.integer(strsplit(sample$Cluster,",")[[1]]))
-        saveRDS(colnames(object), file = paste0(path, "Annotation-",sample$`Cell type`,".rds"))
+        saveRDS(colnames(object), file = paste0(path, "Annotation-",args,"-",sample$`Cell type`,".rds"))
 }
