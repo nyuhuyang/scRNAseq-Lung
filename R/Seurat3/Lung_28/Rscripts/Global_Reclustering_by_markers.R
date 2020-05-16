@@ -11,9 +11,6 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-# change the current plan to access parallelization
-plan("multiprocess", workers = 4)
-plan()
 
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -22,53 +19,39 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
 
-methods = c("T20","IE", "DS", "3C", "T20_non-modified","IE_non-modified", "DS_non-modified", "3C_non-modified")
-npcs_list = c(60, 60, 60, 80, 60, 60, 60, 80)
-(method <- methods[args])
-(npcs = npcs_list[args])
-
+opts = data.frame(methods = rep(c("T20","IE", "DS", "3C"),  time = 2),
+                  labeled =  rep(c(T,  F), each = 4),
+                  stringsAsFactors = F)
+(methods <- opts[args,])
+method = methods$methods
+(label = ifelse(methods$labeled, "labeled", "unlabeled"))
 # ==================================================
 step = 1
-# Find pc number
+
 if(step == 1){
-        save.path <- paste0(path,method,"/Find_pc_number/")
+        # require 32GB
+        # Find pc number 
+        save.path <- paste0(path,method,"_",label,"/Find_pc_number/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
         #======1.2 load  Seurat =========================
         df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
-                                         sheet = sub("_.*","",method))
-        (load(file = "data/Lung_28_20200102.Rda"))
+                                         sheet = sub("_.*","",methods$methods))
+        object = readRDS(file = "data/Lung_28_Global_20200511.rds")
         DefaultAssay(object) = "SCT"
-        object[["integrated"]] = NULL
+        Idents(object) = "annotations"
+        object %<>% subset(idents = "unknown", invert = methods$labeled)
+        Idents(object) = "orig.ident"
         object@neighbors = list()
         object@reductions = list()
         GC()
-        object <- FindVariableFeatures(object = object, selection.method = "vst",
-                                       num.bin = 20,nfeatures = 10000,
-                                       mean.cutoff = c(0.1, 8), 
-                                       dispersion.cutoff = c(1, Inf))
         # keep the VariableFeatures in marker list only
         marker_genes = FilterGenes(object, df_samples$genes)
-        if(grepl("non-modified", method)) {
-                VariableFeatures(object) = marker_genes
-        } else VariableFeatures(object) %<>% .[. %in% marker_genes]
+        VariableFeatures(object) = marker_genes
         print(length(VariableFeatures(object)))
-        # Identify the 20 most highly variable genes
-        top20 <- head(VariableFeatures(object), 20)
-        # plot variable features with and without labels
-        plot1 <- VariableFeaturePlot(object)
-        plot2 <- LabelPoints(plot = plot1, points = top20, repel = TRUE)
-        jpeg(paste0(save.path,"VariableFeaturePlot.jpeg"), units="in", width=10, height=7,res=600)
-        print(plot2)
-        dev.off()
-        hvf.info <- HVFInfo(object = object)
-        hvf.info = hvf.info[VariableFeatures(object),]
-        write.csv(hvf.info, file = paste0(save.path,"high_variable_genes.csv"))
-        
         #====== find best pc number =========================
         object %<>% ScaleData
         object %<>% RunPCA(verbose = T,npcs = 100, features = VariableFeatures(object))
-        PCAPlot.1(object, do.print = T, save.path = save.path)
-        
+
         npcs= 100
         
         p <- ElbowPlot(object, ndims = npcs)+
@@ -97,13 +80,17 @@ if(step == 1){
                 Progress(i,length(a))
                 dev.off()
         }
-        saveRDS(object, file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
-}
-
-if(step == 2){
-        save.path <- paste0(path,method,"/ReductionsPlots/")
+        saveRDS(object, file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        # ReductionsPlots
+        save.path <- paste0(path,method,"_",label,"/ReductionsPlots/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
-        object = readRDS(file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
+        
+        ma <- function(x, n = 5) {stats::filter(x, rep(1 / n, n), sides = 1)}
+        score.df <- JS(object = object[['pca']], slot = "overall")
+        ma_Score = as.numeric(ma(score.df[,"Score"]))
+        ma_Score[1:2] = ma_Score[3]
+        print(paste("npcs =", npcs <- max(which(ma_Score < 0.05)+5))) # plus 5 just in case
+        
         object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
         
         jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
@@ -119,48 +106,35 @@ if(step == 2){
         object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
         
         Idents(object) = "orig.ident"
-        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun) 
-                fun(object, group.by="orig.ident",pt.size = 0.5,label = F,
+        lapply(c(TRUE, FALSE), function(lab) 
+                UMAPPlot.1(object, group.by="orig.ident",pt.size = 0.5,label = lab,
                     cols = ExtractMetaColor(object),
                     label.repel = T,alpha = 0.9,
                     no.legend = T,label.size = 4, repel = T, title = "Harmony Integration",
                     do.print = T, do.return = F,save.path = save.path))
         
-        meta.data = readRDS(file = "output/20200131/cell_types.rds")
-        meta.data$barcode = rownames(meta.data)
-        object1 = readRDS(file = "data/Lung_28_Global_20200219.rds") 
-        object1$barcode = colnames(object1)
-        meta.data %<>% full_join(object1@meta.data[,c("barcode","cell.labels",
-                                                      "cell.labels.colors")],
-                                 by = "barcode")
-        rownames(meta.data) = meta.data$barcode
-        meta.data = meta.data[rownames(object@meta.data),]
-        object[["cell_types"]] = meta.data$cell_types
-        object[["cell_types.colors"]] = meta.data$cell_types.colors
-        object[["cell.labels"]] = meta.data$cell.labels
-        object[["cell.labels.colors"]] = meta.data$cell.labels.colors        
         Idents(object) = "cell_types"
-        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
-                fun(object, group.by="cell_types",pt.size = 0.5,label = T,
+        lapply(c(TRUE, FALSE), function(lab)
+                UMAPPlot.1(object, group.by="cell_types",pt.size = 0.5,label = lab,
                     label.repel = T,alpha = 0.9,cols = ExtractMetaColor(object),
                     no.legend = T,label.size = 4, repel = T, title = "First annotation",
                     do.print = T, do.return = F,save.path = save.path))
         Idents(object) = "cell.labels"
-        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
-                fun(object, group.by="cell.labels",pt.size = 0.5,label = T,
+        lapply(c(TRUE, FALSE), function(lab)
+                UMAPPlot.1(object, group.by="cell.labels",pt.size = 0.5,label = lab,
                     label.repel = T,alpha = 0.9,cols = Singler.colors,
-                    no.legend = T,label.size = 4, repel = T, title = "Final annotation",
+                    no.legend = T,label.size = 4, repel = T, title = "2nd annotation",
                     do.print = T, do.return = F,save.path = save.path))
-        
-        lapply(c(TSNEPlot.1, UMAPPlot.1), function(fun)
-                fun(object, group.by="conditions",pt.size = 0.5,label = T,
-                    cols = c('#601b3f','#3D9970','#FF4136','#FF851B'),
+        Idents(object) = "annotations"
+        lapply(c(TRUE, FALSE), function(lab)
+                fun(object, group.by="conditions",pt.size = 0.5,label = lab,
+                    cols = ExtractMetaColor(object),
                     label.repel = T, alpha= 0.9,
-                    no.legend = F,label.size = 4, repel = T, title = "Conditions",
+                    no.legend = F,label.size = 4, repel = T, title = "Last annotation",
                     do.print = T, do.return = F,save.path = save.path))
         
         object@assays$RNA@scale.data = matrix(0,0,0)
         object@assays$SCT@scale.data = matrix(0,0,0)
         format(object.size(object[["RNA"]]),unit = "GB")
-        saveRDS(object, file = paste0("data/Lung_28_",args,"-",method,"-harmony_2020331.rds"))
+        saveRDS(object, file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
 }
