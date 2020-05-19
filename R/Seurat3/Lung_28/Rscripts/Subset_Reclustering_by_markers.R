@@ -154,7 +154,7 @@ if(step == 1){
         format(object.size(object[["RNA"]]),unit = "GB")
         saveRDS(object, file = paste0("output/Lung_28_",args,"_",cell_type,"_",method,"-2020406.rds"))
 }
-# Find pc number and generate seurat
+# serial resolution and generate seurat
 if(step == 2){
         object = readRDS(file = paste0("output/Lung_28_",args,"_",cell_type,"_",method,"-2020406.rds"))
         DefaultAssay(object) = "SCT"
@@ -181,6 +181,3 @@ if(step == 3){
         res = FindAllMarkers.UMI(object,logfc.threshold = 0.5)
         write.csv(res, file = paste0(path,"DE_",args,"_",cell_type,"_",method,"_res=",resolution,".csv"))
 }
-
-write.xlsx(df_list, file = paste0(path,"cor-pvalue-genes-",label,".xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))

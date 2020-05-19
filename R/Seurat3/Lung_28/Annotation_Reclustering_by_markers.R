@@ -3,7 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","cowplot","eulerr",
+invisible(lapply(c("Seurat","dplyr","cowplot","eulerr","openxlsx",
                    "magrittr","harmony"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -359,3 +359,18 @@ meta.data %<>% group_by(annotations,orig.ident) %>%
                   TMPRSS2_Pct = paste(format(percent(TMPRSS2)*100,digits = 3), "%"))
 colnames(meta.data)[1:2] = c("cell type","sample ID")
 write.csv(meta.data, file = paste0(path,"Expression_summary_ACE2_TMPRSS2.csv"))
+
+# Differential_analysis_celltypes
+# group DE results after annotations
+csv_list <- list.files(path = path, pattern = "csv", full.names = T, recursive = T)
+names(csv_list) = gsub(".*_FC0.1_","",csv_list) %>% gsub("\\.csv","",.)
+res_list <- list()
+for(i in seq_along(csv_list)){
+        res_list[[i]] = read.csv(csv_list[i], stringsAsFactors = F)
+        res_list[[i]]$cluster = names(csv_list)[i]
+        res_list[[i]] = res_list[[i]][,-1]
+}
+names(res_list) = names(csv_list)
+res_list = res_list[sort(names(csv_list))]
+write.xlsx(res_list, file = paste0(path,"DE_annotations.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))

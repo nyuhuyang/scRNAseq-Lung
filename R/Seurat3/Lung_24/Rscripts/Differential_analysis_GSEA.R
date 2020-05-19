@@ -11,24 +11,19 @@ source("../R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-# change the current plan to access parallelization
-plan("multiprocess", workers = 8)
-plan()
-
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
 args <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",args))
-
+# require 32GB
 # load data
-(load(file = paste0("data/Lung_24_20191206.Rda")))
-object$cell.types %<>%  gsub("/","-",.) #NK-T
+object = readRDS(file = "data/Lung_28_Global_20200511.rds")
 DefaultAssay(object)  = "SCT"
-Idents(object) = "cell.types"
-object %<>% sortIdent
+Idents(object) = "annotations"
 cell.types <- unique(Idents(object))
+cell.types = cell.types[-grep("unknown",cell.types)]
 cell.type = cell.types[args]
 print(paste("FindMarkers for=",cell.type))
 Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, 
