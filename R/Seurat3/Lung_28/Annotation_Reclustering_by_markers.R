@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","cowplot","eulerr","openxlsx",
                    "magrittr","harmony"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
@@ -384,3 +384,9 @@ res = res[(res$pct.1 > 0.7),]
 (top <-  res %>% 
         group_by(cluster) %>% 
         top_n(1, avg_logFC) %>% as.data.frame())
+
+# rename
+file_list <- list.files(path= path,
+                        pattern = "FeaturePlot", full.names = TRUE, recursive = T)
+args = gsub("/Find_pc_number.*","",file_list) %>% basename()
+file.rename(from = file_list, to = paste0(path,"FeaturePlot_",args,".jpeg"))

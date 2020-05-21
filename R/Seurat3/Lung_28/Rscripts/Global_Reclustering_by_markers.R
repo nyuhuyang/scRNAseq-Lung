@@ -8,10 +8,9 @@ invisible(lapply(c("Seurat","dplyr","cowplot","magrittr","MAST",
                    "future","ggplot2","tidyr","harmony"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-
 
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -24,11 +23,11 @@ opts = data.frame(methods = rep(c("T20","IE", "DS", "3C","2607"),  time = 2),
                   labeled =  rep(c(T,  F), each = 5),
                   npcs = c(64,61,61,88,100,53,53,52,68,100),
                   stringsAsFactors = F)
-(methods <- opts[5,])
+(methods <- opts[i,])
 (method = methods$methods)
 (label = ifelse(methods$labeled, "labeled", "unlabeled"))
 # ==================================================
-step = 4
+step = 5
 
 if(step == 1){
         # require 64GB
@@ -185,12 +184,16 @@ if(step == 4){
                      reduction = "umap",verbose = T)
 }
 # re-run harmony
-if(step == 4){
+if(step == 5){
+        # 64GB
         library(FrF2)
-        (args = FrF2(16,4, factor.names=list(theta = c(0,8),
+        set.seed(101)
+        args = FrF2(16,4, factor.names=list(theta = c(0,8),
                                            sigma = c(0.1,1),
                                            nclust = c(20,100),
-                                           tau = c(0,4))))
+                                           tau = c(0,4)))
+        (args= args[order(args$theta, args$sigma, args$nclust, args$tau),])
+        rownames(args)=1:16
         (arg = args[i,])
         save.path <- paste0(path,"theta=",arg$theta,",sigma=",arg$sigma,",nclust=",arg$nclust,",tau=",arg$tau,"/Find_pc_number/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
@@ -212,8 +215,8 @@ if(step == 4){
         object %<>% ScaleData
         (npcs = ncol(object@reductions$pca@cell.embeddings))
         print(paste("npcs =", npcs))
-        object@neighbors = list()
         object@reductions = list()
+        object %<>% RunPCA(npcs = 100)
         jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
         system.time(object %<>% RunHarmony.1(group.by = "orig.ident", 
                                              dims.use = 1:npcs, sigma = arg$sigma,
@@ -228,5 +231,69 @@ if(step == 4){
         FeaturePlot.1(object, features = c("MS4A1","CYTL1","TPSAB1",
                                            "DKK2","CHGA","L1CAM",
                                            "KRT14","MZB1","FOXI1"),
-                      ncol = 3,do.print = T, object = save.path)
+                      ncol = 3,do.print = T, save.path = save.path)
+}
+# re-run harmony
+if(step == 6){
+        # 64GB
+        #======1.2 load  Seurat =========================
+        load(file = "data/Lung_28_20200116.Rda")
+        object@assays$integrated =NULL
+        object@assays$SCT@misc = NULL
+        object@neighbors = list()
+        
+        Annotations = readRDS("Yang/proximal_distal_terminal_COPD/Subset_Reclustering_by_markers/Annotations.rds")
+        Annotations = Unlist(Annotations)
+        df = data.frame(annotations = names(Annotations), row.names = Annotations)
+        unknown_cells <- colnames(object)[!(colnames(object) %in% Annotations)]
+        df_unknown = data.frame(annotations = rep("unknown",length(unknown_cells)), row.names = unknown_cells)
+        df %<>% rbind(df_unknown)
+        df$barcode = rownames(df)
+        df = df[colnames(object),]
+        table(rownames(object@meta.data) == rownames(df))
+        
+        object[["annotations"]] = df$annotations
+        object %<>% AddMetaColor(label= "annotations", colors = Singler.colors)
+        Idents(object) = "annotations"
+        if(!methods$labeled) object %<>% subset(idents = "unknown", invert = methods$labeled)
+        Idents(object) = "orig.ident"
+        GC()
+
+        # keep the VariableFeatures in marker list only
+        df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
+                                         sheet = sub("_.*","",methods$methods))
+        marker_genes <- CaseMatch(search = df_samples$genes, match = rownames(object)) %>% as.character()
+        
+        VariableFeatures(object) = marker_genes
+        print(length(VariableFeatures(object)))
+        #======= find npcs number ===============
+        object %<>% ScaleData
+        npcs <- 120
+        object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
+        object %<>% JackStraw(num.replicate = 20,dims = npcs)
+        object %<>% ScoreJackStraw(dims = 1:npcs)
+        
+        ma <- function(x, n = 5) {stats::filter(x, rep(1 / n, n), sides = 1)}
+        score.df <- JS(object = object[['pca']], slot = "overall")
+        ma_Score = as.numeric(ma(score.df[,"Score"]))
+        ma_Score[1:2] = ma_Score[3]
+        print(paste("npcs =", npcs <- max(which(ma_Score < 0.05)+5))) # plus 5 just in case
+        
+        object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
+        jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
+        system.time(object %<>% RunHarmony.1(group.by = "orig.ident", 
+                                             dims.use = 1:npcs,
+                                             tau = 0,
+                                             theta = 2, plot_convergence = TRUE,
+                                             nclust = 100, max.iter.cluster = 100))
+        dev.off()
+        
+        object %<>% FindNeighbors(reduction = "harmony",dims = 1:npcs)
+        object %<>% FindClusters(resolution = 0.8)
+        object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
+        FeaturePlot.1(object, features = c("MS4A1","CYTL1","TPSAB1",
+                                           "DKK2","CHGA","L1CAM",
+                                           "KRT14","MZB1","FOXI1"),
+                      ncol = 3,do.print = T, save.path = save.path)
+        saveRDS(object, file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
 }
