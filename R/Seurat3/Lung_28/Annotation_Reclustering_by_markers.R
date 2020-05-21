@@ -23,16 +23,49 @@ for(i in 1:51){
 }
 names(Annotations) = df_samples$`Cell type`
 
-pairs <- replicate(40,sample(1:49,8,replace = FALSE)) %>% 
-        apply(2, as.integer) %>% split(rep(1:ncol(.), each = nrow(.)))
+# unlist and use.names without additional index in the names
+Unlist <- function(List){
+        for(i in seq_along(List)){
+                names(List[[i]]) = rep(names(List)[i],length(List[[i]]))
+        }
+        flatten_List <- base::unlist(List,use.names=TRUE)
+        names(flatten_List) %<>% gsub("\\..*","",.)
+        return(flatten_List)
+}
+# fild overlap genes among list
+#' @param barcodes list
+#' @param return.pair.names TRUE/FALSE, return cell types overlap list
+#' @param return.names TRUE/FALSE, return cell type names
+#' @export pair.names pair names with overlap
+#' @export names all names with overlap
+Check_duplicate <- function(barcodes, return.pair.names = FALSE, return.names = FALSE){
+        all_cells = Unlist(barcodes)
+        
+        dup_cells <- all_cells[duplicated(all_cells)]
+        dup_cells <- dup_cells[sort(names(dup_cells))]
+        dup_names <- unique(names(dup_cells))
+        if(return.pair.names) {
+                pair.names <- list()
+                for(i in seq_along(dup_names)){
+                        pair.names[[i]] = unique(names(all_cells)[all_cells %in% barcodes[[dup_names[i]]]])
+                }
+                return(pair.names)
+        }
+        
+        if(return.names) {
+                dup_cells = all_cells[all_cells %in% dup_cells]
+                return(sort(unique(names(dup_cells))))
+        }
+}
+(pairs <- Check_duplicate(barcodes = Annotations,return.pair.names = TRUE))
+
 pairs <- list(c("BC","S-d","NEC1","MEC2","Sq","SMG-Ser","AT2","IC"),
               c("Nr","SM1","En-C","Cr","Gli","F3","F1","F4"),
               c("C1","H","S","Ion","Mon","M1","Neu-2","Neu-1"),
               c("Cr","MEC1","M0","Mon","M2","Neu-2","MEC2","S"),
               c("C1","p-C","AT1","C1","S-d","Sq","F1","Pr","SM1","Sq"))
 
-
-for(k in 4:length(pairs)){
+for(k in 1:length(pairs)){
         uniform_intersections <- euler(Annotations[unique(pairs[[k]])])
         #jpeg(paste0(path,"Venn _",paste(df_samples$`Cell type`[pairs[[k]]],
         jpeg(paste0(path,"Venn_",paste(pairs[[k]],
@@ -274,45 +307,15 @@ Annotations[["Pr"]] %<>% setdiff(temp[!Pr])
 Annotations[["S-d"]] %<>% setdiff(temp[grepl("-P_",temp)])
 
 Annotations = Annotations[sort(names(Annotations))]
-# unlist and use.names without additional index in the names
-Unlist <- function(List){
-        for(i in seq_along(List)){
-                names(List[[i]]) = rep(names(List)[i],length(List[[i]]))
-        }
-        flatten_List <- base::unlist(List,use.names=TRUE)
-        names(flatten_List) %<>% gsub("\\..*","",.)
-        return(flatten_List)
-}
-# fild overlap genes among list
-#' @param barcodes list
-#' @param return.pair.names TRUE/FALSE, return cell types overlap list
-#' @param return.names TRUE/FALSE, return cell type names
-#' @export pair.names pair names with overlap
-#' @export names all names with overlap
-Check_duplicate <- function(barcodes, return.pair.names = FALSE, return.names = FALSE){
-        all_cells = Unlist(barcodes)
-        
-        dup_cells <- all_cells[duplicated(all_cells)]
-        dup_cells <- dup_cells[sort(names(dup_cells))]
-        dup_names <- unique(names(dup_cells))
-        if(return.pair.names) {
-                pair.names <- list()
-                for(i in seq_along(dup_names)){
-                        pair.names[[i]] = unique(names(all_cells)[all_cells %in% barcodes[[dup_names[i]]]])
-                }
-                return(pair.names)
-        }
-        
-        if(return.names) {
-                dup_cells = all_cells[all_cells %in% dup_cells]
-                return(sort(unique(names(dup_cells))))
-        }
-}
+# Check_duplicate
 Check_duplicate(barcodes = Annotations,return.pair.names = TRUE)
+
 saveRDS(Annotations, file = "Yang/proximal_distal_terminal_COPD/Subset_Reclustering_by_markers/Annotations.rds")
 Annotations = readRDS("Yang/proximal_distal_terminal_COPD/Subset_Reclustering_by_markers/Annotations.rds")
 Annotations = Unlist(Annotations)
 df = data.frame(annotations = names(Annotations), row.names = Annotations)
+
+object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
 table(colnames(object) %in% Annotations)
 unknown_cells <- colnames(object)[!(colnames(object) %in% Annotations)]
 df_unknown = data.frame(annotations = rep("unknown",length(unknown_cells)), row.names = unknown_cells)
@@ -323,7 +326,7 @@ object %<>% AddMetaColor(label= "annotations", colors = Singler.colors)
 saveRDS(object, "data/Lung_28_Global_20200511.rds")
 object = readRDS(file = "data/Lung_28_Global_20200511.rds") 
 
-#object@meta.data[unknown_cells,"annotations.colors"] = "#A9A9A9"
+object@meta.data[unknown_cells,"annotations.colors"] = "#A9A9A9"
 Idents(object) = "annotations"
 lapply(c(T, F), function(label)
         UMAPPlot.1(object, group.by="annotations",pt.size = 0.5,label = label,
@@ -362,15 +365,22 @@ write.csv(meta.data, file = paste0(path,"Expression_summary_ACE2_TMPRSS2.csv"))
 
 # Differential_analysis_celltypes
 # group DE results after annotations
-csv_list <- list.files(path = path, pattern = "csv", full.names = T, recursive = T)
+csv_list <- list.files(path = path, pattern = "_FC0.1_", full.names = T, recursive = T)
 names(csv_list) = gsub(".*_FC0.1_","",csv_list) %>% gsub("\\.csv","",.)
 res_list <- list()
 for(i in seq_along(csv_list)){
         res_list[[i]] = read.csv(csv_list[i], stringsAsFactors = F)
-        res_list[[i]]$cluster = names(csv_list)[i]
         res_list[[i]] = res_list[[i]][,-1]
 }
 names(res_list) = names(csv_list)
 res_list = res_list[sort(names(csv_list))]
 write.xlsx(res_list, file = paste0(path,"DE_annotations.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+res <- bind_rows(res_list)
+res = res[(res$avg_UMI.2 < 0.1),]
+res = res[(res$pct.2 < 0.1),]
+res = res[(res$pct.1 > 0.7),]
+
+(top <-  res %>% 
+        group_by(cluster) %>% 
+        top_n(1, avg_logFC) %>% as.data.frame())

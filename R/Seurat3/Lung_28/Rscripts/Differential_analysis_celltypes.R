@@ -29,5 +29,6 @@ system.time(Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, ident.2
                                                logfc.threshold = 0.1, only.pos = T,
                                                test.use = "MAST",min.cells.group = 2))
 Lung_markers$gene = rownames(Lung_markers)
+Lung_markers$cluster = cell.type
 if(args < 10) args = paste0("0", args)
 write.csv(Lung_markers,paste0(path,"Lung_28-",args,"_FC0.1_",cell.type,".csv"))

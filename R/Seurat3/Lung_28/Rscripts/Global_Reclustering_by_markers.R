@@ -17,14 +17,14 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
-args <- as.numeric(slurm_arrayid)
-print(paste0("slurm_arrayid=",args))
+i <- as.numeric(slurm_arrayid)
+print(paste0("slurm_arrayid=",i))
 
-opts = data.frame(methods = rep(c("T20","IE", "DS", "3C"),  time = 2),
-                  labeled =  rep(c(T,  F), each = 4),
-                  npcs = c(64,61,61,88,53,53,52,68),
+opts = data.frame(methods = rep(c("T20","IE", "DS", "3C","2607"),  time = 2),
+                  labeled =  rep(c(T,  F), each = 5),
+                  npcs = c(64,61,61,88,100,53,53,52,68,100),
                   stringsAsFactors = F)
-(methods <- opts[args,])
+(methods <- opts[5,])
 (method = methods$methods)
 (label = ifelse(methods$labeled, "labeled", "unlabeled"))
 # ==================================================
@@ -41,13 +41,14 @@ if(step == 1){
         object = readRDS(file = "data/Lung_28_Global_20200511.rds")
         DefaultAssay(object) = "SCT"
         Idents(object) = "annotations"
-        object %<>% subset(idents = "unknown", invert = methods$labeled)
+        if(!methods$labeled) object %<>% subset(idents = "unknown", invert = methods$labeled)
         Idents(object) = "orig.ident"
         object@neighbors = list()
         object@reductions = list()
         GC()
         # keep the VariableFeatures in marker list only
-        marker_genes = FilterGenes(object, df_samples$genes)
+        marker_genes <- CaseMatch(search = df_samples$genes, match = rownames(object)) %>% as.character()
+        
         VariableFeatures(object) = marker_genes
         print(length(VariableFeatures(object)))
         #====== find best pc number =========================
@@ -82,14 +83,14 @@ if(step == 1){
                 Progress(i,length(a))
                 dev.off()
         }
-        saveRDS(object, file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        saveRDS(object, file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
 }
 # ReductionsPlots
 if(step == 2){
         save.path <- paste0(path,method,"_",label,"/ReductionsPlots/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
         
-        object = readRDS(file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        object = readRDS(file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
         
         ma <- function(x, n = 5) {stats::filter(x, rep(1 / n, n), sides = 1)}
         score.df <- JS(object = object[['pca']], slot = "overall")
@@ -100,8 +101,9 @@ if(step == 2){
         object %<>% RunPCA(verbose = T,npcs = npcs, features = VariableFeatures(object))
         
         jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
-        system.time(object %<>% RunHarmony(group.by.vars = "orig.ident", 
-                                           assay.use="SCT",dims.use = 1:npcs,
+        system.time(object %<>% RunHarmony.1(group.by = "orig.ident", 
+                                           dims.use = 1:npcs,
+                                           tau = 0,
                                            theta = 2, plot_convergence = TRUE,
                                            nclust = 50, max.iter.cluster = 100))
         dev.off()
@@ -111,7 +113,7 @@ if(step == 2){
         object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
         object@assays$SCT@scale.data = matrix(0,0,0)
         format(object.size(object[["SCT"]]),unit = "GB")
-        saveRDS(object, file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        saveRDS(object, file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
         
         Idents(object) = "orig.ident"
         lapply(c(TRUE, FALSE), function(lab) 
@@ -140,13 +142,17 @@ if(step == 2){
                     label.repel = T, alpha= 0.9,
                     no.legend = T,label.size = 4, repel = T, title = "Last annotation",
                     do.print = T, do.return = F,save.path = save.path))
+        FeaturePlot.1(object, features = c("MS4A1","CYTL1","TPSAB1",
+                                           "DKK2","CHGA","L1CAM",
+                                           "KRT14","MZB1","FOXI1"),
+                      ncol = 3,do.print = T)
 }
 
 # serial resolution and generate seurat
 if(step == 3){
         save.path <- paste0(path,method,"_",label,"/serial_resolutions/")
         if(!dir.exists(save.path))dir.create(save.path, recursive = T)
-        object = readRDS(file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        object = readRDS(file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
         DefaultAssay(object) = "SCT"
         resolutions = c(seq(0.001,0.009, by = 0.001),seq(0.01,0.09, by = 0.01),seq(0.1,5, by = 0.1))
         for(i in 1:length(resolutions)){
@@ -164,14 +170,14 @@ if(step == 3){
 
 # Rshiny
 if(step == 4){
-        object = readRDS(file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        object = readRDS(file = paste0("output/Lung_28_",i,"-",method,"-",label,"_20200516.rds"))
         # by samples
         #(samples <- c("All_samples",sort(unique(object$orig.ident))))
         #Rshiny_path <- paste0("Rshiny/data/Lung_28_",method,"_",label,"_by_samples/")
         #PrepareShiny(object, samples, Rshiny_path, split.by = "orig.ident", 
         #             reduction = "umap",verbose = T)
         # by cell types
-        (split.by = ifelse(args <= 4, "annotations","cell.labels") )
+        (split.by = ifelse(i <= 4, "annotations","cell.labels") )
         object@meta.data[,split.by] %<>% as.character()
         (samples <- c("All_samples",sort(unique(as.character(object@meta.data[,split.by])))))
         Rshiny_path <- paste0("Rshiny/Lung_28_",method,"_",label,"_by_cell.types/")
@@ -180,23 +186,47 @@ if(step == 4){
 }
 # re-run harmony
 if(step == 4){
-        object = readRDS(file = paste0("output/Lung_28_",args,"-",method,"-",label,"_20200516.rds"))
+        library(FrF2)
+        (args = FrF2(16,4, factor.names=list(theta = c(0,8),
+                                           sigma = c(0.1,1),
+                                           nclust = c(20,100),
+                                           tau = c(0,4))))
+        (arg = args[i,])
+        save.path <- paste0(path,"theta=",arg$theta,",sigma=",arg$sigma,",nclust=",arg$nclust,",tau=",arg$tau,"/Find_pc_number/")
+        if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+        #======1.2 load  Seurat =========================
+        object = readRDS(file = "data/Lung_28_Global_20200511.rds")
+        DefaultAssay(object) = "SCT"
+        Idents(object) = "annotations"
+        if(!methods$labeled) object %<>% subset(idents = "unknown", invert = methods$labeled)
+        Idents(object) = "orig.ident"
+        GC()
+        # keep the VariableFeatures in marker list only
+        df_samples <- readxl::read_excel("doc/Cell type markers for UMAP re-clustering.xlsx",
+                                         sheet = sub("_.*","",methods$methods))
+        marker_genes <- CaseMatch(search = df_samples$genes, match = rownames(object)) %>% as.character()
+        
+        VariableFeatures(object) = marker_genes
+        print(length(VariableFeatures(object)))
+        #===========
         object %<>% ScaleData
         (npcs = ncol(object@reductions$pca@cell.embeddings))
         print(paste("npcs =", npcs))
-        object[["harmony"]] = NULL
-        object[["tsne"]] = NULL
-        object[["umap"]] = NULL
+        object@neighbors = list()
+        object@reductions = list()
         jpeg(paste0(save.path,"RunHarmony.jpeg"), units="in", width=10, height=7,res=600)
         system.time(object %<>% RunHarmony.1(group.by = "orig.ident", 
-                                           dims.use = 1:npcs,
-                                           theta = 2, plot_convergence = TRUE,
-                                           nclust = 50, max.iter.cluster = 100))
+                                             dims.use = 1:npcs, sigma = arg$sigma,
+                                             tau = arg$tau,
+                                             theta = arg$theta, plot_convergence = TRUE,
+                                             nclust = arg$nclust, max.iter.cluster = 100))
         dev.off()
         
         object %<>% FindNeighbors(reduction = "harmony",dims = 1:npcs)
         object %<>% FindClusters(resolution = 0.8)
         object %<>% RunUMAP(reduction = "harmony", dims = 1:npcs)
-        object@assays$SCT@scale.data = matrix(0,0,0)
-        format(object.size(object[["SCT"]]),unit = "GB")
+        FeaturePlot.1(object, features = c("MS4A1","CYTL1","TPSAB1",
+                                           "DKK2","CHGA","L1CAM",
+                                           "KRT14","MZB1","FOXI1"),
+                      ncol = 3,do.print = T, object = save.path)
 }
