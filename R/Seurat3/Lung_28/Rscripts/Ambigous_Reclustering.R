@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","harmony",
                    "magrittr","data.table","future","ggplot2","tidyr"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 doc.path <- paste0("Yang/proximal_distal_terminal_COPD/Harmony/Annotations/")
 if(!dir.exists(doc.path))dir.create(doc.path, recursive = T)
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")

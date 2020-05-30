@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","kableExtra","cowplot","harmony",
                      "magrittr","data.table","future","ggplot2","tidyr"), function(x) {
                      suppressPackageStartupMessages(library(x,character.only = T))
                              }))
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 object = readRDS(file = paste0("data/Lung_28_21-ambigous-pca_20200206.rds"))
