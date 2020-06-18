@@ -4,7 +4,7 @@
 # 
 # ######################################################################
 ####################################
-invisible(lapply(c("Seurat","dplyr","magrittr","tidyr",
+invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",
                    "MAST","future","gplots"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -54,3 +54,5 @@ for(res in 1:5){
 }
 
 names(gde_list) = paste0("res=",1:5)
+write.xlsx(gde_list, file = paste0(path,"DEG_markers_Nointegration.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))

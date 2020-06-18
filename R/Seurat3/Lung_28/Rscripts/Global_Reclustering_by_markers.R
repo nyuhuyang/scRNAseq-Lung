@@ -167,7 +167,7 @@ if(step == 3){
                            label.repel = T,alpha = 0.9,
                            do.return = F,
                            no.legend = T,label.size = 4, repel = T, 
-                           title = paste("res =",resolutions[i],"in",methods$names),
+                           title = paste("res =",resolutions[i]),
                            do.print = T, save.path = save.path)
                 Progress(i,length(resolutions))
         }

@@ -10,15 +10,16 @@ invisible(lapply(c("Seurat","dplyr","cowplot","eulerr","openxlsx",
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
-
-object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+read.path <- "output/20200520/"
+(load("data/Lung_28_Nointeg_20200131.Rda"))
+#object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
 data = object[["SCT"]]@data
 remove(object);GC()
 df_samples <- readxl::read_excel("doc/Annotations-4-30-20-RS.xlsx",
                                  sheet = "Sheet2")
 Annotations <- list()
 for(i in 1:51){
-        Annotations[[i]] = readRDS(file = paste0(path, "Annotation-",i,"-",
+        Annotations[[i]] = readRDS(file = paste0(read.path, "Annotation-",i,"-",
                               df_samples$`Cell type`[i],".rds"))
 }
 names(Annotations) = df_samples$`Cell type`
@@ -57,25 +58,6 @@ Check_duplicate <- function(barcodes, return.pair.names = FALSE, return.names = 
                 return(sort(unique(names(dup_cells))))
         }
 }
-(pairs <- Check_duplicate(barcodes = Annotations,return.pair.names = TRUE))
-
-pairs <- list(c("BC","S-d","NEC1","MEC2","Sq","SMG-Ser","AT2","IC"),
-              c("Nr","SM1","En-C","Cr","Gli","F3","F1","F4"),
-              c("C1","H","S","Ion","Mon","M1","Neu-2","Neu-1"),
-              c("Cr","MEC1","M0","Mon","M2","Neu-2","MEC2","S"),
-              c("C1","p-C","AT1","C1","S-d","Sq","F1","Pr","SM1","Sq"))
-
-for(k in 1:length(pairs)){
-        uniform_intersections <- euler(Annotations[unique(pairs[[k]])])
-        #jpeg(paste0(path,"Venn _",paste(df_samples$`Cell type`[pairs[[k]]],
-        jpeg(paste0(path,"Venn_",paste(pairs[[k]],
-                                        collapse = "-"),".jpeg"), 
-             units="in", width=10, height=7,res=300)
-        print(plot(uniform_intersections))
-        dev.off()
-        Progress(k, length(pairs))       
-}
-
 
 # Modify Annotations
 #' @param Annotations annotation list with cell types as names and cell barcodes as elements
@@ -315,25 +297,31 @@ Annotations = readRDS("Yang/proximal_distal_terminal_COPD/Subset_Reclustering_by
 Annotations = Unlist(Annotations)
 df = data.frame(annotations = names(Annotations), row.names = Annotations)
 
-object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+#object = readRDS(file = "data/Lung_28_Global_20200219.rds") 
+(load("data/Lung_28_Nointeg_20200131.Rda"))
 table(colnames(object) %in% Annotations)
 unknown_cells <- colnames(object)[!(colnames(object) %in% Annotations)]
 df_unknown = data.frame(annotations = rep("unknown",length(unknown_cells)), row.names = unknown_cells)
 df %<>% rbind(df_unknown)
-table(colnames(object) %in% rownames(df))
-object[["annotations"]] = df
+df$barcodse = rownames(df)
+df = df[colnames(object),]
+table(colnames(object) == rownames(df))
+object[["annotations"]] = as.character(df$annotations)
+object$annotations[object$Doublets_pca != "Singlet"] = "Doublets"
 object %<>% AddMetaColor(label= "annotations", colors = Singler.colors)
-saveRDS(object, "data/Lung_28_Global_20200511.rds")
-object = readRDS(file = "data/Lung_28_Global_20200511.rds") 
-
 object@meta.data[unknown_cells,"annotations.colors"] = "#A9A9A9"
+
+save(object, file = "data/Lung_28_Nointeg_20200131.Rda")
+#saveRDS(object, "data/Lung_28_Global_20200511.rds")
+#object = readRDS(file = "data/Lung_28_Global_20200511.rds") 
+
 Idents(object) = "annotations"
 lapply(c(T, F), function(label)
         UMAPPlot.1(object, group.by="annotations",pt.size = 0.5,label = label,
                    label.repel = T,alpha = 0.9,cols = Singler.colors,
-                   no.legend = T,label.size = 4, repel = T, title = "Final annotation",
+                   no.legend = T,label.size = 4, repel = T, title = "Annotation",
                    do.print = T, do.return = F))
-sub_object <- subset(object,idents = "unknown", invert = T)
+sub_object <- subset(object,idents = c("unknown","Doublets"), invert = T)
 
 lapply(c(T, F), function(label)
         UMAPPlot.1(sub_object, group.by="annotations",pt.size = 0.5,label = label,

@@ -283,3 +283,5 @@ for(i in seq_along(res)){
 }
 
 format(object.size(object@assays$SCT), units = "GB")
+save(object, file = "data/Lung_28_harmony_rmD_20200205.Rda")
+
