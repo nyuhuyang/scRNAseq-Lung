@@ -43,7 +43,7 @@ meta.data = cbind(object@meta.data,  object@reductions$umap@cell.embeddings)
 meta.data$annotations3 = as.character(meta.data$SCT_snn_res.2)
 for(m in 1:nrow(df_res_2)){
         meta.data[meta.data$annotations3 %in% df_res_2$Cluster[m],
-                         "annotations3"] = df_res_2$Celltype[m]
+                  "annotations3"] = df_res_2$Celltype[m]
 }
 meta.data[meta.data$annotations3 %in% "S-d" & meta.data$UMAP_1 < 5,"annotations3"] = "S"
 # Resolution = 3.5
@@ -51,11 +51,11 @@ for(m in 1:nrow(df_res_2)){
         meta.data[meta.data$SCT_snn_res.3.5 %in% df_res_3$Cluster[m],
                   "annotations3"] = df_res_3$Celltype[m]
 }
-meta.data[!(meta.data$annotations3 %in% unique(df_annotation$`Cell type`)),"annotations3"] = "Mixed"
+#meta.data[!(meta.data$annotations3 %in% unique(df_annotation$`Cell type`)),"annotations3"] = "Mixed"
 
 exp = FetchData(object, vars = c("KRT5","KRT15","CDH5","CLDN5","CD68","CD163","DCN","ACTA2",
                                  "CD3E", "CD3G","SFTPC","NAPSA","MKI67",
-                                 "SCGB3A2","SFTPB"))
+                                 "SCGB3A2","SFTPB","KRT14"))
 #Pro <- meta.data$annotations3 %in% "Proliferating"
 #meta.data[Pro & (exp$KRT5 > 0 | exp$KRT15 > 0),"annotations3"] = "BC-p"
 #meta.data[Pro & (exp$CDH5 > 0 | exp$CLDN5 > 0),"annotations3"] = "En-p"
@@ -64,11 +64,17 @@ exp = FetchData(object, vars = c("KRT5","KRT15","CDH5","CLDN5","CD68","CD163","D
 #meta.data[Pro & (exp$CD3E > 0 | exp$CD3G > 0),"annotations3"] = "T-p"
 #meta.data[Pro & (exp$SFTPC > 0 | exp$NAPSA > 0),"annotations3"] = "AT2-p"
 
-S <- meta.data$annotations3 %in% c("S","S-Muc","S-d")
-meta.data[S & (exp$SCGB3A2 > 0 | exp$SFTPB > 0),"annotations3"] = "S-d+"
+meta.data$annotations3 %<>% gsub("^S-.*","S",.)
+S <- meta.data$annotations3 %in% c("S")
+meta.data[S & (exp$SCGB3A2 > 1 | exp$SFTPB > 1),"annotations3"] = "S-d"
 
-meta.data[meta.data$annotations3 %in% "S-d+" & 
-                  (exp$SCGB3A2 > 1 | exp$SFTPB > 1),"annotations3"] = "S-d++"
+SM1 <- meta.data$annotations3 %in% c("SM1")
+meta.data[SM1 & (exp$KRT5 > 0 | exp$KRT14 > 0),"annotations3"] = "MEC"
+meta.data[SM1 & meta.data$UMAP_2 > 7,"annotations3"] = "F2"
+meta.data[meta.data$annotations3 %in% "En-SM" & meta.data$UMAP_1 > 0 &
+                  (exp$ACTA2 > 0 | exp$DCN > 0),"annotations3"] = "F3"
+meta.data[meta.data$annotations3 %in% "C1" & 
+                  (meta.data$UMAP_2 > 3 & meta.data$UMAP_2 < 7),"annotations3"] = "Mixed"
 
 # select by corrdinates
 g <- UMAPPlot.1(object, group.by = "annotations3", cols = Singler.colors, 
@@ -80,7 +86,7 @@ g <- UMAPPlot.1(object, group.by = "annotations3", cols = Singler.colors,
         rectangle(2, 8, -8, -1,colour = "black")+ # BC-p
         rectangle(7, 12.5, -13, -8,colour = "black") # AT2-p
 
-jpeg(paste0(path,"UMAP.jpeg"), units="in", width=10, height=10,res=600)
+jpeg(paste0(path,"UMAP~.jpeg"), units="in", width=10, height=10,res=600)
 print(g)
 dev.off()
 
@@ -99,22 +105,24 @@ meta.data %<>% rectangle_name(1.5, 8, 3.7, 13, "Str-p")
 meta.data %<>% rectangle_name(2, 8, -8, -1, "BC-p")
 meta.data %<>% rectangle_name(7, 12.5, -13, -8, "AT2-p")
 
-meta.data$annotations3 %<>% gsub("Proliferating","Mixed",.)
+#meta.data$annotations3 %<>% gsub("Proliferating","Mixed",.)
 
 object[["annotations3"]] = meta.data$annotations3
 Idents(object)= "annotations3"
 
-UMAPPlot.1(sd,group.by = "annotations3", cols = Singler.colors, 
+UMAPPlot.1(object,group.by = "annotations3", cols = Singler.colors, 
            label = T, label.repel = T, no.legend = T,do.return = F, do.print = T)
-sd <- subset(object , idents = c("S","S-Muc","S-d","S-d+","S-d++"))
-
-jpeg(paste0(path,"sd.jpeg"), units="in", width=10, height=10,res=600)
-RidgePlot(sd, features = c("SCGB3A2","SFTPB"), ncol = 2)
-dev.off()
 
 PrepareShiny(sub_object, samples, Rshiny_path, split.by = "annotations3", 
              reduction = "umap",verbose = T)
 saveRDS(object, file = paste0("data/Lung_29_20200617.rds"))
+
+pro <- meta.data$annotations3 %in% "Proliferating"
+
+Str <- meta.data[,"UMAP_1"] > 1.5 & meta.data[,"UMAP_1"] < 8 & 
+        meta.data[,"UMAP_2"] > 3.7 & meta.data[,"UMAP_2"] < 13
+Str <- subset(object, cells = rownames(meta.data)[Str],)
+Pro <- subset(object, cells = rownames(meta.data)[pro],)
 
 # - Table: number of cells per cell types (per each sample and total)
 df <- table(object$annotations3, object$orig.ident) %>% 

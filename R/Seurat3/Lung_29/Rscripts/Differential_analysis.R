@@ -23,24 +23,29 @@ print(paste0("slurm_arrayid=",args))
 
 step = 2
 if(step == 1){ # need 128 GB
-        opts = data.frame(cluster = c(0:76),
+        opts = data.frame(resolution = c(rep(2,77),
+                                         rep(4.8,119),
+                                         rep(4.9,122)),
+                          cluster = c(0:76,
+                                      0:118,
+                                      0:121),
                           stringsAsFactors = F)
         set.seed(101)
+        (res = opts$resolution[args])
         (cluster = opts$cluster[args])
-        
         object = readRDS(file = "data/Lung_29_20200617.rds")
         DefaultAssay(object)  = "SCT"
-        object %<>% FindClusters(resolution = 2)
-        Idents(object) = "SCT_snn_res.2"
+        object %<>% FindClusters(resolution = res)
+        Idents(object) = paste0("SCT_snn_res.",res)
         system.time(Lung_markers <- FindMarkers.UMI(object, 
                                                     ident.1 = cluster,
                                                     latent.vars = "nFeature_SCT",
-                                                    logfc.threshold = 0, 
+                                                    logfc.threshold = 1, 
                                                     only.pos = T,
                                                     test.use = "MAST"))
         Lung_markers$cluster = cluster
         Lung_markers$gene = rownames(Lung_markers)
-        write.csv(Lung_markers,paste0(path,"Lung_29-res=2_cluster=",cluster,".csv"))
+        write.csv(Lung_markers,paste0(path,"Lung_29_FC1-res=",res,"_cluster=",cluster,".csv"))
 }
 
 if(step == 2){ # need 128 GB
