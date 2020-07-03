@@ -10,12 +10,11 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 # load data
-object = readRDS(file = "data/Lung_29_20200617.rds")
+object = readRDS(file = "data/Lung_30_20200702.rds")
 DefaultAssay(object) = "SCT"
 #======== rename ident =================
-object %<>% FindClusters(resolution = 4.9)
-object %<>% FindClusters(resolution = 4.8)
-object %<>% FindClusters(resolution = 3.5)
+object %<>% FindClusters(resolution = 4)
+object %<>% FindClusters(resolution = 3)
 object %<>% FindClusters(resolution = 2)
 
 df_annotation <- readxl::read_excel("doc/Annotations/20200625_Annotations.xlsx", sheet = "Sheet1")
