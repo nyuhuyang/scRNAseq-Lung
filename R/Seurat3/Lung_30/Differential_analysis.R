@@ -13,24 +13,38 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 #==================
-read.path = "output/20200619/"
+read.path = "output/20200703/"
 # change the current plan to access parallelization
-opts = data.frame(cluster = c(0:76),
+opts = data.frame(resolution = c(rep(2,75),
+                                 rep(3,95),
+                                 rep(4,110)),
+                  cluster = c(0:74,
+                              0:94,
+                              0:109),
                   stringsAsFactors = F)
-set.seed(101)
-res = 2
 csv_list <- c()
 for(i in 1:nrow(opts)){
-        (cluster = opts$cluster[i])
-        csv_list[i] <- paste0("Lung_29-res=",res,"_cluster=",cluster,".csv")
+        res = opts$resolution[i]
+        cluster = opts$cluster[i]
+        csv_list[i] <- paste0("Lung_30_FC1-res=",res,"_cluster=",cluster,".csv")
 }
-list_files <- list.files(path = read.path, pattern = "Lung_29-res=")
+list_files <- list.files(path = read.path, pattern = "Lung_30_FC1-res=",full.names = F)
 csv_list[!(csv_list %in% list_files)]
 which(!(csv_list %in% list_files))
 
 gde_list <- list()
-temp_csv <- list.files(path = read.path, pattern = paste0("Lung_29-res=",res),
-                       full.names = TRUE)
+resolutions = 2:4
+for(r in seq_along(resolutions)){
+        res = resolutions[r]
+        clusters = opts[opts$resolution %in% res, "cluster"]
+        csv_list <- paste0(read.path, "Lung_30_FC1-res=",res,"_cluster=",clusters,".csv")
+        gde.temp <-  lapply(csv_list, read.csv) %>% bind_rows
+        gde_list[[r]] = gde.temp
+}
+names(gde_list) = paste0("resolutions=",2:4)
+write.xlsx(gde_list, file = paste0(path,"Lung_30_DEG.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 l_clusters = length(temp_csv) - 1
 gde.all <- list()
 for(k in 0:l_clusters){
@@ -44,8 +58,7 @@ gde_list[[1]] = gde
         
 
 names(gde_list) = paste0("res=",2)
-write.xlsx(gde_list, file = paste0(path,"DEG_markers_Nointegration.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 
 #==================
 read.path = "output/20200624/"
@@ -71,6 +84,9 @@ for(res in resolutions){
 
         
 }
+
+
+
 
 l_clusters = length(temp_csv) - 1
 gde.all <- list()

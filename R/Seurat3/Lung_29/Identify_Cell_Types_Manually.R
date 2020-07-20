@@ -10,7 +10,7 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 # load data
-object = readRDS(file = "data/Lung_29_20200617.rds")
+object1 = readRDS(file = "data/Lung_29_20200617.rds")
 DefaultAssay(object) = "SCT"
 #======== rename ident =================
 object %<>% FindClusters(resolution = 4.9)
