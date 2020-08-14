@@ -61,15 +61,15 @@ names(gde_list) = paste0("res=",2)
 
 
 #================== DE on cell types ================
-read.path = "output/20200804/"
+read.path = "output/20200814/"
 args=1:62
 args[args < 10] = paste0("0", args[args < 10])
 cell_types = sort(c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
-                 "C1","C2","C3","S","S-d","Ion","NEC","SMG-Muc","SMG-Ser","MEC","Cr",
-                 "F1","F2","F3","F4","Gli","SM1","SM2","SM3","Pr","En-A","En-C","En-C1",
-                 "En-V","En-p","En-SM","En-L","Nr","Neu","MC","Mon","M0","M1","M2",
-                 "M1-2","M-p","DC","P-DC","B","PC","T-cn","T-reg","T-rm","T-NK","T7",
-                 "T-ifn","T-int","T-p","RBC","Un"))
+                    "C1","C2","C3","S","S-d","Ion","NEC","SMG-Muc","SMG-Ser","MEC","Cr",
+                    "F1","F2","F3","F4","Gli","SM1","SM2","SM3","Pr","En-A","En-C","En-C1",
+                    "En-V","En-p","En-SM","En-L","Nr","Neu","MC","Mon","M0","M1","M2",
+                    "M1-2","M-p","DC","P-DC","B","PC","T-cn","T-reg","T-rm","T-NK","T7",
+                    "T-ifn","T-int","T-p","T-un","RBC"))
 csv_list <- paste0("Lung_30-",args,"_FC0.1_",cell_types,".csv")
 
 list_files <- list.files(path = read.path, pattern ="Lung_30-")

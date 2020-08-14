@@ -135,10 +135,10 @@ meta.data = cbind(object@meta.data,meta.data$doublets)
 colnames(meta.data)[ncol(meta.data)] = "Doublets"
 table(meta.data$Doublets)
 
-(load(file = "data/Lung_28_harmony_20200131.Rda"))
+
+object = readRDS(file = "data/Lung_30_20200702.rds")
 object@meta.data = meta.data
-save(object,file="data/Lung_28_harmony_20200131.Rda")
-saveRDS(object[["Doublets"]],file="output/Lung_28_Doublets_20200131.rds")
+saveRDS(object, file = paste0("data/Lung_30_20200710.rds"))
 
 TSNEPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
            title = "Singlets and possible Doublets", do.print = T,
