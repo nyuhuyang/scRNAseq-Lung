@@ -12,7 +12,7 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
-args <- as.numeric(slurm_arrayid)
+args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
@@ -22,6 +22,7 @@ object = readRDS(file = "data/Lung_30_20200702.rds")
 # Need 64GB
 DefaultAssay(object) = "SCT"
 Idents(object) = "annotations3"
+object <- subset(object, idents = "Un", invert = TRUE)
 cell.types <- sort(as.character(unique(Idents(object))))
 cell.type = cell.types[args]
 system.time(Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, ident.2 = NULL,

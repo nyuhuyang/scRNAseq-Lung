@@ -53,7 +53,7 @@ for(m in 1:nrow(df_res)){
 # label by expression
 exp = FetchData(object, vars = c("SFTPC","SCGB1A1","SCGB3A2","SFTPB","MUC5AC",
                                  "KRT5","KRT14","MKI67","UBE2C","SERPINB4","LY6D",
-                                 "SERPINB3","KRT15","AGER"))
+                                 "SERPINB3","KRT15","AGER","7SK.2"))
 C11 <- meta.data$SCT_snn_res.2 == 11
 meta.data[C11 & exp$SFTPC < 2 & exp$SCGB1A1 >2 & (exp$SCGB3A2 > 1 | exp$SFTPB > 1),
           "annotations3"] = "S-d+"
@@ -150,6 +150,31 @@ df_annotation5 = df_annotation5[!duplicated(df_annotation5$`Cells`),]
 df_annotation5 %<>% as.data.frame()
 meta.data[df_annotation5$`Cells`,"annotations3"] = df_annotation5$`Change to`
 
+# T7 cluster contains some ciliated (C) cells and neutrophils:
+meta.data[meta.data$annotations3 == "T7","annotations3"] = "Un"
+df_annotation6 <- readxl::read_excel("doc/Annotations/T-int revision.xlsx",
+                                     sheet = "Sheet1")
+meta.data[df_annotation6$`Cells`,"annotations3"] = df_annotation6$`Change to`
+
+meta.data[exp$`7SK.2` >2 & 
+          meta.data$SCT_snn_res.3 == 11 & 
+          grepl("^T",meta.data$annotations3),"annotations3"] = "T7"
+meta.data = cbind(meta.data,  exp$`7SK.2`)
+meta.data[rownames(meta.data) %in% df_annotation6$`Cells` &
+                  meta.data[,"exp$`7SK.2`"] >2, "annotations3"] = "T7"
+# M0-M-M2 relabeling
+df_annotation7 <- readxl::read_excel("doc/Annotations/20200809_M0-M1-M2 revision.xlsx",
+                                     sheet = "Sheet1")
+(dup_cell <- as.vector(df_annotation7$`Cells`[duplicated(df_annotation7$`Cells`)]))
+meta.data[df_annotation7$`Cells`,"annotations3"] = df_annotation7$Final
+
+# immune relabeling
+df_annotation8 <- readxl::read_excel("doc/Annotations/20200814_T cell label revision.xlsx",
+                                     sheet = "Sheet1")
+(dup_cell <- as.vector(df_annotation8$`Cells`[duplicated(df_annotation8$`Cells`)]))
+df_annotation8$Final= gsub("T-7","T7", df_annotation8$Final)
+meta.data[df_annotation8$`Cells`,"annotations3"] = df_annotation8$Final
+
 
 #===========================
 # prepare UMAP
@@ -159,9 +184,9 @@ object[["annotations3"]] = meta.data$annotations3
 
 Idents(object)= "annotations3"
 
-UMAPPlot.1(object,group.by = "annotations3", cols = rev(Singler.colors), 
+UMAPPlot.1(object,group.by = "annotations3", cols = Singler.colors, 
            label = F, label.repel = F, no.legend = T,do.return = F, do.print = T)
-UMAPPlot.1(object,group.by = "annotations3", cols = rev(Singler.colors), 
+UMAPPlot.1(object,group.by = "annotations3", cols = Singler.colors, 
            label = T, label.repel = T, no.legend = T,do.return = F, do.print = T)
 samples[!(samples %in% Idents(object))]
 Idents(object)[!(Idents(object) %in% samples)]
@@ -170,6 +195,40 @@ PrepareShiny(object, samples, Rshiny_path, split.by = "annotations3",
              reduction = "umap",verbose = T)
 
 saveRDS(object, file = paste0("data/Lung_30_20200702.rds"))
+
+
+
+# - Table: number of cells per cell types (per each sample and total)
+df <- table(object$annotations3, object$orig.ident) %>% 
+        as.data.frame()
+colnames(df) = c("cell.types","samples","Freq")
+df %<>% tidyr::spread("samples","Freq")
+rownames(df) = df$cell.types
+cols = c("UNC-48-P","UNC-55-P","UNC-66-P","UNC-69-P","UNC-71-P","UNC-48-D",
+         "UNC-55-D","UNC-66-D","UNC-69-D","UNC-71-D","UNC-44-D","UNC-54-D",
+         "UNC-57-D","UNC-67-D","UNC-70-D","CU-12-D","CU-12-D-R","VU-27-D",
+         "UNC-48-T","UNC-55-T","UNC-66-T","UNC-69-T","UNC-71-T","UNC-44-T",
+         "CU-12-T","UNC-51-D","UNC-52-D","UNC-61-D","VU19-D","VU-37-D")
+rows = c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
+         "C1","C2","C3","S","S-d","Ion","NEC","SMG-Muc","SMG-Ser","MEC","Cr",
+         "F1","F2","F3","F4","Gli","SM1","SM2","SM3","Pr","En-A","En-C","En-C1",
+         "En-V","En-p","En-SM","En-L","Nr","Neu","MC","Mon","M0","M1","M2",
+         "M1-2","M-p","DC","P-DC","B","PC","T-cn","T-reg","T-rm","T-NK","T7",
+         "T-ifn","T-int","T-p","T-un","RBC","Un")
+
+colnames(df)[!(colnames(df) %in% cols)]
+rownames(df)[!(rownames(df) %in% rows)]
+
+df = df[rows,cols]
+
+#write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
+write.csv(df, paste0(path,"Cell_types_by_samples.csv"))
+
+df1 = read.csv(paste0(path,"Cell_types_by_samples.csv"),row.names = 1)
+df1$cell.types = NULL
+df2 = read.csv(paste0("output/20200626/","Cell_types_by_samples.csv"),row.names = 1)
+df2$cell.types = NULL
+table(rowSums(df1),rowSums(df2))
 
 # recluster BC-IC-S
 #sub_object = subset(object, idents = c("BC","BC-p","IC1","IC2","IC-S","S","S-d"))
@@ -208,51 +267,19 @@ save.path <- paste0(path,"serial_resolutions/")
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 resolutions = c(seq(0.001,0.009, by = 0.001),seq(0.01,0.09, by = 0.01),seq(0.1,5, by = 0.1))
 for(i in 1:length(resolutions)){
-        sub_object %<>% FindClusters(resolution = resolutions[i])
-        Idents(sub_object) = paste0("SCT_snn_res.",resolutions[i])
-        UMAPPlot.1(sub_object, group.by=paste0("SCT_snn_res.",resolutions[i]),pt.size = 0.3,label = T,
-                   label.repel = T,alpha = 0.9,
-                   do.return = F,
-                   no.legend = T,label.size = 4, repel = T, 
-                   title = paste("res =",resolutions[i]),
-                   do.print = T, save.path = save.path)
-        Progress(i,length(resolutions))
+  sub_object %<>% FindClusters(resolution = resolutions[i])
+  Idents(sub_object) = paste0("SCT_snn_res.",resolutions[i])
+  UMAPPlot.1(sub_object, group.by=paste0("SCT_snn_res.",resolutions[i]),pt.size = 0.3,label = T,
+             label.repel = T,alpha = 0.9,
+             do.return = F,
+             no.legend = T,label.size = 4, repel = T, 
+             title = paste("res =",resolutions[i]),
+             do.print = T, save.path = save.path)
+  Progress(i,length(resolutions))
 }
 PrepareShiny(sub_object, samples, Rshiny_path, split.by = "SCT_snn_res.5", 
              reduction = "umap",verbose = T)
-saveRDS(object, file = paste0("data/Lung_30_20200702.rds"))
-
-# - Table: number of cells per cell types (per each sample and total)
-df <- table(object$annotations3, object$orig.ident) %>% 
-        as.data.frame()
-colnames(df) = c("cell.types","samples","Freq")
-df %<>% tidyr::spread("samples","Freq")
-rownames(df) = df$cell.types
-cols = c("UNC-48-P","UNC-55-P","UNC-66-P","UNC-69-P","UNC-71-P","UNC-48-D",
-         "UNC-55-D","UNC-66-D","UNC-69-D","UNC-71-D","UNC-44-D","UNC-54-D",
-         "UNC-57-D","UNC-67-D","UNC-70-D","CU-12-D","CU-12-D-R","VU-27-D",
-         "UNC-48-T","UNC-55-T","UNC-66-T","UNC-69-T","UNC-71-T","UNC-44-T",
-         "CU-12-T","UNC-51-D","UNC-52-D","UNC-61-D","VU19-D","VU-37-D")
-rows = c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
-         "C1","C2","C3","S","S-d","Ion","NEC","SMG-Muc","SMG-Ser","MEC","Cr",
-         "F1","F2","F3","F4","Gli","SM1","SM2","SM3","Pr","En-A","En-C","En-C1",
-         "En-V","En-p","En-SM","En-L","Nr","Neu","MC","Mon","M0","M1","M2",
-         "M1-2","M-p","DC","P-DC","B","PC","T-cn","T-reg","T-rm","T-NK","T7",
-         "T-ifn","T-int","T-p","RBC","Un")
-
-colnames(df)[!(colnames(df) %in% cols)]
-rownames(df)[!(rownames(df) %in% rows)]
-
-df = df[rows,cols]
-
-#write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-write.csv(df, paste0(path,"Cell_types_by_samples.csv"))
-
-df1 = read.csv(paste0(path,"Cell_types_by_samples.csv"),row.names = 1)
-df1$cell.types = NULL
-df2 = read.csv(paste0("output/20200626/","Cell_types_by_samples.csv"),row.names = 1)
-df2$cell.types = NULL
-table(rowSums(df1),rowSums(df2))
+saveRDS(object, file = paste0("data/Lung_30_20200710.rds"))
 
 
 # population expression
@@ -409,10 +436,10 @@ write.xlsx(exp_list, file = paste0(path,"B, BC and BC-p - cluster res 2 expressi
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # label by barcodes 20200802 ============
-df_annotation5 <- readxl::read_excel("doc/Annotations/20200802_Re-labeling - for RS.xlsx",
+df_annotation7 <- readxl::read_excel("doc/Annotations/20200807_M0-M1-M2 revision.xlsx",
                                      sheet = "Sheet1")
-dup_cell <- as.vector(df_annotation5$`Cells`[duplicated(df_annotation5$`Cells`)])
-dup_df = df_annotation5[df_annotation5$Cells %in% dup_cell,] %>% as.data.frame()
+(dup_cell <- as.vector(df_annotation7$`Cells`[duplicated(df_annotation7$`Cells`)]))
+dup_df = df_annotation7[df_annotation7$Cells %in% dup_cell,] %>% as.data.frame()
 dup_df = dup_df[order(dup_df$`Cells`),]
 (N = nrow(dup_df))
 table(dup_df[seq(1,N,2),"Cells"] == dup_df[seq(1,N,2)+1,"Cells"]) # all duplicated cells only has at most one copy
@@ -434,3 +461,43 @@ dup_df = left_join(dup_df, exp, by = "Cells")
 write.xlsx(dup_df, file = paste0(path,"Re-labeling 8-2-20 RS_duplicated.xlsx"),
            colNames = TRUE,rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+# T7 cluster contains some ciliated (C) cells and neutrophils:
+T7 <- subset(object, idents= "T7")
+exp = FetchData(T7, vars = c("FOXJ1", "CAPS", "TPPP3","SRGN","LAPTM5","DCN","S100A8","S100A9",
+                             "CD3D", "CD3E", "IL7R", "CXCR4", "CCL5"))
+barcode_list <- list()
+barcode_list[[1]] = rownames(exp)[exp$FOXJ1 >0 | exp$CAPS >0 | exp$TPPP3 >0]
+barcode_list[[2]] = rownames(exp)[exp$SRGN >0 | exp$LAPTM5 >0 | exp$DCN >0 ]
+barcode_list[[3]] = rownames(exp)[exp$S100A8 >0 | exp$S100A9 >0]
+barcode_list[[4]] = rownames(exp)[exp$CD3D >0 | exp$CD3E >0 | exp$IL7R >0 | exp$CXCR4 >0 | exp$CCL5 >0]
+names(barcode_list) = c("Ciliated","immune and fibroblast","Neutrophils","T7")
+euler_df <- eulerr::euler(barcode_list,shape = "circle")
+g <- plot(euler_df, quantities = TRUE)
+jpeg(paste0(path,"T7~.jpeg"), units="in", width=10, height=10,res=600)
+print(g)
+dev.off()
+
+write.csv(exp, paste0(path,"T7_barcodes.csv"), row.names = T)
+
+Idents(object) = "SCT_snn_res.3"
+C11 <- subset(object, idents = 11)
+jpeg(paste0(path,"T7_RidgePlot.jpeg"), units="in", width=10, height=10,res=600)
+RidgePlot(T7, features = "7SK.2")
+dev.off()
+
+jpeg(paste0(path,"C11_RidgePlot.jpeg"), units="in", width=10, height=10,res=600)
+RidgePlot(C11, features = "7SK.2", group.by = "annotations3")+xlim(0,7.5)
+dev.off()
+exp = FetchData(C11, vars = c("orig.ident","annotations3","7SK.2"))
+table(meta.data[df_annotation6$`Cells`,"SCT_snn_res.3"]) %>% as.data.frame()
+
+table(exp$annotations3, exp$`7SK.2` > 0)
+table(exp$annotations3, exp$`7SK.2` > 0 & exp$`7SK.2` <= 1 )
+table(exp$annotations3, exp$`7SK.2` > 1 & exp$`7SK.2` <= 2 )
+table(exp$annotations3, exp$`7SK.2` > 2 & exp$`7SK.2` <= 3)
+table(exp$annotations3, exp$`7SK.2` > 3)
+
+
+table(meta.data[df_annotation6$`Cells`,"annotations3"], 
+      ((rownames(meta.data) %in% df_annotation6$Cells) & exp[,"7SK.2"] >2 )) %>% 
+        as.data.frame()
