@@ -12,6 +12,7 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
+set.seed(101)
 #================== DE on cluster ================
 read.path = "output/20200703/"
 # change the current plan to access parallelization
@@ -84,3 +85,6 @@ names(gde.all) = cell_types
 gde <- bind_rows(gde.all)
 write.xlsx(gde, file = paste0(path,"DEG_markers_by_cell_types.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+#================== DE on group -A ================
+read.path = "output/20200818/"

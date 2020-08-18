@@ -17,10 +17,13 @@ print(paste0("slurm_arrayid=",args))
 
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
+# Need 64GB
 # load files
-object = readRDS(file = "data/Lung_30_20200702.rds") 
+object = readRDS(file = "data/Lung_30_20200710.rds") 
 # Need 64GB
 DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
 Idents(object) = "annotations3"
 object <- subset(object, idents = "Un", invert = TRUE)
 cell.types <- sort(as.character(unique(Idents(object))))

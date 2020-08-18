@@ -8,8 +8,14 @@ source("R/Seurat3/utils.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
+set.seed(101)
 #======1.2 load  Seurat =========================
-object = readRDS(file = "data/Lung_30_20200702.rds") 
+# load files
+object = readRDS(file = "data/Lung_30_20200710.rds") 
+DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
+Idents(object)= "annotations3"
 object %<>% sortIdent()
 table(Idents(object))
 

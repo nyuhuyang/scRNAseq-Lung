@@ -25,7 +25,6 @@ Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
 step = "A - Sample types"
-
 if(step == "A - Sample types"){ # need 32 GB
     Idents_list = list(ident1 = list("proximal",
                                      "proximal",
@@ -60,23 +59,58 @@ if(step == "A - Sample types"){ # need 32 GB
     group_list[group_list == "ALL CELLS"][[1]] = 
         unique(unlist(group_list[2:53]))
     print(group <- group_list[[k]])
-    
-    Idents(object)= "annotations3"
-    sub_object <- subset(object, idents = group)
-    rm(object);GC()
-    Idents(sub_object) = "conditions"
-    sub_object <- subset(sub_object, idents = c(ident1,ident2))
-    if(length(ident2) >1){
-        sub_object@meta.data$conditions = gsub(paste(ident2, collapse = "|"),
-                                               paste(ident2, collapse = "+"),
-                                               sub_object@meta.data$conditions)
 
+    Idents(object)= "annotations3"
+    object <- subset(object, idents = group)
+    Idents(object) = "conditions"
+    object <- subset(object, idents = c(ident1,ident2))
+    if(length(ident2) >1){
+        object@meta.data$conditions = gsub(paste(ident2, collapse = "|"),
+                                               paste(ident2, collapse = "+"),
+                                               object@meta.data$conditions)
+        ident2 = paste(ident2, collapse = "+")
     }
-    ident2 = paste(ident2, collapse = "+")
-    Idents(sub_object) = "conditions"
-    Idents(sub_object) %<>% factor(levels = c(ident1,ident2))
-    DEG <- FindAllMarkers.UMI(sub_object, logfc.threshold = 0,test.use = "MAST",
+    Idents(object) = "conditions"
+    Idents(object) %<>% factor(levels = c(ident1,ident2))
+    DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
+                              only.pos = TRUE,
                               return.thresh = 0.05, p.adjust.methods = "fdr")
-    write.csv(DEG, file = paste0(path,"Lung_30_",args,"_celltypes=",k,
+    if(args < 10) args = paste0("0", args)
+    write.csv(DEG, file = paste0(path,"Lung_30_A_",args,"_celltypes=",k,
                                  "_",ident1,"_vs_",ident2,".csv"))
 }
+
+
+if(step == "B - Cell groups"){ # need 32 GB
+    df_annotation <- readxl::read_excel("doc/20200815_Comparison groups of cells - plan.xlsx",
+                                        sheet = step)
+    df_annotation = df_annotation[!is.na(df_annotation$`Group 1`),]
+
+    groups = df_annotation[args,]
+    groups$`Group 1` %<>% gsub(" \\(.*\\)", "", .) %>% gsub(" ", "", .)
+    groups$`Group 2` %<>% gsub(" \\(.*\\)", "", .) %>% gsub(" ", "", .)
+    print(ident1 <- stringr::str_split(groups$`Group 1`, pattern = "\\+")[[1]])
+    print(ident2 <- stringr::str_split(groups$`Group 2`, pattern = "\\+")[[1]])
+    
+    Idents(object)= "annotations3"
+    object <- subset(object, idents = c(ident1,ident2))
+
+    object$annotations3 = gsub(paste(ident1, collapse = "|"),
+                               paste(ident1, collapse = "+"),
+                               object$annotations3)
+    ident1 = paste(ident1, collapse = "+")
+
+    object$annotations3 = gsub(paste(ident2, collapse = "|"),
+                               paste(ident2, collapse = "+"),
+                               object$annotations3)
+    ident2 = paste(ident2, collapse = "+")
+    
+    Idents(object) = "annotations3"
+    Idents(object) %<>% factor(levels = c(ident1,ident2))
+    DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
+                              return.thresh = 0.05, only.pos = TRUE,
+                              p.adjust.methods = "fdr")
+    if(args < 10) args = paste0("0", args)
+    write.csv(DEG, file = paste0(path,"Lung_30_B_",args,"_",
+                                 ident1,"_vs_",ident2,".csv"))
+    }
