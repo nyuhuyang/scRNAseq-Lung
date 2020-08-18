@@ -4,6 +4,7 @@ invisible(lapply(c("Seurat","dplyr","ggpubr","openxlsx","Hmisc",
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
+source("R/Seurat3/utils.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
@@ -11,40 +12,6 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 object = readRDS(file = "data/Lung_30_20200702.rds") 
 object %<>% sortIdent()
 table(Idents(object))
-## Column clustering (adjust here distance/linkage methods to what you need!)
-y = object[["SCT"]]@data[VariableFeatures(object),]
-system.time(cor_res <- Hmisc::rcorr(t(as.matrix(y)), type="spearman"))
-cor_res$r[is.na(cor_res$r)] = 0
-jpeg(paste0(path,"heatmap-cor-spearman.jpeg"), units="in", width=10, height=7,res=600)
-heatmap.2(cor_res$r,trace="none")
-dev.off()
-hm <- heatmap.2(cor_res$r,trace="none")
-write.csv(cor_res$r[rev(hm$rowInd), hm$colInd], file = paste0(path,"Lung_30_correlation_spearman.csv"))
-saveRDS(cor_res, file = "data/Lung_30_cor_spearman.rds")
-
-
-y = object[["SCT"]]@data[VariableFeatures(object),]
-system.time(cor_res <- Hmisc::rcorr(t(as.matrix(y)), type="pearson"))
-cor_res$r[is.na(cor_res$r)] = 0
-jpeg(paste0(path,"heatmap-cor-pearson.jpeg"), units="in", width=10, height=7,res=600)
-heatmap.2(cor_res$r,trace="none")
-dev.off()
-hm <- heatmap.2(cor_res$r,trace="none")
-write.csv(cor_res$r[rev(hm$rowInd), hm$colInd], file = paste0(path,"Lung_30_correlation_pearson.csv"))
-
-saveRDS(cor_res, file = "data/Lung_30_cor_pearson.rds")
-
-Methods <- c("complete", "average","ward.D2")
-for(method in Methods){
-        print(method)
-        object <- BuildClusterTree(object, method = method)
-        
-        jpeg(paste0(path,"PlotClusterTree_Lung30_",method,".jpeg"), units="in", width=14, height=8.5,res=600)
-        PlotClusterTree(object)
-        title(paste("PlotClusterTree using",method,"algorithm"))
-        dev.off()
-}
-
 
 #Idents(object) = "RNA_snn_res.0.8"
 
@@ -56,6 +23,7 @@ opts = data.frame(hclust_methods = rep(c("complete", "average","ward.D2"),2),
                   cor_methods = rep(c("spearman","pearson"), each = 3),
                   stringsAsFactors = F)
 exp_list <- list()
+Top_n = 2000
 for(i in 1:nrow(opts)){
         hclust_method = opts[i,"hclust_methods"]
         cor_method = opts[i,"cor_methods"]
@@ -89,3 +57,39 @@ for(i in 1:nrow(opts)){
 names(exp_list) = paste(opts$cor_methods, opts$hclust_methods)
 write.xlsx(exp_list, file = paste0(path,"Lung_30_correlation_clustering.xlsx"),
            colNames = TRUE, rowNames = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+# ==============================
+## Column clustering (adjust here distance/linkage methods to what you need!)
+y = object[["SCT"]]@data[VariableFeatures(object),]
+system.time(cor_res <- Hmisc::rcorr(t(as.matrix(y)), type="spearman"))
+cor_res$r[is.na(cor_res$r)] = 0
+jpeg(paste0(path,"heatmap-cor-spearman.jpeg"), units="in", width=10, height=7,res=600)
+heatmap.2(cor_res$r,trace="none")
+dev.off()
+hm <- heatmap.2(cor_res$r,trace="none")
+write.csv(cor_res$r[rev(hm$rowInd), hm$colInd], file = paste0(path,"Lung_30_correlation_spearman.csv"))
+saveRDS(cor_res, file = "data/Lung_30_cor_spearman.rds")
+
+
+y = object[["SCT"]]@data[VariableFeatures(object),]
+system.time(cor_res <- Hmisc::rcorr(t(as.matrix(y)), type="pearson"))
+cor_res$r[is.na(cor_res$r)] = 0
+jpeg(paste0(path,"heatmap-cor-pearson.jpeg"), units="in", width=10, height=7,res=600)
+heatmap.2(cor_res$r,trace="none")
+dev.off()
+hm <- heatmap.2(cor_res$r,trace="none")
+write.csv(cor_res$r[rev(hm$rowInd), hm$colInd], file = paste0(path,"Lung_30_correlation_pearson.csv"))
+
+saveRDS(cor_res, file = "data/Lung_30_cor_pearson.rds")
+
+Methods <- c("complete", "average","ward.D2")
+for(method in Methods){
+        print(method)
+        object <- BuildClusterTree(object, method = method)
+        
+        jpeg(paste0(path,"PlotClusterTree_Lung30_",method,".jpeg"), units="in", width=14, height=8.5,res=600)
+        PlotClusterTree(object)
+        title(paste("PlotClusterTree using",method,"algorithm"))
+        dev.off()
+}

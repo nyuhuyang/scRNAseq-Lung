@@ -199,7 +199,7 @@ saveRDS(object, file = paste0("data/Lung_30_20200702.rds"))
 
 
 # - Table: number of cells per cell types (per each sample and total)
-df <- table(object$annotations3, object$orig.ident) %>% 
+df <- table(sub_object$annotations3, sub_object$orig.ident) %>% 
         as.data.frame()
 colnames(df) = c("cell.types","samples","Freq")
 df %<>% tidyr::spread("samples","Freq")
@@ -220,9 +220,9 @@ colnames(df)[!(colnames(df) %in% cols)]
 rownames(df)[!(rownames(df) %in% rows)]
 
 df = df[rows,cols]
-
+df = df[complete.cases(df),]
 #write.csv(df, paste0(path,"Lung_24-",con,"_cell.types_by_samples.csv"))
-write.csv(df, paste0(path,"Cell_types_by_samples.csv"))
+write.csv(df, paste0(path,"Cell_types_by_samples_doublets.csv"))
 
 df1 = read.csv(paste0(path,"Cell_types_by_samples.csv"),row.names = 1)
 df1$cell.types = NULL

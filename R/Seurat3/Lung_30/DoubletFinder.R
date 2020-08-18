@@ -32,6 +32,7 @@ for (i in 1:length(object_list)) {
     Progress(i,length(object_list))
 }
 save(sweep.res_list,file = "output/Lung_30_20200702_sweep.res_list.Rda")
+load("output/Lung_30_20200702_sweep.res_list.Rda")
 sweep_list <- lapply(sweep.res_list, function(x) summarizeSweep(x, GT = FALSE))
 bcmvn_list <- lapply(sweep_list,find.pK)
 # find histgram local maximam
@@ -140,10 +141,9 @@ object = readRDS(file = "data/Lung_30_20200702.rds")
 object@meta.data = meta.data
 saveRDS(object, file = paste0("data/Lung_30_20200710.rds"))
 
-TSNEPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
-           title = "Singlets and possible Doublets", do.print = T,
-           do.return = F,pt.size = 0.3)
-UMAPPlot.1(object, group.by = "Doublets",cols = c("red","orange","black"), 
+object = readRDS(file = "data/Lung_30_20200710.rds")
+
+UMAPPlot.1(object, group.by = "Doublets",cols = c("red","black"), 
            title = "Singlets and possible Doublets", do.print = T,
            do.return = F,pt.size = 0.3)
 
