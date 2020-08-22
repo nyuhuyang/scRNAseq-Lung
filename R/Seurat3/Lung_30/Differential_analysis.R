@@ -87,4 +87,68 @@ write.xlsx(gde, file = paste0(path,"DEG_markers_by_cell_types.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 #================== DE on group -A ================
-read.path = "output/20200818/"
+read.path = "Yang/Lung_30/DE_analysis/"
+list_files <- list.files(path = paste0(read.path,"A_Sample_types"),
+                         pattern ="Lung_30_A_")
+int <- gsub("Lung_30_A_","",list_files) %>% gsub("_.*","",.) %>% as.integer()
+l <- 1:378
+l[!(l %in% int)]
+
+list_files_A <- list.files(path = paste0(read.path,"A_Sample_types"),
+                         pattern ="Lung_30_A_",full.names = T)
+
+corrupted_files_A <- c()
+for(i in seq_along(list_files_A)) {
+        if(file.info(list_files_A[i])$size < 10) {
+                corrupted_files_A = c(corrupted_files_A,i)
+                next
+        }
+        df <- read.csv(list_files_A[i],header = TRUE, row.names = 1)
+        df <- df[df$p_val_adj <0.05,]
+        write.csv(df, file = list_files_A[i])
+        Progress(i, length(list_files_A))
+}
+#================== DE on group -B ================
+read.path = "Yang/Lung_30/DE_analysis/"
+list_files <- list.files(path = paste0(read.path,"B_Cell_groups"),
+                         pattern ="Lung_30_B_")
+int <- gsub("Lung_30_B_","",list_files) %>% gsub("_.*","",.) %>% as.integer()
+table(1:94 %in% int)
+
+list_files_B <- list.files(path = paste0(read.path,"B_Cell_groups"),
+                           pattern ="Lung_30_B_",full.names = T)
+
+corrupted_files_B <- c()
+for(i in seq_along(list_files_B)) {
+        if(file.info(list_files_B[i])$size < 10) {
+                corrupted_files_B = c(corrupted_files_B,i)
+                next
+        }
+        df <- read.csv(list_files_B[i],header = TRUE, row.names = 1)
+        df <- df[df$p_val_adj <0.05,]
+        write.csv(df, file = list_files_B[i])
+        Progress(i, length(list_files_B))
+}
+
+#================== DE on group - C_Cell_types ================
+read.path = "Yang/Lung_30/DE_analysis/"
+list_files <- list.files(path = paste0(read.path,"C_Cell_types"),
+                         pattern ="Lung_30-")
+int <- gsub("Lung_30-","",list_files) %>% gsub("_.*","",.) %>% as.integer()
+table(1:62 %in% int)
+
+list_files_C <- list.files(path = paste0(read.path,"C_Cell_types"),
+                           pattern ="Lung_30-",full.names = T)
+
+corrupted_files_C <- c()
+for(i in seq_along(list_files_C)) {
+        if(file.info(list_files_C[i])$size < 10) {
+                corrupted_files_C = c(corrupted_files_C,i)
+                next
+        }
+        df <- read.csv(list_files_C[i],header = TRUE, row.names = 1)
+        df <- df[df$p_val_adj <0.05,]
+        write.csv(df, file = list_files_C[i])
+        Progress(i, length(list_files_C))
+}
+save(list_files_A, list_files_B, list_files_C,corrupted_files_A,file= paste0("output/20200819/DE_list_files",".Rda"))

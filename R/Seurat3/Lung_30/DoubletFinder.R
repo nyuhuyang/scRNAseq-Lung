@@ -137,7 +137,7 @@ colnames(meta.data)[ncol(meta.data)] = "Doublets"
 table(meta.data$Doublets)
 
 
-object = readRDS(file = "data/Lung_30_20200702.rds")
+object = readRDS(file = "data/Lung_30_20200710.rds")
 object@meta.data = meta.data
 saveRDS(object, file = paste0("data/Lung_30_20200710.rds"))
 
