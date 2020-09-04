@@ -501,3 +501,25 @@ table(exp$annotations3, exp$`7SK.2` > 3)
 table(meta.data[df_annotation6$`Cells`,"annotations3"], 
       ((rownames(meta.data) %in% df_annotation6$Cells) & exp[,"7SK.2"] >2 )) %>% 
         as.data.frame()
+
+# -P, D, T (no COPD) – 3 different colors (P – blue; D – green; T- dark yellow/orange) – same coordinates and x/y axis units as global
+# load files
+object = readRDS(file = "data/Lung_30_20200710.rds") 
+# Need 64GB
+DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
+Idents(object) = "conditions"
+sub_object <- subset(object, idents = c("distal","terminal","proximal"))
+Idents(sub_object) = "conditions"
+UMAPPlot.1(sub_object,group.by = "conditions", cols = c("#B2DF8A","#E6AB02","#1F78B4"), 
+           label = T, label.repel = T, no.legend = T,do.return = F, do.print = T)
+meta.data = cbind(sub_object@reductions$umap@cell.embeddings,sub_object@meta.data[,c("orig.ident","annotations3")])
+write.csv(meta.data, file = paste0(path, "Cordinates_P_D_T.csv"))
+# -D, COPD (no P, no T) – 2 different colors (D – green; COPD -  red) – same coordinates and x/y axis units as global
+sub_object1 <- subset(object, idents = c("distal","COPD"))
+Idents(sub_object1) = "conditions"
+UMAPPlot.1(sub_object1,group.by = "conditions", cols = c("#B2DF8A","#FF4136"), 
+           label = T, label.repel = T, no.legend = T,do.return = F, do.print = T)
+meta.data = cbind(sub_object1@reductions$umap@cell.embeddings,sub_object1@meta.data[,c("orig.ident","annotations3")])
+write.csv(meta.data, file = paste0(path, "Cordinates_D_COPD.csv"))

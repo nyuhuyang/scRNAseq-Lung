@@ -5,7 +5,7 @@ invisible(lapply(c("Seurat","monocle","dplyr","scales",
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- "Yang/Lung_30/Monocle2/"
 if(!dir.exists(path)) dir.create(path, recursive = T)
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
 if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
@@ -25,15 +25,16 @@ if(step == 1){
                                             "IC-S","S","S-d","C1","C2","C3",
                                             "NEC","Ion","p-C","H","AT1","AT2",
                                             "AT2-1","AT2-p"))
+        GC()
         object %<>% sortIdent()
         object %<>% AddMetaColor(label= "annotations3", colors = Singler.colors)
         
         Idents(object) = "conditions"
-        sample_pairs = list("distal",
+        sample_pairs = list("distal",#1
                             "terminal",
-                            "proximal",
+                            "proximal",#3
                             "COPD",
-                            c("distal","terminal","proximal","COPD"))
+                            c("distal","terminal","proximal","COPD"))#5
         print(sample <- sample_pairs[[i]])
         object %<>% subset(idents = sample)
         GC()
@@ -66,9 +67,9 @@ if(step == 1){
                 clustering_DEG_genes <- differentialGeneTest(cds[expressed_genes,],
                                                              fullModelFormulaStr = "~annotations3",
                                                              cores = detectCores()/2)
-                saveRDS(clustering_DEG_genes, paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_DE.rds"))
+                saveRDS(clustering_DEG_genes, paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
                 
-        } else clustering_DEG_genes = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_DE.rds"))
+        } else clustering_DEG_genes = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
         
         print("clustering_DEG_genes")
         cds_ordering_genes <-row.names(clustering_DEG_genes)[order(clustering_DEG_genes$qval)][
@@ -78,23 +79,27 @@ if(step == 1){
         cds %<>% orderCells()
         
         saveRDS(cds, paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
-        #cds = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
+        #===============
         #Trajectory step 2: generate Trajectory plot for all samples
-        group_by <- c("orig.ident","conditions","group", "Pseudotime","annotations3")
+        cds = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
+        cds$annotations4 = gsub("-.*$","",(cds$annotations3)) %>% gsub("[0-9]$","",.)
+        group_by <- c("orig.ident","conditions","group", "Pseudotime","annotations3","annotations4")
         
         for(k in seq_along(group_by)){
                 jpeg(paste0(save.path,"trajectory_",paste(sample, collapse = "-"),"_",group_by[k],".jpeg"),
                      units="in", width=7, height=7,res=600)
-                g <- plot_cell_trajectory(cds, color_by = group_by[k],cell_size = 3,
+                g <- plot_cell_trajectory(cds, color_by = group_by[k],cell_size = 1,
                                           show_branch_points = FALSE)
                 if(group_by[k] == "orig.ident") g = g + 
-                        scale_color_manual(values=hue_pal()(length(unique(cds$orig.ident))))
+                        scale_color_manual(values=hue_pal()(length(unique(cds[[group_by[k]]]))))
                 if(group_by[k] == "conditions") g = g + 
-                        scale_color_manual(values=hue_pal()(length(unique(cds$conditions))))
+                        scale_color_manual(values=hue_pal()(length(unique(cds[[group_by[k]]]))))
                 if(group_by[k] == "group") g = g + 
-                        scale_color_manual(values=hue_pal()(length(unique(cds$group))))
-                if(group_by[k] == "cell.types") g = g + 
+                        scale_color_manual(values=hue_pal()(length(unique(cds[[group_by[k]]]))))
+                if(group_by[k] == "annotations3") g = g + 
                         scale_color_manual(values=sort(unique(cds$annotations3.colors),decreasing = T))
+                if(group_by[k] == "annotations4") g = g + 
+                        scale_color_manual(values=Singler.colors[1:length(unique(cds[[group_by[k]]]))])
                 
                 print(g)
                 dev.off()

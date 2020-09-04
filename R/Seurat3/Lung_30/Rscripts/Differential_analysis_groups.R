@@ -40,14 +40,14 @@ if(step == "A - Sample types"){ # need 32 GB
                                      c("proximal","distal"),
                                      "distal",
                                      c("distal","terminal")))
-    i = ceiling((args/54) %% 7)
-    if(args == 378) i = 7
+    i = ceiling((args/56) %% 7)
+    if(args == 392) i = 7
     print(ident1 <- Idents_list$ident1[[i]])
     print(ident2 <- Idents_list$ident2[[i]])
     
-    k = ((args-1) %% 54)+1
+    k = ((args-1) %% 56)+1
     
-    df_annotation <- readxl::read_excel("doc/20200815_Comparison groups of cells - plan.xlsx",
+    df_annotation <- readxl::read_excel("doc/20200903_Comparison groups of cells - Yang modified.xlsx",
                                         sheet = step)
     groups = df_annotation$`CELL GROUPS`
     groups = groups[!is.na(groups)]
@@ -55,9 +55,9 @@ if(step == "A - Sample types"){ # need 32 GB
     group_list <- stringr::str_split(groups, pattern = "\\+")
     names(group_list) = groups
     group_list[group_list == "ALL IMMUNE CELLS"][[1]] = 
-        unique(unlist(group_list[35:53]))
+        unique(unlist(group_list[35:56]))
     group_list[group_list == "ALL CELLS"][[1]] = 
-        unique(unlist(group_list[2:53]))
+        unique(unlist(group_list[2:56]))
     print(group <- group_list[[k]])
 
     Idents(object)= "annotations3"
@@ -74,15 +74,15 @@ if(step == "A - Sample types"){ # need 32 GB
     Idents(object) %<>% factor(levels = c(ident1,ident2))
     DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
                               only.pos = TRUE,
-                              return.thresh = 0.05, p.adjust.methods = "fdr")
+                              return.thresh = 1, p.adjust.methods = "fdr")
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(path,"Lung_30_A_",args,"_celltypes=",k,
-                                 "_",ident1,"_vs_",ident2,".csv"))
+                                 "_",groups[k],"_",ident1,"_vs_",ident2,".csv"))
 }
 
 
 if(step == "B - Cell groups"){ # need 32 GB
-    df_annotation <- readxl::read_excel("doc/20200815_Comparison groups of cells - plan.xlsx",
+    df_annotation <- readxl::read_excel("doc/20200903_Comparison groups of cells - Yang modified.xlsx",
                                         sheet = step)
     df_annotation = df_annotation[!is.na(df_annotation$`Group 1`),]
 
