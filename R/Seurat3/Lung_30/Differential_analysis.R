@@ -152,3 +152,66 @@ for(i in seq_along(list_files_C)) {
         Progress(i, length(list_files_C))
 }
 save(list_files_A, list_files_B, list_files_C,corrupted_files_A,file= paste0("output/20200819/DE_list_files",".Rda"))
+
+#================== heatmap ================
+object = readRDS(file = "data/Lung_30_20200710.rds")
+DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
+object %<>% AddMetaColor(label= "annotations3", colors = Singler.colors)
+Idents(object) = "annotations3"
+wanted_cells = "En-L"
+sub_object = subset(object, idents = wanted_cells)
+Idents(sub_object) = "conditions"
+read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
+
+
+deg <- read.csv(file = paste0(read.path,"Lung_30_A_312_celltypes=32_En-L_COPD_vs_distal.csv"),
+                header = TRUE, row.names = 1)
+deg = deg[deg$cluster == "COPD",]
+Lung_markers = deg[deg$p_val_adj<0.05, "gene"]
+sub_object %<>% ScaleData(features=unique(c(as.character(Lung_markers))))
+
+DoHeatmap.1(sub_object, features = Lung_markers,do.print=T,
+            angle = 0,group.bar = T, title.size = 13, no.legend = F,size=4,hjust = 0.5,
+            assay = "SCT",pal_gsea = T,
+            label=T, cex.row=4, legend.size = 5,width=10, height=7,unique.name = "conditions",
+            title = paste("Top 160 markers of in En-L samples"))
+
+sub_object = subset(sub_object, idents = c("distal","COPD"))
+
+# prepare DEGs for monocle 2 ===========
+# read all csv file form Yang/Lung_30/DE_analysis/A_Sample_types Epithelial section
+read.path = "Yang/Lung_30/DE_analysis/A_Sample_types"
+
+args_mt <- matrix(1:392,ncol = 7)
+args_mt = args_mt[2:15,]
+args_mt[args_mt <10] %<>% paste0("0",.)
+args_mt %<>% paste0("Lung_30_A_",.) %>% as.vector
+
+list_files_A <- list.files(read.path,pattern ="Lung_30_A_", full.names = T)
+list_files_AE <- grep(paste(args_mt, collapse = "|"), list_files_A, value = T)
+
+corrupted_files_A <- c()
+deg_list <- list()
+pb <- progress::progress_bar$new(total = length(list_files_AE))
+for(i in seq_along(list_files_AE)) {
+        if(file.info(list_files_AE[i])$size < 10) {
+                corrupted_files_A = c(corrupted_files_A,i)
+                next
+        }
+        df <- read.csv(list_files_AE[i],header = TRUE, row.names = 1)
+        deg_list[[i]] <- df[df$p_val_adj <0.05,]
+        pb$tick()
+}
+
+deg_df <- bind_rows(deg_list)
+top <-  deg_df %>%
+        group_by(cluster) %>%
+        top_n(300, -p_val_adj)
+table(top$cluster)
+top = top[!duplicated(top$gene),]
+table(top$cluster)
+length(unique(top$gene))
+write.csv(as.character(as.vector(top$gene)), file = paste0(read.path,"/top1000_epi_genes.csv"), 
+          row.names = F)

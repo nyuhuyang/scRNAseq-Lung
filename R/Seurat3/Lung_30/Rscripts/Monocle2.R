@@ -3,7 +3,7 @@ invisible(lapply(c("Seurat","monocle","dplyr","scales",
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
-path <- "Yang/Lung_30/Monocle2/"
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 #SBATCH --mem=128G
 # SLURM_ARRAY_TASK_ID
@@ -12,7 +12,8 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
 i <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",i))
-run_differentialGeneTest = TRUE        
+Get_DE_genes <- c("run_DE","read_DE","use_variable_genes")[2]
+
 # load data
 step = 1
 if(step == 1){
@@ -20,25 +21,36 @@ if(step == 1){
         DefaultAssay(object) = "SCT"
         Idents(object) = "Doublets"
         object <- subset(object, idents = "Singlet")
+        object %<>% AddMetaColor(label= "annotations3", colors = Singler.colors)
+        
+        Idents(object) = "conditions"
+        sample_pairs = list("distal",#64GB
+                            "terminal",#32GB
+                            "proximal",#32GB
+                            "COPD",#32GB
+                            c("distal","terminal","proximal","COPD"))#256GB
+        print(sample <- sample_pairs[[i]])
+        object %<>% subset(idents = sample)
+        
         Idents(object) = "annotations3"
-        object <- subset(object, idents = c("BC","BC-S","BC-p","IC1","IC2",
-                                            "IC-S","S","S-d","C1","C2","C3",
-                                            "NEC","Ion","p-C","H","AT1","AT2",
-                                            "AT2-1","AT2-p"))
+        wanted_cells = c("BC","BC-S","BC-p","IC1","IC2",
+                       "IC-S","S","S-d","C1","C2","C3",
+                       "NEC","Ion","p-C","H","AT1","AT2",
+                       "AT2-1","AT2-p")
+        avaible_cells <- as.data.frame(table(Idents(object)))
+        avaible_cells = as.character(avaible_cells[avaible_cells$Freq > 10,"Var1"])
+        keep_cells = wanted_cells[wanted_cells %in% avaible_cells]
+        print(paste("remove cell types:", 
+                    paste(wanted_cells[!(wanted_cells %in% avaible_cells)],
+                          collapse = ", ")))
+        object <- subset(object, idents = keep_cells)
         GC()
         object %<>% sortIdent()
         object %<>% AddMetaColor(label= "annotations3", colors = Singler.colors)
         
-        Idents(object) = "conditions"
-        sample_pairs = list("distal",#1
-                            "terminal",
-                            "proximal",#3
-                            "COPD",
-                            c("distal","terminal","proximal","COPD"))#5
-        print(sample <- sample_pairs[[i]])
-        object %<>% subset(idents = sample)
+
         GC()
-        save.path = paste0(path, paste(sample, collapse = "_"),"/")
+        save.path = paste0(path,Get_DE_genes,'/', paste(sample, collapse = "_"),"/")
         if(!dir.exists(save.path)) dir.create(save.path, recursive = T)
         
         Idents(object) = "annotations3"
@@ -54,34 +66,42 @@ if(step == 1){
         #Estimate size factors and dispersions
         cds <- estimateSizeFactors(cds)
         cds <- estimateDispersions(cds)
-        table(pData(cds)$cell.types)
+        table(pData(cds)$annotations3)
+
         #Filtering low-quality cells
         cds <- detectGenes(cds, min_expr = 0.1)
         print(head(fData(cds)))
         expressed_genes <- row.names(subset(fData(cds),
                                             num_cells_expressed >= 10))
         length(expressed_genes)
+        
         #######################
         #Trajectory step 1: choose genes that define a cell's progress
-        if(run_differentialGeneTest){
-                clustering_DEG_genes <- differentialGeneTest(cds[expressed_genes,],
-                                                             fullModelFormulaStr = "~annotations3",
-                                                             cores = detectCores()/2)
-                saveRDS(clustering_DEG_genes, paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
-                
-        } else clustering_DEG_genes = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
-        
-        print("clustering_DEG_genes")
-        cds_ordering_genes <-row.names(clustering_DEG_genes)[order(clustering_DEG_genes$qval)][
-                1:min(nrow(clustering_DEG_genes),1000)]
-        cds %<>% setOrderingFilter(ordering_genes = cds_ordering_genes)
-        cds %<>% reduceDimension(method = 'DDRTree')
+        DE_genes <- switch(Get_DE_genes,
+                           "run_DE" = {clustering_DEG_genes <- differentialGeneTest(cds[expressed_genes,],
+                                                                                    fullModelFormulaStr = "~annotations3",
+                                                                                    cores = detectCores()/2)
+                           saveRDS(clustering_DEG_genes, paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
+                           return(row.names(clustering_DEG_genes)[order(clustering_DEG_genes$qval)][
+                                   1:min(nrow(clustering_DEG_genes),1000)])
+                           },
+                           "read_DE" = {clustering_DEG_genes = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "_"),"_DE.rds"))
+                           return(row.names(clustering_DEG_genes)[order(clustering_DEG_genes$qval)][
+                                   1:min(nrow(clustering_DEG_genes),1000)])
+                           },
+                           "use_variable_genes" = VariableFeatures(object)[1:1000])
+
+        cds %<>% setOrderingFilter(ordering_genes = DE_genes)
+        #Do dimensionality reduction
+        cds %<>% reduceDimension(norm_method = 'vstExprs', 
+                                 reduction_method='DDRTree', 
+                                 verbose = F, max_components = 7)
         cds %<>% orderCells()
         
         saveRDS(cds, paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
         #===============
         #Trajectory step 2: generate Trajectory plot for all samples
-        cds = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
+        #cds = readRDS(paste0(save.path,"monocle2_",paste(sample, collapse = "-"),"_cds.rds"))
         cds$annotations4 = gsub("-.*$","",(cds$annotations3)) %>% gsub("[0-9]$","",.)
         group_by <- c("orig.ident","conditions","group", "Pseudotime","annotations3","annotations4")
         
@@ -103,8 +123,8 @@ if(step == 1){
                 
                 print(g)
                 dev.off()
-                Progress(k, length(group_by))
         }
+        #custom_colour_map = Singler.colors[1:length(unique(pData(cds)$annotations3))]
 }
 
 #Trajectory step 2: generate Trajectory plot by each sample

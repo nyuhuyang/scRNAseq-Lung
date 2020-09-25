@@ -19,13 +19,12 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 # load files
 object = readRDS(file = "data/Lung_30_20200710.rds") 
-# Need 64GB
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
 step = "A - Sample types"
-if(step == "A - Sample types"){ # need 32 GB
+if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list(ident1 = list("proximal",
                                      "proximal",
                                      "distal",
@@ -55,9 +54,9 @@ if(step == "A - Sample types"){ # need 32 GB
     group_list <- stringr::str_split(groups, pattern = "\\+")
     names(group_list) = groups
     group_list[group_list == "ALL IMMUNE CELLS"][[1]] = 
-        unique(unlist(group_list[35:56]))
+        unique(unlist(group_list[35:53]))
     group_list[group_list == "ALL CELLS"][[1]] = 
-        unique(unlist(group_list[2:56]))
+        unique(unlist(group_list[2:53]))
     print(group <- group_list[[k]])
 
     Idents(object)= "annotations3"
@@ -73,7 +72,7 @@ if(step == "A - Sample types"){ # need 32 GB
     Idents(object) = "conditions"
     Idents(object) %<>% factor(levels = c(ident1,ident2))
     DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
-                              only.pos = TRUE,
+                              only.pos = FALSE,
                               return.thresh = 1, p.adjust.methods = "fdr")
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(path,"Lung_30_A_",args,"_celltypes=",k,
@@ -108,7 +107,7 @@ if(step == "B - Cell groups"){ # need 32 GB
     Idents(object) = "annotations3"
     Idents(object) %<>% factor(levels = c(ident1,ident2))
     DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
-                              return.thresh = 0.05, only.pos = TRUE,
+                              return.thresh = 0.05, only.pos = FALSE,
                               p.adjust.methods = "fdr")
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(path,"Lung_30_B_",args,"_",
