@@ -215,3 +215,37 @@ table(top$cluster)
 length(unique(top$gene))
 write.csv(as.character(as.vector(top$gene)), file = paste0(read.path,"/top1000_epi_genes.csv"), 
           row.names = F)
+# prepare DEGs for monocle 2 ===========
+# read all csv file form Yang/Lung_30/DE_analysis/A_Sample_types Epithelial section
+read.path = "Yang/Lung_30/DE_analysis/C_Cell_types"
+args <- c(1:11,26:30,39,42,47:48)
+args[args <10] %<>% paste0("0",.)
+
+args %<>% paste0("Lung_30-",.)
+
+list_files_C <- list.files(read.path,pattern ="Lung_30-", full.names = T)
+list_files_CE <- grep(paste(args, collapse = "|"), list_files_C, value = T)
+
+corrupted_files_C <- c()
+deg_list <- list()
+pb <- progress::progress_bar$new(total = length(list_files_CE))
+for(i in seq_along(list_files_CE)) {
+        if(file.info(list_files_CE[i])$size < 10) {
+                corrupted_files_C = c(corrupted_files_C,i)
+                next
+        }
+        df <- read.csv(list_files_CE[i],header = TRUE, row.names = 1)
+        deg_list[[i]] <- df[df$p_val_adj <0.05,]
+        pb$tick()
+}
+
+deg_df <- bind_rows(deg_list)
+top <-  deg_df %>%
+        group_by(cluster) %>%
+        top_n(125, avg_logF)
+table(top$cluster)
+top = top[!duplicated(top$gene),]
+table(top$cluster)
+length(unique(top$gene))
+write.csv(as.character(as.vector(top$gene)), file = paste0(read.path,"/top1000_epi_genes.csv"), 
+          row.names = F)
