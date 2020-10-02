@@ -3,7 +3,7 @@
 # Download https://storage.googleapis.com/gtex_analysis_v7/rna_seq_data/GTEx_Analysis_2016-01-15_v7_RSEMv1.2.22_transcript_tpm.txt.gz"
 # Download https://storage.googleapis.com/gtex_analysis_v7/annotations/GTEx_v7_Annotations_SampleAttributesDS.txt"
 
-#devtools::install_github('xuranw/MuSiC')
+devtools::install_github('xuranw/MuSiC')
 library(MuSiC)
 library(Biobase)
 library(xbioc)

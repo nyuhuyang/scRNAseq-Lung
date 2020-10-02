@@ -13,7 +13,7 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 set.seed(101)
-#================== DE on cluster ================
+ #================== DE on cluster ================
 read.path = "output/20200703/"
 # change the current plan to access parallelization
 opts = data.frame(resolution = c(rep(2,75),
@@ -242,10 +242,43 @@ for(i in seq_along(list_files_CE)) {
 deg_df <- bind_rows(deg_list)
 top <-  deg_df %>%
         group_by(cluster) %>%
-        top_n(125, avg_logF)
+        top_n(125, avg_logFC)
 table(top$cluster)
 top = top[!duplicated(top$gene),]
 table(top$cluster)
 length(unique(top$gene))
 write.csv(as.character(as.vector(top$gene)), file = paste0(read.path,"/top1000_epi_genes.csv"), 
           row.names = F)
+
+#============= prepare complex_cell_trajectory_ =========
+read.path = "Yang/Lung_30/Monocle2/Within_regions/"
+sample_string = c("distal",#128GB
+                  "terminal",#32GB
+                  "proximal",#32GB
+                  "COPD",#32GB
+                  "distal,terminal,proximal,COPD")#256GB
+opts = data.frame(methods = rep(c("UseVariableGenes","ReadDE"),each = 10),
+                  samples = rep(sample_string, 4),
+                  root = rep(c(NA,"BC",NA,"BC"), each = 5),
+                  stringsAsFactors = F)
+
+args_string = 1:20
+pb <- progress::progress_bar$new(total = length(args_string))
+for(i in seq_along(args_string)){
+        print(args <- opts[args_string[i],])
+        Get_DE_genes <- args$methods
+        sample <- stringr::str_split(args$samples, pattern = ",")[[1]]
+        root = args$root
+        save.path = paste0(read.path,i,"-",Get_DE_genes,'-', paste(sample, collapse = "."),"-root=",root,"/")
+        cds = readRDS(paste0(save.path,basename(save.path),"_cds.rds"))
+        lib_info_with_pseudo <- pData(cds)
+        
+        data_df <- t(monocle::reducedDimS(cds)) %>% as.data.frame() %>% 
+                select_(dim_1 = 1, dim_2 = 2) %>% 
+                tibble::rownames_to_column("barcodes") %>% 
+                left_join(lib_info_with_pseudo %>% tibble::rownames_to_column("barcodes"), 
+                          by = "barcodes")
+        write.csv(data_df, file = paste0(save.path,basename(save.path),"_coordinates.csv"))
+        pb$tick()
+}
+

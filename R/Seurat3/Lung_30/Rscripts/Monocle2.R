@@ -12,15 +12,15 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
 i <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",i))
-
+DimPlot
 #Trajectory step 1: generate Trajectory plot within regions
 step = 1
 if(step == 1){
-        sample_string = c("distal",#64GB
+        sample_string = c("distal",#128GB
                            "terminal",#32GB
                            "proximal",#32GB
                            "COPD",#32GB
-                           "distal,terminal,proximal,COPD")#128GB
+                           "distal,terminal,proximal,COPD")#256GB
         opts = data.frame(methods = rep(c("UseVariableGenes","ReadDE"),each = 10),
                           samples = rep(sample_string, 4),
                           root = rep(c(NA,"BC",NA,"BC"), each = 5),
@@ -28,7 +28,7 @@ if(step == 1){
         print(args <- opts[i,])
         
         Get_DE_genes <- args$methods
-        sample_list <- str_split(args$samples, pattern = ",")[[1]]
+        sample <- str_split(args$samples, pattern = ",")[[1]]
         root = args$root
         
         object = readRDS(file = "data/Lung_30_20200710.rds")
@@ -69,7 +69,6 @@ if(step == 1){
         object %<>% AddMetaColor(label= "annotations4", colors = Singler.colors)
         
         Idents(object) = "conditions"
-        print(sample <- sample_list)
         object %<>% subset(idents = sample)
         
         # remove small group
@@ -144,7 +143,7 @@ if(step == 1){
                 
                 #Run a second time to get the correct root state that overlaps with Stem cells
                 cds <- orderCells(cds, root_state=root_name)
-        }
+        } else root_name = NULL
         
         saveRDS(cds, paste0(save.path,basename(save.path),"_cds.rds"))
         #===============
