@@ -1,3 +1,5 @@
+#conda activate r4.0
+
 library(Seurat)
 library(dplyr)
 library(tidyr)

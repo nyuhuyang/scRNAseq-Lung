@@ -193,6 +193,14 @@ if(step == 1){
                 print(g)
                 dev.off()
         }
+        lib_info_with_pseudo <- pData(cds)
+        data_df <- t(monocle::reducedDimS(cds)) %>% as.data.frame() %>% 
+                select_(dim_1 = 1, dim_2 = 2) %>% 
+                tibble::rownames_to_column("barcodes") %>% 
+                left_join(lib_info_with_pseudo %>% tibble::rownames_to_column("barcodes"), 
+                          by = "barcodes")
+        write.csv(data_df, file = paste0(save.path,basename(save.path),"_coordinates.csv"))
+        
 }
 
 #Trajectory step 2: generate Trajectory plot across regions
