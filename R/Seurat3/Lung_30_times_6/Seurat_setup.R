@@ -45,6 +45,13 @@ label = l$label,
            no.legend = l$no.legend, label.size = 4, repel = T, title = "No Integration with 6 time samples with 105 PCA",
            do.print = T, do.return = F, save.path = save.path))
 format(object.size(object), unit = "GB")
+
+data_df <- object@reductions$umap@cell.embeddings %>% as.data.frame() %>% 
+    tibble::rownames_to_column("barcodes") %>% 
+    left_join(object@meta.data %>% tibble::rownames_to_column("barcodes"), 
+              by = "barcodes")
+write.csv(data_df, file = paste0(save.path,basename(save.path),"_coordinates.csv"))
+
 saveRDS(object, file = "data/Lung_time_6_20201001.rds")
 #####################################################################################################
 

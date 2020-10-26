@@ -12,7 +12,7 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 # coerce the value to an integer
 i <- as.numeric(slurm_arrayid)
 print(paste0("slurm_arrayid=",i))
-DimPlot
+
 #Trajectory step 1: generate Trajectory plot within regions
 step = 1
 if(step == 1){
