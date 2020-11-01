@@ -3,8 +3,9 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","cowplot",
-                   "magrittr","data.table","future","ggplot2","tidyr"), function(x) {
+#conda activate r4.0
+invisible(lapply(c("Seurat","dplyr","monocle",
+                   "magrittr","future","ggplot2","tidyr"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -123,13 +124,14 @@ if(step == "1c. DEGs per each state (from 1 to 17) compared to other states"){ #
     if(!dir.exists(save.path))dir.create(save.path, recursive = T)
     
     Idents(object) = "State"
-    object %<>% subset(idents = args)
     print(table(Idents(object)))
     
-    DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0.01,test.use = "MAST",
-                              only.pos = TRUE,latent.vars = "nFeature_SCT",
-                              p.adjust.methods = "fdr")
-
+    DEG <- FindMarkers.UMI(object, logfc.threshold = 0.01,test.use = "MAST",
+                           ident.1 = args, ident.2 = NULL, 
+                           only.pos = TRUE,latent.vars = "nFeature_SCT",
+                           p.adjust.methods = "fdr")
+    DEG$cluster = args
+    DEG$gene = rownames(DEG)
     DEG = DEG[DEG$p_val_adj < 0.05, ]
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(save.path,"Lung_30_monocle2.1c_State=",args,".csv"))
@@ -151,7 +153,7 @@ if(step == "2.Determine DEGs between groups"){ # need 32 GB
                                      "distal"))
     States = c(1,5:9,12:17)
     i = ceiling((args/12) %% 4)
-    if(args == 48) i = 12
+    if(args == 48) i = 4
     print(ident1 <- Idents_list$ident1[[i]])
     print(ident2 <- Idents_list$ident2[[i]])
     

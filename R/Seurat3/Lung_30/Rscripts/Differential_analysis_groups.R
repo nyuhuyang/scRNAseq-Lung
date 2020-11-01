@@ -23,7 +23,7 @@ DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "A - Sample types"
+step = "A - Sample types-age"
 if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list(ident1 = list("proximal",
                                      "proximal",
@@ -113,3 +113,38 @@ if(step == "B - Cell groups"){ # need 32 GB
     write.csv(DEG, file = paste0(path,"Lung_30_B_",args,"_",
                                  ident1,"_vs_",ident2,".csv"))
     }
+
+
+if(step == "A - Sample types-age"){ #  need 64 GB for all cells. need 32 GB for others.
+    Idents_list = list("older" = c("UNC-54-D", "UNC-57-D", "UNC-66-D", "UNC-70-D"),
+                       "younger" = c("UNC-44-D", "UNC-48-D", "UNC-55-D", "UNC-67-D", "UNC-69-D", "UNC-71-D", "VU-27-D"))
+    Idents(object) = "orig.ident"
+    object %<>% subset(idents = unlist(Idents_list))
+    object@meta.data$age = "younger"
+    object@meta.data[object$orig.ident %in% Idents_list$older,"age"] = "older"
+
+    df_annotation <- readxl::read_excel("doc/20200903_Comparison groups of cells - Yang modified.xlsx",
+                                        sheet = sub("-age","",step))
+    groups = df_annotation$`CELL GROUPS`
+    groups = groups[!is.na(groups)]
+    groups = gsub(" \\(.*", "", groups)
+    group_list <- stringr::str_split(groups, pattern = "\\+")
+    names(group_list) = groups
+    group_list[group_list == "ALL IMMUNE CELLS"][[1]] = 
+        unique(unlist(group_list[35:53]))
+    group_list[group_list == "ALL CELLS"][[1]] = 
+        unique(unlist(group_list[2:53]))
+    print(group <- group_list[[args]])
+    
+    Idents(object)= "annotations3"
+    object <- subset(object, idents = group)
+
+    Idents(object) = "age"
+    Idents(object) %<>% factor(levels = c("older","younger"))
+    DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
+                              only.pos = FALSE,
+                              return.thresh = 1, p.adjust.methods = "fdr")
+    if(args < 10) args = paste0("0", args)
+    write.csv(DEG, file = paste0(path,"Lung_30_A_age_",args,"_celltypes=",group,
+                                 ".csv"))
+}

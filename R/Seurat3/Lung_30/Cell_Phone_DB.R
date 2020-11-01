@@ -2,6 +2,9 @@ conda create --name python3.6.7 python=3.6.7
 conda activate python3.6.7
 conda install -c conda-forge r-base r-ggplot2 r-pheatmap r-dplyr r-tidyr
 pip install cellphonedb
+# upstream
+# For P, D, T separately =============
+R/Seurat3/Lung_30/write_metadata.R
 
 #conda activate cellphonedb
 cd Yang/Lung_30/Cell_Phone_DB/

@@ -1,3 +1,4 @@
+# conda activate r4.0
 invisible(lapply(c("Seurat","monocle","dplyr","scales","plyr","stringr",
                    "magrittr"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
