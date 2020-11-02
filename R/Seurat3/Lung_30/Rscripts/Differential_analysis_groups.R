@@ -145,6 +145,6 @@ if(step == "A - Sample types-age"){ #  need 64 GB for all cells. need 32 GB for 
                               only.pos = FALSE,
                               return.thresh = 1, p.adjust.methods = "fdr")
     if(args < 10) args = paste0("0", args)
-    write.csv(DEG, file = paste0(path,"Lung_30_A_age_",args,"_celltypes=",group,
+    write.csv(DEG, file = paste0(path,"Lung_30_A_age_",args,"_celltypes=",groups[args],
                                  ".csv"))
 }
