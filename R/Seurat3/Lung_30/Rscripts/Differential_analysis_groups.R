@@ -23,7 +23,8 @@ DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "A - Sample types-age"
+step = "B - Cell groups"
+
 if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list(ident1 = list("proximal",
                                      "proximal",

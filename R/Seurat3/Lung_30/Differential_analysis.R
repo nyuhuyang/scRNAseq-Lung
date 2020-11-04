@@ -4,8 +4,8 @@
 # 
 # ######################################################################
 ####################################
-invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",
-                   "MAST","future","gplots"), function(x) {
+invisible(lapply(c("dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
+                   "gplots"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -282,3 +282,45 @@ for(i in seq_along(args_string)){
         pb$tick()
 }
 
+#================== DE by age ================
+read.path = "output/20201101/"
+save.path = "Yang/Lung_30/DE_analysis/D_age/"
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
+csv_list <- list.files(read.path, pattern = ".csv",full.names = T)
+for(i in 1:length(csv_list)){
+        if(file.info(csv_list[i])$size < 10) next
+        tmp = read.csv(csv_list[i], stringsAsFactors = F,row.names = 1)
+        tmp = tmp[tmp$avg_logFC > 0 & tmp$p_val_adj < 0.05, ]
+
+        write.csv(tmp, file = paste0(save.path, basename(csv_list[i])))
+        svMisc::progress(i/length(csv_list)*100)
+}
+
+
+#======
+object = readRDS(file = "data/Lung_30_20200710.rds") 
+DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
+
+Idents_list = list("older" = c("UNC-54-D", "UNC-57-D", "UNC-66-D", "UNC-70-D"),
+                   "younger" = c("UNC-44-D", "UNC-48-D", "UNC-55-D", "UNC-67-D", "UNC-69-D", "UNC-71-D", "VU-27-D"))
+Idents(object) = "orig.ident"
+object %<>% subset(idents = unlist(Idents_list))
+object@meta.data$age = "younger"
+object@meta.data[object$orig.ident %in% Idents_list$older,"age"] = "older"
+
+df_annotation <- readxl::read_excel("doc/20200903_Comparison groups of cells - Yang modified.xlsx",
+                                    sheet = sub("-age","",step))
+groups = df_annotation$`CELL GROUPS`
+groups = groups[!is.na(groups)]
+groups = gsub(" \\(.*", "", groups)
+group_list <- stringr::str_split(groups, pattern = "\\+")
+names(group_list) = groups
+group_list[group_list == "ALL IMMUNE CELLS"][[1]] = 
+        unique(unlist(group_list[35:53]))
+group_list[group_list == "ALL CELLS"][[1]] = 
+        unique(unlist(group_list[2:53]))
+write.csv(as.data.frame.matrix(table(object$annotations3, object$age)), 
+          file = paste0(save.path, "Distal_celltypes_vs_age.csv"))
