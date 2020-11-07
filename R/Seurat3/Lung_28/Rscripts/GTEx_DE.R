@@ -48,14 +48,16 @@ names(deg_list) = cell.types
 
 # 1.       All (both males and females):  young vs old
 if(step == "1.All (both males and females) young vs old"){
+    degs <- FindAllMarkers.UMI(object, 
+                               #features = features,
+                               logfc.threshold = 0,
+                               only.pos = T,
+                               return.thresh = 1, 
+                               p.adjust.methods = "BH",
+                               test.use = "MAST")
+
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        degs <- FindAllMarkers.UMI(object, 
-                                   #features = features,
-                                   logfc.threshold = 0,
-                                   only.pos = T,
-                                   p.adjust.methods = "BH",
-                                   test.use = "MAST")
         degs1 =  degs[degs$gene %in% features & degs$cluster %in% "young", ]
         degs2 =  degs[degs$gene %in% features & degs$cluster %in% "old", ]
         degs1$p_val_adj = p.adjust(p = degs1$p_val, method = "BH",n = nrow(x = object))
@@ -70,15 +72,16 @@ if(step == "2.Males only: young vs old"){
     sub_object <- subset(object, idents = "male")
     Idents(sub_object) = "age"
     Idents(sub_object) %<>% factor(levels = c("young","old"))
+    degs <- FindAllMarkers.UMI(sub_object, 
+                               #features = features,
+                               logfc.threshold = 0,
+                               only.pos = T,
+                               return.thresh = 1, 
+                               p.adjust.methods = "BH",
+                               test.use = "MAST")
     
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        degs <- FindAllMarkers.UMI(sub_object, 
-                                   #features = features,
-                                   logfc.threshold = 0,
-                                   only.pos = T,
-                                   p.adjust.methods = "BH",
-                                   test.use = "MAST")
         degs1 =  degs[degs$gene %in% features & degs$cluster %in% "young", ]
         degs2 =  degs[degs$gene %in% features & degs$cluster %in% "old", ]
         degs1$p_val_adj = p.adjust(p = degs1$p_val, method = "BH",n = nrow(x = sub_object))
@@ -93,14 +96,15 @@ if(step == "3.Females only: young vs old"){
     sub_object <- subset(object, idents = "female")
     Idents(sub_object) = "age"
     Idents(sub_object) %<>% factor(levels = c("young","old"))
+    degs <- FindAllMarkers.UMI(sub_object, 
+                               #features = features,
+                               logfc.threshold = 0,
+                               only.pos = T,
+                               return.thresh = 1, 
+                               p.adjust.methods = "BH",
+                               test.use = "MAST")
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        degs <- FindAllMarkers.UMI(sub_object, 
-                                   #features = features,
-                                   logfc.threshold = 0,
-                                   only.pos = T,
-                                   p.adjust.methods = "BH",
-                                   test.use = "MAST")
         degs1 =  degs[degs$gene %in% features & degs$cluster %in% "young", ]
         degs2 =  degs[degs$gene %in% features & degs$cluster %in% "old", ]
         degs1$p_val_adj = p.adjust(p = degs1$p_val, method = "BH",n = nrow(x = sub_object))
@@ -115,14 +119,15 @@ if(step == "4.Young: females vs males"){
     sub_object <- subset(object, idents = "young")
     Idents(sub_object) = "Sex"
     Idents(sub_object) %<>% factor(levels = c("female","male"))
+    degs <- FindAllMarkers.UMI(sub_object, 
+                               #features = features,
+                               logfc.threshold = 0,
+                               only.pos = T,
+                               return.thresh = 1, 
+                               p.adjust.methods = "BH",
+                               test.use = "MAST")
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        degs <- FindAllMarkers.UMI(sub_object, 
-                                   #features = features,
-                                   logfc.threshold = 0,
-                                   only.pos = T,
-                                   p.adjust.methods = "BH",
-                                   test.use = "MAST")
         degs1 =  degs[degs$gene %in% features & degs$cluster %in% "female", ]
         degs2 =  degs[degs$gene %in% features & degs$cluster %in% "male", ]
         degs1$p_val_adj = p.adjust(p = degs1$p_val, method = "BH",n = nrow(x = sub_object))
@@ -138,14 +143,15 @@ if(step == "5.Old: females vs males"){
     sub_object <- subset(object, idents = "old")
     Idents(sub_object) = "Sex"
     Idents(sub_object) %<>% factor(levels = c("female","male"))
+    degs <- FindAllMarkers.UMI(sub_object, 
+                               #features = features,
+                               logfc.threshold = 0,
+                               only.pos = T,
+                               return.thresh = 1, 
+                               p.adjust.methods = "BH",
+                               test.use = "MAST")
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        degs <- FindAllMarkers.UMI(sub_object, 
-                                   #features = features,
-                                   logfc.threshold = 0,
-                                   only.pos = T,
-                                   p.adjust.methods = "BH",
-                                   test.use = "MAST")
         degs1 =  degs[degs$gene %in% features & degs$cluster %in% "female", ]
         degs2 =  degs[degs$gene %in% features & degs$cluster %in% "male", ]
         degs1$p_val_adj = p.adjust(p = degs1$p_val, method = "BH",n = nrow(x = sub_object))
