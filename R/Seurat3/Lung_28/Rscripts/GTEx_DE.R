@@ -78,6 +78,7 @@ if(step == "2.Males only: young vs old"){
                                    return.thresh = 1, 
                                    p.adjust.methods = "BH",
                                    test.use = "MAST")
+        deg_list[[i]]$cell.type = cell.types[i]
         svMisc::progress(i, length(cell.types))
     }
 }
@@ -98,6 +99,7 @@ if(step == "3.Females only: young vs old"){
                                    return.thresh = 1, 
                                    p.adjust.methods = "BH",
                                    test.use = "MAST")
+        deg_list[[i]]$cell.type = cell.types[i]
         svMisc::progress(i, length(cell.types))
     }
 }
@@ -118,6 +120,7 @@ if(step == "4.Young: females vs males"){
                                            return.thresh = 1, 
                                            p.adjust.methods = "BH",
                                            test.use = "MAST")
+        deg_list[[i]]$cell.type = cell.types[i]
         svMisc::progress(i, length(cell.types))
     }
 }
@@ -138,9 +141,10 @@ if(step == "5.Old: females vs males"){
                                            return.thresh = 1, 
                                            p.adjust.methods = "BH",
                                            test.use = "MAST")
+        deg_list[[i]]$cell.type = cell.types[i]
         svMisc::progress(i, length(cell.types))
     }
 }
-deg = bind_rows(deg_list)
+deg = dplyr::bind_rows(deg_list)
 write.xlsx(deg, file = paste0(path,step,".xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
