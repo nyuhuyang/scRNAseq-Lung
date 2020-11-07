@@ -65,3 +65,6 @@ optimzed_degs = bind_rows(optimzed_degs_list)
 optimzed_degs = optimzed_degs[order(optimzed_degs$cluster, optimzed_degs$p_val_adj),]
 rownames(optimzed_degs) = make.unique(optimzed_degs$gene)
 write.csv(optimzed_degs, file = paste0(read.path,"Optimized_cell_type_DEG.csv"))
+
+
+optimzed_degs = read.csv(paste0(read.path,"Optimized_cell_type_DEG.csv"),row.names = 1, stringsAsFactors = F)
