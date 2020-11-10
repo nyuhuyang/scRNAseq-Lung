@@ -11,7 +11,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 df_optimization <- readxl::read_excel("doc/20201103_Optimized cell type signatures.xlsx")
 df_optimization = df_optimization[!is.na(df_optimization$`Cell type`),]
-cellTypes = unique(df_optimization$`Cell type`)
+cellTypes = unique(df_optimization$`Cell type`) %>% sort
 
 read.path ="Yang/Lung_30/DE_analysis/"
 
@@ -57,8 +57,9 @@ for(i in 1:length(cellTypes)){
         print(paste0('i=',i,"   k=",k))
         print(length(rm_markers))
     }
-    purified_markers = markers[!(markers %in% rm_markers)]
+    purified_markers = unique(markers[!(markers %in% rm_markers)])
     optimzed_degs_list[[i]] = degs1[degs1$gene %in% purified_markers,]
+    optimzed_degs_list[[i]] = optimzed_degs_list[[i]][!duplicated(optimzed_degs_list[[i]]$gene),]
     svMisc::progress(i,max.value = length(cellTypes))
 }
 optimzed_degs = bind_rows(optimzed_degs_list)

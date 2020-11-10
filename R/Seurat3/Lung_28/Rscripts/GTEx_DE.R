@@ -50,8 +50,8 @@ names(deg_list) = cell.types
 if(step == "1.All (both males and females) young vs old"){
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
-        deg_list[[i]] = FindAllMarkers.UMI(sub_object, 
-                                   features = features[features %in% rownames(sub_object)],
+        deg_list[[i]] = FindAllMarkers.UMI(object, 
+                                   features = features[features %in% rownames(object)],
                                    logfc.threshold = 0,
                                    only.pos = T,
                                    return.thresh = 1, 
@@ -135,8 +135,8 @@ if(step == "5.Old: females vs males"){
     for(i in 1:length(cell.types)){
         features <- DEGs[DEGs$cluster %in% cell.types[i], "gene"]
         deg_list[[i]] = FindAllMarkers.UMI(sub_object, 
-                                           features = features[features %in% rownames(sub_object)],
-                                           logfc.threshold = 0,
+                                           #features = features[features %in% rownames(sub_object)],
+                                           logfc.threshold = 0.5,
                                            only.pos = T,
                                            return.thresh = 1, 
                                            p.adjust.methods = "BH",
