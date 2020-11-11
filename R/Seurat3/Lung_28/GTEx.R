@@ -83,6 +83,23 @@ df_counts = df_counts[order(df_counts[,"Age.Bracket"]),]
 write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-counts.csv")
 df_counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 
+# read optimized DEGs
+DEGs <- read.csv(file = "Yang/Lung_30/DE_analysis/Optimized_cell_type_DEG.csv",row.names = 1)
+DEGs = DEGs[,c("gene","cluster")]
+colnames(DEGs)[2] ="cell.type"
+
+#  ======== DE Between different age groups============
+(load(file = "data/Lung_GTEx_20200307.Rda"))
+Idents(object) = "Age.Bracket"
+object %<>% sortIdent()
+gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
+                                    logfc.threshold = 0,
+                                    return.thresh = 1,
+                                    only.pos = F, 
+                                    min.pct = 0.1)
+write.csv(gender_marker,paste0(path,"age_markers_FC0.csv"))
+
+
 #  ======== DE Between different age groups, males and females separately============
 (load(file = "data/Lung_GTEx_20200307.Rda"))
 Idents(object) = "Sex"
@@ -110,14 +127,17 @@ for(gender in c("male","female")){
                                        ident.1 = Young_ages,
                                        ident.2 = old_ages,
                                        p.adjust.methods = "BH",
-                                       logfc.threshold = 0,only.pos = F, 
+                                       logfc.threshold = 0,
+                                       return.thresh = 1,
+                                       only.pos = F, 
                                        min.pct = 0.1)
         
         age_markers$FC = 2^(age_markers$avg_logFC)
         age_markers_list[[gender]] = age_markers
-        age_markers = age_markers[age_markers$p_val_adj<0.05,]
-        write.csv(age_markers,paste0(path,"age_markers",gender,"_FC0.csv"))
+        #age_markers = age_markers[age_markers$p_val_adj<0.05,]
+        write.csv(age_markers,paste0(path,"age_markers_",gender,"_FC0.csv"))
 }
+
 write.xlsx(age_markers_list, file = paste0(path,"2a-age_gender_markers_FC0.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
@@ -135,15 +155,19 @@ age_markers <- FindPairMarkers(object,
                                ident.1 = ages_male,
                                ident.2 = ages_female,
                                p.adjust.methods = "BH",
-                               logfc.threshold = 0,only.pos = F, 
+                               logfc.threshold = 0,
+                               return.thresh = 1,
+                               only.pos = F, 
                                min.pct = 0.1)
 age_markers$FC = 2^(age_markers$avg_logFC)
-age_markers = age_markers[age_markers$p_val_adj<0.05,]
+#age_markers = age_markers[age_markers$p_val_adj<0.05,]
 write.csv(age_markers,paste0(path,"2b-age_gender_markers_FC0.csv"))
 
 Idents(object) = "Sex"
 gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
-                                    logfc.threshold = 0,only.pos = T, 
+                                    logfc.threshold = 0,
+                                    return.thresh = 1,
+                                    only.pos = F, 
                                     min.pct = 0.1)
 write.csv(gender_marker,paste0(path,"2b-gender_markers_FC0.csv"))
 
@@ -203,16 +227,17 @@ read.path = "Yang/GTEx/Archive/"
 #1a. age_markers
 dge = read.csv(paste0(read.path, "age_markers_FC0.csv"))
 if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
-dge %<>% inner_join(DEGs, by = "gene")
+dge %<>% right_join(DEGs, by = "gene") 
+dge = dge[order(dge$cell.type),]
 write.xlsx(dge, file = paste0(path,"1a.All (both males and females) young vs old.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
-
 
 #2a. age_gender_markers
 for(i in 1:2){
         sex = c("male","female")[i]
         dge <- readxl::read_excel(paste0(read.path,"2a-age_gender_markers_FC0.xlsx"),sheet = sex)
-        dge %<>% inner_join(DEGs, by = "gene")
+        dge %<>% right_join(DEGs, by = "gene")
+        dge = dge[order(dge$cell.type),]
         write.xlsx(dge, file = paste0(path,"2a.",sex,"-young_vs_old.xlsx"),
                    colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
         svMisc::progress(i, 2)
@@ -220,11 +245,14 @@ for(i in 1:2){
 
 #"2b-age_gender_markers"
 dge <- read.csv(paste0(read.path,"2b-age_gender_markers_FC0.csv"), row.names = 1)
-dge %<>% inner_join(DEGs, by = "gene")
+dge %<>% right_join(DEGs, by = "gene")
+dge = dge[order(dge$cell.type),]
 write.xlsx(dge, file = paste0(path,"2b-male_vs_female_by_age.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 dge <- read.csv(paste0(read.path,"2b-gender_markers_FC0.csv"), row.names = 1)
-dge %<>% inner_join(DEGs, by = "gene")
+dge %<>% right_join(DEGs, by = "gene")
+dge = dge[order(dge$cell.type),]
 write.xlsx(dge, file = paste0(path,"2b-male_vs_female.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
