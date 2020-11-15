@@ -1,5 +1,5 @@
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","ggpubr","openxlsx","Hmisc",
+invisible(lapply(c("Seurat","dplyr","ggpubr","openxlsx","Hmisc","gplots",
                    "magrittr"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -64,6 +64,22 @@ names(exp_list) = paste(opts$cor_methods, opts$hclust_methods)
 write.xlsx(exp_list, file = paste0(path,"Lung_30_correlation_clustering.xlsx"),
            colNames = TRUE, rowNames = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+# - Expression data for all 2000 variable genes for each of the cell type 
+# (average UMI per cell type; using the same order of cell types as in Spearman complete)
+template <- readxl::read_excel("doc/75 genes for dendrogram dot plot.xlsx")
+cell.types <- colnames(template) %>% .[-1]
+x = as.matrix(exp)
+Rowv <- rowMeans(x, na.rm = TRUE)
+distr <- dist(x)
+hcr <- hclust(distr)
+ddr <- as.dendrogram(hcr)
+reorderfun = function(d, w) reorder(d, w)
+ddr <- reorderfun(ddr, Rowv)
+rowInd <- order.dendrogram(ddr)
+
+write.xlsx(object_exp$SCT[rowInd,cell.types], file = paste0(path,"Lung_30_UMI_2000_variable_genes.xlsx"),
+           colNames = TRUE, rowNames = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 # dendrogram based on top 50 variable genes ==================
 #================== DE on group - C - Cell types ================
 read.path = "Yang/Lung_30/DE_analysis/"
@@ -126,8 +142,6 @@ names(exp_list) = paste(opts$cor_methods, opts$hclust_methods)
 write.xlsx(exp_list, file = paste0(path,"Lung_30_correlation_clustering.xlsx"),
            colNames = TRUE, rowNames = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
-
-
 # ==============================
 ## Column clustering (adjust here distance/linkage methods to what you need!)
 y = object[["SCT"]]@data[VariableFeatures(object),]
@@ -162,3 +176,32 @@ for(method in Methods){
         title(paste("PlotClusterTree using",method,"algorithm"))
         dev.off()
 }
+
+# Expression data for selected 75 genes (in the attachment) for each cell type 
+# (average UMI per cell type listed in the same order)
+template <- readxl::read_excel("doc/75 genes for dendrogram dot plot.xlsx")
+genes <- template[,1] %>% pull
+cell.types <- colnames(template) %>% .[-1]
+table(genes %in% rownames(object))
+object_exp <- AverageExpression(object,assays = "SCT", features = genes)
+write.xlsx(object_exp$SCT[genes,cell.types], file = paste0(path,"Lung_30_UMI_75_genes.xlsx"),
+           colNames = TRUE, rowNames = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+#  Dot plot for these 75 genes (color of dots spectrum green-yellow-red representing expression level; 
+# size of dots representing % cells expressing this gene) – same order of cell types as above and same order of genes as in my list
+Idents(object) %<>% factor(levels = cell.types)
+jpeg(paste0(path,"Lung_30_Dotplot_75_genes.jpeg"), units="in", width=15, height=13,res=600)
+DotPlot(object, assay = "SCT",features = rev(genes))+
+        scale_colour_gradient2(low = "green",
+                               mid = "yellow",
+                               high = "red")+ 
+        coord_flip() + RotatedAxis()
+dev.off()
+jpeg(paste0(path,"Lung_30_Dotplot_75_genes~~.jpeg"), units="in", width=30, height=13,res=600)
+DotPlot(object, assay = "SCT",features = rev(genes),cols = c("green","yellow","red","blue"), 
+        split.by = "conditions")+
+        #scale_colour_gradient2(low = "green",
+        #                       mid = "yellow",
+        #                       high = "red")+ 
+        coord_flip() + RotatedAxis()
+dev.off()

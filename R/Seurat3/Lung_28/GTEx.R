@@ -100,6 +100,43 @@ gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
 write.csv(gender_marker,paste0(path,"age_markers_FC0.csv"))
 
 
+#  ======== DE Between different age groups, separately============
+(load(file = "data/Lung_GTEx_20200307.Rda"))
+Young_ages <- list(c("20-29","30-39"),
+                   c("20-29","30-39"),
+                   c("20-29","30-39"),
+                   c("20-29"),
+                   c("20-29"),
+                   c("20-29"),
+                   c("20-29"))
+old_ages <- list(c("60-69","70-79"),
+                 c("50-59","60-69","70-79"),
+                 c("40-49","50-59","60-69","70-79"),
+                 c("60-69","70-79"),
+                 c("50-59","60-69","70-79"),
+                 c("40-49","50-59","60-69","70-79"),
+                 c("30-39","40-49","50-59","60-69","70-79"))
+
+Idents(object) = "Age.Bracket"
+object %<>% sortIdent()
+table(Idents(object))
+age_markers <- FindPairMarkers(object, 
+                               ident.1 = Young_ages,
+                               ident.2 = old_ages,
+                               p.adjust.methods = "BH",
+                               logfc.threshold = 0,
+                               return.thresh = 1,
+                               only.pos = F, 
+                               min.pct = 0.1)
+
+age_markers$FC = 2^(age_markers$avg_logFC)
+#age_markers = age_markers[age_markers$p_val_adj<0.05,]
+write.csv(age_markers,paste0(path,"age_markers_subset_FC0.csv"))
+
+
+write.xlsx(age_markers_list, file = paste0(path,"2a-age_gender_markers_FC0.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 #  ======== DE Between different age groups, males and females separately============
 (load(file = "data/Lung_GTEx_20200307.Rda"))
 Idents(object) = "Sex"
@@ -231,6 +268,14 @@ dge %<>% right_join(DEGs, by = "gene")
 dge = dge[order(dge$cell.type),]
 write.xlsx(dge, file = paste0(path,"1a.All (both males and females) young vs old.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+#1b. age_markers
+dge = read.csv(paste0(read.path, "age_markers_subset_FC0.csv"))
+if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
+dge %<>% right_join(DEGs, by = "gene") 
+dge = dge[order(dge$cell.type),]
+write.xlsx(dge, file = paste0(path,"1b.All (both males and females) part of young vs old.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 
 #2a. age_gender_markers
 for(i in 1:2){
