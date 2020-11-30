@@ -93,3 +93,74 @@ write.xlsx(df, file = "Yang/Lung_30/Cell_Phone_DB/R-L interaction score-summary.
            colNames = TRUE, rowNames = FALSE,borders = "surrounding",
            colWidths = c(NA, "auto", "auto"),
            firstActiveCol = 6)
+# ===========Statistics output =============
+group_list <- list("P" = c("UNC-48-P","UNC-55-P","UNC-66-P","UNC-69-P","UNC-71-P"),
+                   "D" = c("UNC-48-D","UNC-55-D","UNC-66-D","UNC-69-D","UNC-71-D","UNC-44-D","UNC-54-D",
+                           "UNC-57-D","UNC-67-D","UNC-70-D","CU-12-D","CU-12-D-R","VU-27-D"),
+                   "P+D" = c("UNC-48-P","UNC-55-P","UNC-66-P","UNC-69-P","UNC-71-P",
+                             "UNC-48-D","UNC-55-D","UNC-66-D","UNC-69-D","UNC-71-D","UNC-44-D","UNC-54-D",
+                             "UNC-57-D","UNC-67-D","UNC-70-D","CU-12-D","CU-12-D-R","VU-27-D"),
+                   "T" = c("UNC-48-T","UNC-55-T","UNC-66-T","UNC-69-T","UNC-71-T","UNC-44-T",
+                           "CU-12-T"),
+                   "D+T" = c("UNC-48-D","UNC-55-D","UNC-66-D","UNC-69-D","UNC-71-D","UNC-44-D","UNC-54-D",
+                             "UNC-57-D","UNC-67-D","UNC-70-D","CU-12-D","CU-12-D-R","VU-27-D",
+                             "UNC-48-T","UNC-55-T","UNC-66-T","UNC-69-T","UNC-71-T","UNC-44-T",
+                           "CU-12-T"),
+                   "P+T" = c("UNC-48-P","UNC-55-P","UNC-66-P","UNC-69-P","UNC-71-P",
+                           "UNC-48-T","UNC-55-T","UNC-66-T","UNC-69-T","UNC-71-T","UNC-44-T",
+                           "CU-12-T"),
+                   "COPD" = c("UNC-51-D","UNC-52-D","UNC-61-D","VU-19-D","VU-37-D"))
+comp <- c("P vs D","P vs T","P vs D+T","D vs P","D vs T","D vs P+T","D vs COPD",
+          "T vs P","T vs D","T vs P+D","COPD vs D")
+df <- readxl::read_excel(path = "Yang/Lung_30/Cell_Phone_DB/R-L interaction score-summary.xlsx")
+df_res <- df[,1:5]
+res <- sapply(group_list,function(x) rowSums(df[,x]))
+df_res %<>% cbind(res)
+
+keep = rowSums(res) >0
+df = df[keep,]
+df_res = df_res[keep,]
+
+res <- sapply(comp,function(x) {
+    comp1 = sub(" vs.*","",x)
+    comp2 = sub(".*vs ","",x)
+    log2(df_res[,comp1]+1)-log2(df_res[,comp2]+1)
+})
+df_res %<>% cbind(res)
+# wilcox.test(y1,y2,paired=TRUE)
+res <- sapply(comp,function(s) {
+    comp1 = sub(" vs.*","",s)
+    comp2 = sub(".*vs ","",s)
+    cells.1 = group_list[[comp1]]
+    cells.2 = group_list[[comp2]]
+    
+    group.info <- data.frame(row.names = c(cells.1, cells.2))
+    group.info[cells.1, "group"] <- "Group1"
+    group.info[cells.2, "group"] <- "Group2"
+    group.info[, "group"] <- factor(x = group.info[, "group"])
+    
+    data.use <- df[, rownames(x = group.info)]
+    p_val <- pbapply::pbsapply(
+        X = 1:nrow(x = data.use),
+        FUN = function(x) {
+            return(wilcox.test(unlist(data.use[x, ]) ~ group.info[, "group"], 
+                               alternative = c("two.sided"))$p.value)
+        }
+    )
+    
+})
+
+p_res <- res
+p_res[is.nan(p_res)] = 1
+df_res %<>% cbind(p_res)
+
+p_val_adj <- pbapply::pbapply(X = p_res,
+                              MARGIN = 2, 
+                              FUN = function(x) p.adjust(
+                                   p = x,
+                                   method = "fdr",
+                                   n = length(x)))
+df_res %<>% cbind(p_val_adj)
+openxlsx::write.xlsx(df_res, 
+                     file = paste0(path,"Statistics for R-L cell-cell interactions per groups.xlsx"),
+                     colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
