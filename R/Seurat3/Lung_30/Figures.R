@@ -3,6 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
+# conda activate r4.0
 invisible(lapply(c("Seurat","dplyr","cowplot","kableExtra",
                    "magrittr"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
@@ -102,7 +103,7 @@ path = "Yang/Lung_30/Dotplots/No Clustering/"
 Idents(object) = "annotations3"
 
 groups = c("Epithelial","Structural","Immune")
-for(i in 2:length(groups)){
+for(i in 1){
     df <- readxl::read_excel("doc/30 DEGs for dot plots - revised 12-1-20.xlsx",
                              sheet = groups[i])
     cell.types = colnames(df)[2:ncol(df)]
@@ -131,15 +132,16 @@ for(i in 2:length(groups)){
                   text = element_text(size=16),
                   axis.text.x = element_text(size=16,
                                              angle = 90, 
-                                             hjust = 1),
+                                             hjust = 1,
+                                             vjust= 0.5),
                   axis.text.y = element_text(size=16),
                   
                   plot.title = element_text(face = "plain"))+
             coord_flip()
         width = switch(groups[i],
-                       "Epithelial" = 9,
+                       "Epithelial" = 8.6,
                        "Structural" = 7.8,
-                       "Immune" = 8.8)
+                       "Immune" = 8.7)
         jpeg(paste0(save.path,"Dotplot_",groups[i],".jpeg"), family = "Arial",
              units="in", width=width, height=10,res=900)
         print(g)
