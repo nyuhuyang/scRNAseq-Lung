@@ -11,6 +11,7 @@ library(tibble)
 library(igraph)
 library(spatstat)
 library(RColorBrewer)
+library(pbapply)
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
@@ -50,21 +51,25 @@ select_celltypes = df$cell.types
 anno$`Revised abbreviations`[!(anno$`Revised abbreviations` %in% select_celltypes)]
 
 cell_order_list <- df %>% split(df$Cell.group)
-cell_order = c(rev(cell_order_list[["Epithelial"]]$cell.types)[8:22],
+cell_order = c(rev(cell_order_list[["Epithelial"]]$cell.types)[14:22],
                rev(cell_order_list[["Immune"]]$cell.types),
                rev(cell_order_list[["Structural"]]$cell.types),
-               rev(cell_order_list[["Epithelial"]]$cell.types)[1:7])
+               rev(cell_order_list[["Epithelial"]]$cell.types)[1:13])
 # Origin on top, then section, then subgroups
 d1 <- data.frame(Cell.group="origin", cell.types=c("Epithelial","Structural","Immune"))
 hierarchy <- rbind(d1, df[,c("Cell.group","cell.types")])
 # create a vertices data.frame. One line per object of our hierarchy, giving features of nodes.
-vertices <- data.frame(name = unique(c(as.character(hierarchy$Cell.group), as.character(hierarchy$cell.types))) ) 
-#
-d = df_res
-select ="P vs D+T"
-FC = 4
-count_0 = T
-Hierarchical_Edge_Bundling <- function(d = df_res, select ="P vs D+T", FC = 2, count_0 = T,save.path= NULL){
+vertices <- data.frame(name = unique(c(hierarchy$Cell.group, hierarchy$cell.types)),
+                       group = c("origin",hierarchy$Cell.group))
+vertices$id <- match(vertices$name, cell_order)
+nleaves <- length(cell_order)
+vertices$angle = -270 + 360 * (vertices$id-0.5) /nleaves # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+vertices$hjust <- ifelse(vertices$angle <= -97, 1, 0)
+vertices$angle <- ifelse(vertices$angle <= -97, 
+                         vertices$angle+180, vertices$angle)
+
+Hierarchical_Edge_Bundling <- function(d, vertices, hierarchy, select ="P vs D+T", FC = 2, count_0 = T,
+                                       n = NULL,save.path= NULL){
     # https://www.r-graph-gallery.com/311-add-labels-to-hierarchical-edge-bundling.html
     # subset R-L interaciton data
     select_col = c("R","L","R-L pair","Cell-cell pair",
@@ -73,117 +78,81 @@ Hierarchical_Edge_Bundling <- function(d = df_res, select ="P vs D+T", FC = 2, c
     sub_res = d[,select_col]
     sub_res[,select_col[5:8]] %<>% lapply(function(x) as.numeric(x))
     
-    # filtering1
-    first_filter = sub_res[,paste0(select,"_FC")] > 0 & sub_res[,paste0(select,"_pvalue")] < 0.05
-    print(table(first_filter))
-    connect = sub_res[first_filter,] %>% data.table::data.table()
+    # filtering by pvalue
+    keep = sub_res[,paste0(select,"_pvalue")] < 0.05
+    connect = sub_res[keep,]
+    connect %<>% cbind(str_split(string = connect$`Cell-cell pair`,pattern = "_",simplify = T))
+    connect = connect[connect$`1` != connect$`2`,]
     
-    connect = connect[,c("R-L pair","Cell-cell pair")]
-    connect = connect[,list(count=.N),by=`Cell-cell pair`]
-    print(dim(connect))
+    # remove unwanted cell types
+    wanted_cells = (connect$`1` %in% vertices$name) & (connect$`2` %in% vertices$name)
+    connect = connect[wanted_cells,]
     
-    # filtering2
-    second_filter = sub_res[,paste0(select,"_FC")] >= FC & sub_res[,paste0(select,"_p.adj")] < 0.05
-    print(table(second_filter))
-    highly_connected_pairs = unique(sub_res[second_filter,"Cell-cell pair"])
-    print(length(highly_connected_pairs))
+    # split by FC
+    keep1 = connect[,paste0(select,"_FC")] < FC
+    
+    connect1 = connect[keep1,c("1","2")]
+    colnames(connect1) = c("from","to")
+    
+    keep2 = connect[,paste0(select,"_FC")] >= FC
+    connect2 = connect[keep2,c("1","2")]
+    colnames(connect2) = c("from","to")
 
+    ##==========  vertices data.frame ==================
+    df_Freq <- table(c(connect2$from,connect2$to)) %>% as.data.frame
+    colnames(df_Freq)=c("name","Freq")
+    vertices %<>% left_join(df_Freq, by = "name")
     
-    # prepare cell-cell pair with 0 count
-    All_cell_pair = paste0(rep(df$cell.types, each = 59), "_",rep(df$cell.types, time = 59))
-    
-    if(count_0){
-        table(All_cell_pair %in% connect$`Cell-cell pair`)
-        connect1 = data.frame(`Cell-cell pair` = All_cell_pair[!(All_cell_pair %in% connect$`Cell-cell pair`)],
-                          `count` = 0)
-        colnames(connect1)[1] = "Cell-cell pair"
-        connect %<>% as.data.frame %>% rbind(connect1)
-    }
-    
-    connect %<>% as.data.frame %>% cbind(str_split(string = connect$`Cell-cell pair`,pattern = "_",simplify = T))
-    table(keep <- (connect$`1` %in% select_celltypes) & (connect$`2` %in% select_celltypes))
-    connect = connect[keep,]
-    #connect = connect[1:300,]
-    print(dim(connect))
-    connect$`1` %<>% gdata::reorder.factor(new.order=select_celltypes)
-    connect %<>%   arrange(`1`)
-    connect$value = connect$count/max(connect$count)
-    ##==========  Hierarchical edge bundling ==================
-    # Transform the adjacency matrix in a long format
-    colnames(connect) = c("pair","count","from","to","value")
-    connect = connect[,c("from","to","count","value","pair")]
-    # Number of connection per person
-    as_tibble(connect) %>%
-        group_by(to) %>%
-        summarize(sum=sum(count)) -> vertices
-    colnames(vertices) <- c("name", "sum")
-    vertices$value = vertices$sum/max(vertices$sum)
-    vertices = vertices[,c("name", "value","sum")]
-
     # assign group
     group <- df[match(vertices$name, df$cell.types),"Cell.group"]
     group = na.omit(group$Cell.group)
     #Reorder dataset and make the graph
     
-    vertices <- vertices %>% 
-        mutate( group = group) %>%
-        arrange(factor(name, levels = cell_order))
+    vertices$Freq[is.na(vertices$Freq)]=0
+    
+    from_1  <-  match(as.character(connect1$from), as.character(vertices$name))
+    to_1  <-  match(as.character(connect1$to), as.character(vertices$name))
 
-    # Add label angle
-    number_of_bar=nrow(vertices)
-    vertices$id = seq(1, nrow(vertices))
-    angle= 360 * (vertices$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-    vertices$hjust <- ifelse(angle > 90 & angle<270, 1, 0)
-    vertices$angle <- ifelse(angle > 90 & angle<270, angle+180, angle)
+    from_2  <-  match(as.character(connect2$from), as.character(vertices$name))
+    to_2  <-  match(as.character(connect2$to), as.character(vertices$name))    
     
-    
-    #dim(connect)
-    # The connection object must refer to the ids of the leaves:
-    edges = connect[connect$pair %in% highly_connected_pairs,c("from","to")]
-    # remove link to self
-    Remove = as.character(edges$from) == as.character(edges$to)
-    if(any(Remove)) edges = edges[!Remove,]
-    rownames(edges) = 1:nrow(edges)
-    from  <-  match(as.character(edges$from), as.character(vertices$name))
-    to  <-  match(as.character(edges$to), as.character(vertices$name))
-    
-    
+    if(is.null(n)) n=length(from_1)
     # prepare a vector of n color in the viridis scale
     mycolor <- unique(df$hexcolor)[match(unique(df$Cell.group),unique(vertices$group))]
-    # Create a graph object with igraph
-    mygraph <- igraph::graph_from_data_frame( edges, vertices=vertices )
     
-    # Make the graph
-ggraph(mygraph, layout = 'circle') +  
-    #geom_edge_link(edge_colour="black",edge_alpha=1,edge_width=1)+
-    geom_conn_bundle(data = get_con(from = from, to = to), alpha=0.2, width=0.9, aes(colour=group), tension = 0.9) +
-    #scale_edge_colour_distiller(palette = "RdPu") +
-        geom_node_text(aes(label=paste("  ",name,"  "), angle=angle, hjust=hjust, colour=group), size=7) +
-        geom_node_point(aes(size=value, color=group, fill=group,alpha=0.5)) +
+    # Create a graph object with igraph
+    mygraph <- igraph::graph_from_data_frame( hierarchy, vertices=vertices )
+
+
+    g <- ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +  
+        geom_conn_bundle(data = get_con(from = from_1[1:n], to = to_1[1:n]), alpha=0.1, width=0.5,colour="grey",tension = 1) +
+        geom_conn_bundle(data = get_con(from = from_2, to = to_2), alpha=0.5, width=0.9,aes(colour=group),tension = 1) +
+        geom_node_point(aes(x = x*1.08, y=y*1.08, filter = leaf, size=Freq, fill=group),alpha=0.5,pch=21) +
+        scale_color_manual(values=c("darkred","darkgreen","darkblue")) +
+        geom_node_text(aes(x = x*1.18, y=y*1.18, filter = leaf, label=name,  angle=angle,hjust =hjust, colour=group), size=7) +
         scale_size_continuous( range = c(0.1,10) ) +
-        scale_color_manual(values=mycolor) +
         theme_void() +
         theme(
             legend.position="none",
             plot.margin=unit(c(0,0,0,0), "cm"),
             panel.spacing=unit(c(0,0,0,0), "cm")
         ) +
-        expand_limits(x = c(-1.2, 1.2), y = c(-1.2, 1.2))
+        expand_limits(x = c(-1.4, 1.4), y = c(-1.4, 1.4))
+
     
-#    jpeg(paste0(save.path,"new_chordDiagram_",select,".jpeg"), family = "Arial",
-#         units="in", width=7, height=7,res=900)
-#    print(g)
-#    dev.off()
-    }
-Hierarchical_Edge_Bundling(d = df_res, select ="P vs D+T", FC = expm1(2), count_0 = T,
-                           save.path = path)
+    
+    jpeg(paste0(save.path,"new_chordDiagram_",select,".jpeg"), family = "Arial",
+         units="in", width=8, height=8,res=900)
+    print(g)
+    dev.off()
+}
 
-
-
-
-
-
-
+pbsapply(c("P vs D+T"
+           #, "D vs P+T","T vs P+D", "COPD vs D","D vs COPD"
+           ), function(s) {
+    Hierarchical_Edge_Bundling(d = df_res,vertices = vertices,hierarchy = hierarchy,
+                               select =s, FC = 4,n=NULL,save.path = paste0(path,"FC>=2/"))
+})
 
 #  ============== Alluvial Plots =====================
 library(ggalluvial)
