@@ -167,7 +167,6 @@ read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
 save.path = "Yang/Lung_30/DE_analysis/VolcanoPlots/"
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
-
 DE_list <- c("Lung_30_A_57_celltypes=1_ALL CELLS_proximal_vs_distal+terminal",
              "Lung_30_A_113_celltypes=1_ALL CELLS_distal_vs_proximal+terminal",
              "Lung_30_A_225_celltypes=1_ALL CELLS_terminal_vs_proximal+distal",

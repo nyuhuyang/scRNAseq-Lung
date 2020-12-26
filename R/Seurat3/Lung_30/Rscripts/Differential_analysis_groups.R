@@ -3,7 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 # 
 # ######################################################################
-invisible(lapply(c("Seurat","dplyr","cowplot",
+invisible(lapply(c("Seurat","dplyr","cowplot","stringi",
                    "magrittr","data.table","future","ggplot2","tidyr"), function(x) {
                        suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -15,15 +15,16 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
-if(!dir.exists(path))dir.create(path, recursive = T)
+save.path <- "Yang/Lung_30/DE_analysis/F_EVGs/"
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
 # load files
 object = readRDS(file = "data/Lung_30_20200710.rds") 
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "A - Sample types"
+step = "F-EVGs"
 
 if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list(ident1 = list("proximal",
@@ -148,4 +149,74 @@ if(step == "A - Sample types-age"){ #  need 64 GB for all cells. need 32 GB for 
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(path,"Lung_30_A_age_",args,"_celltypes=",groups[args],
                                  ".csv"))
+}
+
+if(step == "F-EVGs"){ #  need 64 GB for all cells. need 32 GB for others.
+    cell.types = c("AT1","AT2","AT2-1","AT2-p","BC-p","BC1","BC2","C1","C2","C3",
+                   "d-S","g-Muc","g-Ser","H","IC1","IC2","IC3","Ion","ME","NE",
+                   "p-C","S","Cr","En-a","En-c","En-c1","En-l","En-p","En-sm","En-v",
+                   "F1","F2","F3","F4","Gli","Nr","Pr","SM1","SM2","SM3",
+                   "B","DC","M-p","M0","M1","M1-2","M2","MC","Mon","Neu",
+                   "p-DC","PC","T-cn","T-ifn","T-NK","T-p","T-reg","T-rm","T7")
+    len_1 = length(cell.types)
+    Idents_list = list(ident1 = list("proximal",
+                                     "distal",
+                                     "distal",
+                                     "terminal",
+                                     "COPD",
+                                     "older" = c("UNC-54-D", "UNC-57-D", "UNC-66-D", "UNC-70-D")),
+                       ident2 = list(c("distal", "terminal"),
+                                     "proximal",
+                                     c("proximal","terminal"),
+                                     c("proximal","distal"),
+                                     "distal",
+                                     "younger" = c("UNC-44-D", "UNC-48-D", "UNC-55-D", "UNC-67-D", "UNC-69-D", "UNC-71-D", "VU-27-D")))
+    len_2 = length(Idents_list$ident1)
+    
+    i = ceiling((args/len_1) %% len_2)
+    if(args == len_1*len_2) i = len_2 #max(len_1*len_2)=354
+    
+    print(ident1 <- Idents_list$ident1[[i]])
+    print(ident2 <- Idents_list$ident2[[i]])
+    
+    print(cell.type <-cell.types[((args-1) %% len_1)+1])
+
+    # change cell name
+    anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+    Idents(object) = "annotations3"
+    object$cell.types = plyr::mapvalues(object$annotations3,
+                                        from = anno$Abbreviation,
+                                        to = anno$`Revised abbreviations`)
+    
+    # subset
+    compare = ifelse(i<6,"conditions","age")
+    
+    if(i==6) {
+        object$age = ""
+        object@meta.data[object$orig.ident %in% ident1,"age"] = "older"
+        object@meta.data[object$orig.ident %in% ident2,"age"] = "younger"
+        ident1="older"
+        ident2="younger"
+    }
+    Idents(object) = compare
+    object <- subset(object, idents = c(ident1,ident2))
+    
+    Idents(object) = "cell.types"
+    object %<>% subset(idents = cell.type)
+
+
+    if(length(ident2) >1){
+        object@meta.data[,compare] = gsub(paste(ident2, collapse = "|"),
+                                          paste(ident2, collapse = "+"),
+                                          object@meta.data[,compare])
+        ident2 = paste(ident2, collapse = "+")
+    }
+    Idents(object) = compare
+    Idents(object) %<>% factor(levels = c(ident1,ident2))
+    DEG <- FindAllMarkers.UMI(object, logfc.threshold = 0,test.use = "MAST",
+                              only.pos = FALSE,latent.vars = "nFeature_RNA",
+                              return.thresh = 1, p.adjust.methods = "fdr")
+    if(args < 10) args = paste0("0", args)
+    write.csv(DEG, file = paste0(save.path,"Lung_30_",args,"_",i,
+                                 "_",cell.type,"_",ident1,"_vs_",ident2,".csv"))
 }

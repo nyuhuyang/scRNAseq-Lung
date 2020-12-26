@@ -1,3 +1,4 @@
+# conda activate r4.0
 library(dplyr)
 library(magrittr)
 library(stringr)
@@ -5,6 +6,7 @@ library(ggsci)
 library(enrichR)
 library(openxlsx)
 library(progress)
+library(pbapply)
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -304,3 +306,70 @@ for(k in seq_along(projects)){
         Progress(i, length(deg_list))
     }
 }
+
+
+#====cell type-specific EVG gene ==============
+project = "EVGs/"
+save.path = paste0("Yang/Lung_30/GSEA/Enrichr/",project)
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
+superfamily <- c("Epithelial","Structural","Immune")
+res_list <- pblapply(superfamily, function(sheet) {
+    readxl::read_excel("Yang/Lung_30/DE_analysis/Lung_30-EVGs-full.xlsx",
+                       sheet = sheet)
+    })
+res_df <- do.call(cbind.fill, res_list)
+
+df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
+cell.types <- sort(df$cell.types)
+deg_list <- pblapply(cell.types, function(cell){
+    tmp = res_df[,grep(paste0("^",cell,"_"),colnames(res_df),value = T)] %>% as.data.frame()
+    tmp = tmp[!is.na(tmp[,paste0(cell,"_gene")]),]
+    tmp = tmp[tmp[,paste0(cell,"_gene")] != "",]
+    tmp[,2:6] %<>% apply(2,as.numeric)
+    tmp
+})
+names(deg_list) = cell.types
+deg_list = deg_list[lapply(deg_list,length)>0]
+
+enrichedRes <- list()
+for(i in 1:length(cell.types)){
+    cell = cell.types[i]
+    geneRank =  deg_list[[cell.types[i]]]
+    colnames(geneRank) %<>% gsub(paste0(cell,"_"),"",.)
+    geneRank = geneRank[order(geneRank["FC"]),c("gene","FC")]  %>% tibble::deframe()
+    tmp <- enrichr(names(geneRank), dbs) #dbs[-which(dbs %in% "dbGaP")])
+    # record and remove empty element in tmp
+    emp <- c()
+    for(k in seq_along(tmp)) {
+        if(nrow(tmp[[k]]) > 0 ) {
+            tmp[[k]][,"library"] = names(tmp[k])
+        } else emp = c(emp, k)
+    }
+    if(!is.null(emp)) tmp[emp] = NULL
+    
+    tmp = bind_rows(tmp)
+    tmp = tmp[tmp$Adjusted.P.value < 0.05,]
+    if(nrow(tmp) > 0 ) {
+        tmp$cell.types = cell.types[i]
+    } else tmp =NULL
+    enrichedRes[[i]] = tmp
+    Progress(i, length(cell.types))
+}
+df_enrichedRes =  bind_rows(enrichedRes)
+df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
+write.xlsx(df_enrichedRes, asTable = F,
+           file = paste0(save.path,"enrichR_EVG_all.xlsx"),
+           borders = "surrounding")
+
+enrichedRes_list <- split(df_enrichedRes, f = df_enrichedRes$library)
+for(i in seq_along(enrichedRes_list)){
+    write.csv(enrichedRes_list[[i]], file = paste0(save.path,"enrichR_EVG_",
+                                                   names(enrichedRes_list)[i],".csv"),
+              row.names = FALSE)
+    Progress(i, length(enrichedRes_list))
+    
+}
+write.xlsx(enrichedRes_list, asTable = F,
+           file = paste0(save.path,"enrichR_EVG_celltypes.xlsx"),
+           borders = "surrounding")
