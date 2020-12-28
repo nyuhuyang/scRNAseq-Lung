@@ -15,8 +15,7 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-save.path <- "Yang/Lung_30/DE_analysis/F_EVGs/"
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
 
 # load files
 object = readRDS(file = "data/Lung_30_20200710.rds") 
@@ -24,9 +23,11 @@ DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "F-EVGs"
+step = "F_EVGs"
+save.path <- paste0("Yang/Lung_30/DE_analysis/",step,"/")
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
-if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for others.
+if(step == "A_Sample_types"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list(ident1 = list("proximal",
                                      "proximal",
                                      "distal",
@@ -82,7 +83,7 @@ if(step == "A - Sample types"){ #  need 64 GB for all cells. need 32 GB for othe
 }
 
 
-if(step == "B - Cell groups"){ # need 32 GB
+if(step == "B_Cell_groups"){ # need 32 GB
     df_annotation <- readxl::read_excel("doc/20200903_Comparison groups of cells - Yang modified.xlsx",
                                         sheet = step)
     df_annotation = df_annotation[!is.na(df_annotation$`Group 1`),]
@@ -117,7 +118,7 @@ if(step == "B - Cell groups"){ # need 32 GB
     }
 
 
-if(step == "A - Sample types-age"){ #  need 64 GB for all cells. need 32 GB for others.
+if(step == "A_Sample_types-age"){ #  need 64 GB for all cells. need 32 GB for others.
     Idents_list = list("older" = c("UNC-54-D", "UNC-57-D", "UNC-66-D", "UNC-70-D"),
                        "younger" = c("UNC-44-D", "UNC-48-D", "UNC-55-D", "UNC-67-D", "UNC-69-D", "UNC-71-D", "VU-27-D"))
     Idents(object) = "orig.ident"
@@ -151,7 +152,7 @@ if(step == "A - Sample types-age"){ #  need 64 GB for all cells. need 32 GB for 
                                  ".csv"))
 }
 
-if(step == "F-EVGs"){ #  need 64 GB for all cells. need 32 GB for others.
+if(step == "F_EVGs"){ #  need 64 GB for all cells. need 32 GB for others.
     cell.types = c("AT1","AT2","AT2-1","AT2-p","BC-p","BC1","BC2","C1","C2","C3",
                    "d-S","g-Muc","g-Ser","H","IC1","IC2","IC3","Ion","ME","NE",
                    "p-C","S","Cr","En-a","En-c","En-c1","En-l","En-p","En-sm","En-v",

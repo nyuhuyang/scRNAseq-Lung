@@ -44,7 +44,7 @@ EVG_df <- pblapply(EVG,function(x) {
     temp[temp$genes != "",]
     }) %>% bind_rows
 
-res_list <- vector(mode = "list",length = length(superfamily))
+EVGs_list <- vector(mode = "list",length = length(superfamily))
 cbind.fill <- function(...){
     nm <- list(...) 
     nm <- lapply(nm, as.matrix)
@@ -75,11 +75,11 @@ for(i in seq_along(superfamily)){
     })
     res <- do.call(cbind.fill, genes.de)
     rownames(res) = NULL
-    res_list[[i]] = res
+    EVGs_list[[i]] = res
 }
 
-names(res_list) = superfamily
-openxlsx::write.xlsx(res_list, file =  paste0(save.path,"Lung_30-EVGs-full.xlsx"),
+names(EVGs_list) = superfamily
+openxlsx::write.xlsx(EVGs_list, file =  paste0(save.path,"Lung_30-EVGs-full.xlsx"),
                      colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # =============Volcano plots =============
@@ -96,25 +96,51 @@ openxlsx::write.xlsx(res_list, file =  paste0(save.path,"Lung_30-EVGs-full.xlsx"
 
 #Aspect ratio: the figures will have approximate size in the figure: height 1.2 width 1.2.
 
-read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
-save.path = "Yang/Lung_30/DE_analysis/VolcanoPlots/"
+read.path = "Yang/Lung_30/DE_analysis/F_EVGs/"
+save.path = "Yang/Lung_30/DE_analysis/VolcanoPlots/F_EVGs/"
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
-DE_list <- c("Lung_30_A_57_celltypes=1_ALL CELLS_proximal_vs_distal+terminal",
-             "Lung_30_A_113_celltypes=1_ALL CELLS_distal_vs_proximal+terminal",
-             "Lung_30_A_225_celltypes=1_ALL CELLS_terminal_vs_proximal+distal",
-             "Lung_30_A_281_celltypes=1_ALL CELLS_COPD_vs_distal")
+DE_list <- list.files(path = read.path,pattern = "\\.csv")
+
+# read EVGs
+superfamily <- c("Epithelial","Structural","Immune")
+EVGs_df <- lapply(superfamily, function(s) {
+    tmp = readxl::read_excel(paste0(read.path,"Lung_30-EVGs-full.xlsx"), sheet = s)
+    tmp = tmp[,-1]
+    tmp = tmp[,grep("_gene",colnames(tmp),value = T)]
+    colnames(tmp) %<>% gsub("_gene","",.)
+    tmp
+}) %>% do.call(cbind.fill,.)
+
+
 for(i in seq_along(DE_list)) {
-    DE_file = read.csv(paste0(read.path,DE_list[i],".csv"),row.names = 1)
-    cell.type = sub("_vs_.*","",DE_list[i]) %>% gsub(".*_","",.)
-    data = DE_file[DE_file$cluster %in% cell.type,]
+    DE_file <- tryCatch(expr = read.csv(paste0(read.path,DE_list[i]),row.names = 1),
+                error = function(cond) {
+        return(cond$message)
+    })
+    
+    (cell.type <- sub("_vs_.*","",DE_list[i]) %>% 
+            stringi::stri_split_fixed(pattern = "_",simplify = T) %>% .[5])
+    ident1 = sub("_vs_.*","",DE_list[i]) %>% sub(".*_","",.)
+    ident2 = sub(".*_vs_","",DE_list[i]) %>% sub("_.*","",.) %>% sub(".csv","",.)
+    
+    data = DE_file[DE_file$cluster %in% ident1,]
+    
+    EVGs = EVGs_df[,cell.type]
+    EVGs = EVGs[!(EVGs == "" | is.na(EVGs))]
+    
     cut_off = "p_val_adj"
     cut_off_value = 0.05
     cut_off_logFC = 1
     top = 15
     sort.by = "p_val_adj"
-    #cols = c("#2a71b2","#d2dae2","#ba2832")
-    cols = c("dark green","light green","light grey","orange","red")
+    cols = rev(c("dark green","light green","light grey","orange","red","black"))
+    names(cols) = c("Enriched Variable Genes(EVGs)",
+                    "Most Up-regulated",
+                    "Up-regulated",
+                    "Stable",
+                    "Down-regulated",
+                    "Most Down-regulated")
     alpha=0.9
     size=2
     
@@ -129,8 +155,16 @@ for(i in seq_along(DE_list)) {
              data$p_val_adj < cut_off_value,"change"] = "Most Up-regulated"
     data[data$avg_logFC < -cut_off_logFC &
              data$p_val_adj < cut_off_value,"change"] = "Most Down-regulated"
+    
+    # now show EVGs if Stable
+    #EVGs = EVGs[!(EVGs %in% data[data$change %in% "Stable","gene"])]
+    if(length(EVGs)>0) {
+        EVGs = EVGs[1:min(length(EVGs),top)]
+        data[EVGs,"change"] = "Enriched Variable Genes(EVGs)"
+    }
     data$change %<>% as.factor() %>% 
-        factor(levels = c("Most Up-regulated",
+        factor(levels = c("Enriched Variable Genes(EVGs)",
+                          "Most Up-regulated",
                           "Up-regulated",
                           "Stable",
                           "Down-regulated",
@@ -147,49 +181,77 @@ for(i in seq_along(DE_list)) {
         Up_gene_index <- rownames(Up)[Up[,sort.by] >= tail(head(sort(Up[,sort.by],decreasing = T),top),1)]
         Down_gene_index <- rownames(Down)[Down[,sort.by] <= tail(head(sort(Down[,sort.by],decreasing = F),top),1)]
     }
-    p<-ggplot(
+    # If too many gene with adj_p = 0
+    if(length(Up_gene_index) > top) Up_gene_index %<>% sample(top)
+    if(length(Down_gene_index) > top) Down_gene_index %<>% sample(top)
+            
+    p <- ggplot(
         #设置数据
         data, 
         mapping = aes_string(x = "avg_logFC", 
                              y = paste0("log10_",cut_off[1]),
                              fill = "change"))+
-        geom_point(alpha=alpha, size=size,color = "black", pch=21)
+        geom_point(alpha=alpha, size=size,color = "black", pch=21)+
+        ggtitle(label = paste(ident1, "vs.", ident2))
     # 辅助线
     p = p + geom_vline(xintercept=c(-cut_off_logFC,cut_off_logFC),lty=4,col="black",lwd=0.8)
     p = p + geom_hline(yintercept = -log10(cut_off_value),lty=4,col="black",lwd=0.8) +
         
         # 坐标轴
         labs(x="log2(fold change)",
-             y= paste("-log10 (",ifelse(cut_off[1] == "p_val_adj", "adjusted p-value","p-value"),")"))+
+             y= paste("-log10 (",ifelse(cut_off[1] == "p_val_adj", "adjusted p-value","p-value"),")"))+ 
+        theme_bw()+
         
         # 图例
         theme(plot.title = element_text(hjust = 0.5), 
               axis.title=element_text(size=12),
               legend.position="right", 
               legend.title = element_blank(),
-              legend.text = element_text(size = legend.size),
+              legend.text = element_text(size = 10),
         )
-    names(cols) = rev(c("Most Up-regulated",
-                        "Up-regulated",
-                        "Stable",
-                        "Down-regulated",
-                        "Most Down-regulated"))
     p = p +
-        scale_fill_manual(values=cols[unique(data$change)])+ theme_bw()
+        scale_fill_manual(values=cols[unique(data$change)])
     
-    jpeg(paste0(save.path,"VolcanoPlots_",sub(".*celltypes=1_","",DE_list[i]),"_noLabel.jpeg"), family = "Arial",
-         units="in", width=7, height=7,res=900)
-    print(p)
-    dev.off()
-    p = p + ggrepel::geom_text_repel(data = data[c(Down_gene_index, Up_gene_index),], 
+    p = p + ggrepel::geom_text_repel(data = data[c(Down_gene_index, Up_gene_index,EVGs),], 
                                      aes(label = gene),
                                      size = 3,box.padding = unit(0.5, "lines"),
                                      point.padding = unit(0.8, "lines"), 
                                      segment.color = "black", 
                                      show.legend = FALSE)
-    jpeg(paste0(save.path,"VolcanoPlots_",sub(".*celltypes=1_","",DE_list[i]),".jpeg"), family = "Arial",
+    fileName = stringi::stri_split_fixed(basename(DE_list[i]),pattern = "_",simplify = T,n = 5)[5] %>% sub("\\.csv","",.)
+    jpeg(paste0(save.path,"VolcanoPlots_",fileName,".jpeg"), family = "Arial",
          units="in", width=7, height=7,res=900)
     print(p)
     dev.off()
     svMisc::progress(i,length(DE_list))
 }
+
+read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
+save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
+
+(DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL CELLS",.,value = T))
+
+EVGs_long <- gather(as.data.frame(EVGs_df), "cell.type","gene") %>%
+    filter(gene != "")
+EVGs_full <- data.frame("gene" = sort(unique(EVGs_long$gene)))
+cell.types <- unique(EVGs_long$cell.type)
+for(i in seq_along(cell.types)) {
+    tmp = EVGs_long[EVGs_long$cell.type %in% cell.types[i],]
+    EVGs_full %<>% left_join(tmp,by = "gene")
+}
+EVGs_full %<>% as.matrix()
+EVGs <- apply(EVGs_full,1, function(x) as.character(na.exclude(x))) %>%
+    do.call(cbind.fill,.) %>% t %>% as.data.frame()
+colnames(EVGs) = 1:(ncol(EVGs))-1
+colnames(EVGs) %<>% paste0("EVGs_",.)
+colnames(EVGs)[1] = "gene"
+for(i in seq_along(DE_list)) {
+    DE_file <- tryCatch(expr = read.csv(paste0(read.path,DE_list[i]),row.names = 1),
+                        error = function(cond) {
+                            return(cond$message)
+                        })
+    DE_file %<>% full_join(EVGs,by = "gene")
+    DE_file[is.na(DE_file)]=""
+    write.csv(DE_file,paste0(save.path,DE_list[i]))
+    svMisc::progress(i,length(DE_list))
+    }
