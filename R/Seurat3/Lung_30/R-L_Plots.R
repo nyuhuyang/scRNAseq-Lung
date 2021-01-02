@@ -56,7 +56,8 @@ cell_order = c(rev(cell_order_list[["Epithelial"]]$cell.types)[14:22],
                rev(cell_order_list[["Structural"]]$cell.types),
                rev(cell_order_list[["Epithelial"]]$cell.types)[1:13])
 # Origin on top, then section, then subgroups
-d1 <- data.frame(Cell.group="origin", cell.types=c("Epithelial","Structural","Immune"))
+d1 <- data.frame(Cell.group="origin", cell.types=c("Epithelial","Structural","Immune"),
+                 stringsAsFactors = F)
 hierarchy <- rbind(d1, df[,c("Cell.group","cell.types")])
 # create a vertices data.frame. One line per object of our hierarchy, giving features of nodes.
 vertices <- data.frame(name = unique(c(hierarchy$Cell.group, hierarchy$cell.types)),
@@ -83,75 +84,77 @@ Hierarchical_Edge_Bundling <- function(d, vertices, hierarchy, select ="P vs D+T
     connect = sub_res[keep,]
     connect %<>% cbind(str_split(string = connect$`Cell-cell pair`,pattern = "_",simplify = T))
     connect = connect[connect$`1` != connect$`2`,]
+    colnames(connect) %<>% plyr::mapvalues(from = c("1","2",paste0(select,"_FC")),to =c("from","to","FC"))
+    connect = connect[,c("from","to","FC")]
+    connect$from %<>% as.character()
+    connect$to %<>% as.character()
     
-    # remove unwanted cell types
-    wanted_cells = (connect$`1` %in% vertices$name) & (connect$`2` %in% vertices$name)
+    # remove unwanted cell types and FC < 0
+    wanted_cells = (connect$from %in% vertices$name) & (connect$to %in% vertices$name)
+    wanted_cells = wanted_cells & connect$FC > 0
     connect = connect[wanted_cells,]
     
+    connect$log2FC = log2(connect$FC)
+    connect$split_by = connect$FC >= FC
     # split by FC
-    keep1 = connect[,paste0(select,"_FC")] < FC
+    connect_list <-split(connect, connect$split_by)
     
-    connect1 = connect[keep1,c("1","2")]
-    colnames(connect1) = c("from","to")
-    
-    keep2 = connect[,paste0(select,"_FC")] >= FC
-    connect2 = connect[keep2,c("1","2")]
-    colnames(connect2) = c("from","to")
-
     ##==========  vertices data.frame ==================
-    df_Freq <- table(c(connect2$from,connect2$to)) %>% as.data.frame
-    colnames(df_Freq)=c("name","Freq")
-    vertices %<>% left_join(df_Freq, by = "name")
+    df_Freq <- table(c(connect_list[[2]]$from,connect_list[[2]]$to)) %>% as.data.frame
+    colnames(df_Freq)=c("name","Interactions")
+    vertices1 <- left_join(vertices, df_Freq, by = "name")
     
     # assign group
-    group <- df[match(vertices$name, df$cell.types),"Cell.group"]
+    group <- df[match(vertices1$name, df$cell.types),"Cell.group"]
     group = na.omit(group$Cell.group)
     #Reorder dataset and make the graph
     
-    vertices$Freq[is.na(vertices$Freq)]=0
+    vertices1$Interactions[is.na(vertices1$Interactions)]=0
     
-    from_1  <-  match(as.character(connect1$from), as.character(vertices$name))
-    to_1  <-  match(as.character(connect1$to), as.character(vertices$name))
+    connect_list[[1]]$from %<>% as.character %>%  match(as.character(vertices1$name))
+    connect_list[[1]]$to %<>% as.character %>%  match(as.character(vertices1$name))
 
-    from_2  <-  match(as.character(connect2$from), as.character(vertices$name))
-    to_2  <-  match(as.character(connect2$to), as.character(vertices$name))    
+    connect_list[[2]]$from %<>% as.character %>% match(as.character(vertices1$name))
+    connect_list[[2]]$to %<>% as.character %>% match(as.character(vertices1$name))    
     
-    if(is.null(n)) n=length(from_1)
+    if(is.null(n)) n=length(connect_list[[1]]$from)
     # prepare a vector of n color in the viridis scale
-    mycolor <- unique(df$hexcolor)[match(unique(df$Cell.group),unique(vertices$group))]
+    mycolor <- unique(df$hexcolor)[match(unique(df$Cell.group),unique(vertices1$group))]
     
     # Create a graph object with igraph
-    mygraph <- igraph::graph_from_data_frame( hierarchy, vertices=vertices )
+    mygraph <- igraph::graph_from_data_frame( hierarchy, vertices=vertices1 )
 
 
     g <- ggraph(mygraph, layout = 'dendrogram', circular = TRUE) +  
-        geom_conn_bundle(data = get_con(from = from_1[1:n], to = to_1[1:n]), alpha=0.1, width=0.5,colour="grey",tension = 1) +
-        geom_conn_bundle(data = get_con(from = from_2, to = to_2), alpha=0.5, width=0.9,aes(colour=group),tension = 1) +
-        geom_node_point(aes(x = x*1.08, y=y*1.08, filter = leaf, size=Freq, fill=group),alpha=0.5,pch=21) +
-        scale_color_manual(values=c("darkred","darkgreen","darkblue")) +
+        geom_conn_bundle(data = get_con(from = connect_list[[1]]$from[1:n],to = connect_list[[1]]$to[1:n],FC = connect_list[[1]]$FC[1:n]),
+                         alpha=0.4,width=0.5,colour="grey",tension = 1) +
+        geom_conn_bundle(data = get_con(from = connect_list[[2]]$from, to = connect_list[[2]]$to,FC = connect_list[[2]]$FC),
+                         aes(colour=group),width=0.9,tension = 1) +
+        geom_node_point(aes(x = x*1.08, y=y*1.08, filter = leaf, size=Interactions, fill=group),alpha=0.5,pch=21) +
+        scale_color_manual(values=c("darkred","darkgreen","darkblue"),
+                           guide = guide_legend(override.aes = list(size = 3,
+                                                                    alpha = 1) )) +
         geom_node_text(aes(x = x*1.18, y=y*1.18, filter = leaf, label=name,  angle=angle,hjust =hjust, colour=group), size=7) +
         scale_size_continuous( range = c(0.1,10) ) +
         theme_void() +
         theme(
-            legend.position="none",
+            #legend.position="none",
             plot.margin=unit(c(0,0,0,0), "cm"),
             panel.spacing=unit(c(0,0,0,0), "cm")
         ) +
         expand_limits(x = c(-1.4, 1.4), y = c(-1.4, 1.4))
-
-    
-    
+    print(g)
     jpeg(paste0(save.path,"new_chordDiagram_",select,".jpeg"), family = "Arial",
          units="in", width=8, height=8,res=900)
-    print(g)
+
     dev.off()
 }
 
 pbsapply(c("P vs D+T"
-           #, "D vs P+T","T vs P+D", "COPD vs D","D vs COPD"
+           , "D vs P+T","T vs P+D", "COPD vs D","D vs COPD"
            ), function(s) {
     Hierarchical_Edge_Bundling(d = df_res,vertices = vertices,hierarchy = hierarchy,
-                               select =s, FC = 4,n=NULL,save.path = paste0(path,"FC>=2/"))
+                               select =s, FC = 2,n=NULL,save.path = paste0(path,"test/"))
 })
 
 #  ============== Alluvial Plots =====================

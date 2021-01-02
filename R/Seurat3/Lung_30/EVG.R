@@ -227,9 +227,13 @@ for(i in seq_along(DE_list)) {
 }
 
 read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
+read.path = "Yang/Lung_30/DE_analysis/D_age/"
+
 save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
 
 (DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL CELLS",.,value = T))
+
+(DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL ",.,value = T))
 
 EVGs_long <- gather(as.data.frame(EVGs_df), "cell.type","gene") %>%
     filter(gene != "")
@@ -250,7 +254,8 @@ for(i in seq_along(DE_list)) {
                         error = function(cond) {
                             return(cond$message)
                         })
-    DE_file %<>% full_join(EVGs,by = "gene")
+    DE_file %<>% full_join(EVGs,by = "gene") %>% as.matrix()
+    
     DE_file[is.na(DE_file)]=""
     write.csv(DE_file,paste0(save.path,DE_list[i]))
     svMisc::progress(i,length(DE_list))

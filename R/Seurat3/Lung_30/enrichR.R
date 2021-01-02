@@ -315,7 +315,7 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
 superfamily <- c("Epithelial","Structural","Immune")
 res_list <- pblapply(superfamily, function(sheet) {
-    readxl::read_excel("Yang/Lung_30/DE_analysis/Lung_30-EVGs-full.xlsx",
+    readxl::read_excel("Yang/Lung_30/DE_analysis/F_EVGs_allCells/Lung_30-EVGs-full.xlsx",
                        sheet = sheet)
     })
 res_df <- do.call(cbind.fill, res_list)
