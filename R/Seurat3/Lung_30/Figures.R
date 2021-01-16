@@ -260,3 +260,18 @@ for(i in seq_along(DE_list)) {
     dev.off()
     svMisc::progress(i,length(DE_list))
 }
+
+# rename and add color
+anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+table(anno$Abbreviation %in% object$annotations3)
+object$cell_types <- plyr::mapvalues(object$annotations3,
+                                     from = anno$Abbreviation,
+                                     to = anno$`Revised abbreviations`)
+cell_types.color = anno$hexcode
+names(cell_types.color) = anno$`Revised abbreviations`
+Idents(object) = "cell_types"
+object <- AddMetaColor(object = object, label= "cell_types", colors = cell_types.color)
+UMAPPlot.1(object, cols = ExtractMetaColor(object),no.legend = T, do.print = T)
+sub_object <- subset(object, idents = c("IC3","T-int"))
+UMAPPlot.1(sub_object, cols = ExtractMetaColor(sub_object),no.legend = T, do.print = T)
+saveRDS(object, file = "data/Lung_30_20200710.rds")

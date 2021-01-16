@@ -7,9 +7,12 @@ invisible(lapply(c("dplyr","magrittr","data.table","pbapply","tibble","tidyr"), 
     suppressPackageStartupMessages(library(x,character.only = T))
 }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
-save.path <- "Yang/Lung_30/DE_analysis/F_EVGs/"
+read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
+#read.path = "Yang/Lung_30/DE_analysis/D_age/"
+
+save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
- 
+
 #=======
 Expression = data.table::fread(file = "output/20201215/Lung_30-Cell.types_expression.txt",
                    sep = "\t") %>% as.data.frame()
@@ -96,7 +99,7 @@ openxlsx::write.xlsx(EVGs_list, file =  paste0(save.path,"Lung_30-EVGs-full.xlsx
 
 #Aspect ratio: the figures will have approximate size in the figure: height 1.2 width 1.2.
 
-read.path = "Yang/Lung_30/DE_analysis/F_EVGs/"
+read.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
 save.path = "Yang/Lung_30/DE_analysis/VolcanoPlots/F_EVGs/"
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
@@ -226,13 +229,8 @@ for(i in seq_along(DE_list)) {
     svMisc::progress(i,length(DE_list))
 }
 
-read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
-read.path = "Yang/Lung_30/DE_analysis/D_age/"
-
-save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
-
+#============
 (DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL CELLS",.,value = T))
-
 (DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL ",.,value = T))
 
 EVGs_long <- gather(as.data.frame(EVGs_df), "cell.type","gene") %>%

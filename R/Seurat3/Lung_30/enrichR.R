@@ -31,63 +31,6 @@ dbs = df[unique(df_color$ri)-1, "Gene-set Library"] %>% pull %>% sort
 dbs = dbs[-which(dbs %in% "dbGaP")]
 
 #===========================
-# read data
-# C_Cell_types
-project = "C_Cell_types/"
-save.path = paste0(path,"Enrichr/",project)
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
-
-csv_list <- list.files(paste0(read.path, project), full.names = T)
-deg_list <- lapply(csv_list, function(x) read.csv(x, row.names = 1,
-                                                  stringsAsFactors=F))
-deg_list %<>% lapply(function(res) res[order(res["p_val_adj"]),])
-(clusters <- sapply(deg_list, function(res) unique(res$cluster)))
-names(deg_list) = clusters
-res =  bind_rows(deg_list)
-(clusters = unique(as.character(res$cluster)))
-
-enrichedRes <- list()
-for(i in 1:length(clusters)){
-    geneRank = res[res$cluster == clusters[i],]
-    geneRank = geneRank[geneRank$avg_logFC >= 0.5 & geneRank$p_val_adj < 0.05, ]
-    geneRank = geneRank[order(geneRank["avg_logFC"]),c("gene","avg_logFC")]  %>% tibble::deframe()
-    tmp <- enrichr(names(geneRank), dbs) #dbs[-which(dbs %in% "dbGaP")])
-    # record and remove empty element in tmp
-    emp <- c()
-    for(k in seq_along(tmp)) {
-        if(nrow(tmp[[k]]) > 0 ) {
-            tmp[[k]][,"library"] = names(tmp[k])
-        } else emp = c(emp, k)
-    }
-    if(!is.null(emp)) tmp[emp] = NULL
-    
-    tmp = bind_rows(tmp)
-    tmp = tmp[tmp$Adjusted.P.value < 0.05,]
-    if(nrow(tmp) > 0 ) {
-        tmp$cluster = clusters[i]
-    } else tmp =NULL
-    enrichedRes[[i]] = tmp
-    Progress(i, length(clusters))
-}
-df_enrichedRes =  bind_rows(enrichedRes)
-df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
-write.xlsx(df_enrichedRes, asTable = F,
-           file = paste0(save.path,"enrichR_celltypes_FDR0.05.xlsx"),
-           borders = "surrounding")
-
-enrichedRes_list <- split(df_enrichedRes, f = df_enrichedRes$library)
-for(i in seq_along(enrichedRes_list)){
-    write.csv(enrichedRes_list[[i]], file = paste0(save.path,"enrichR_celltypes_",
-                                                   names(enrichedRes_list)[i],".csv"),
-              row.names = FALSE)
-    Progress(i, length(enrichedRes_list))
-    
-}
-write.xlsx(enrichedRes_list, asTable = F,
-           file = paste0(save.path,"enrichR_celltypes_FDR0.25_pval0.05.xlsx"),
-           borders = "surrounding")
-
-#===========================
 project = "A_Sample_types/"
 save.path = paste0(path,"Enrichr/",project)
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
@@ -288,6 +231,64 @@ for(i in seq_along(enrichedRes_list)){
               row.names = FALSE)
     Progress(i, length(enrichedRes_list))
 }
+
+#===========================
+# read data
+# C_Cell_types
+project = "C_Cell_types/"
+save.path = paste0(path,"Enrichr/",project)
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
+csv_list <- list.files(paste0(read.path, project), full.names = T)
+deg_list <- lapply(csv_list, function(x) read.csv(x, row.names = 1,
+                                                  stringsAsFactors=F))
+deg_list %<>% lapply(function(res) res[order(res["p_val_adj"]),])
+(clusters <- sapply(deg_list, function(res) unique(res$cluster)))
+names(deg_list) = clusters
+res =  bind_rows(deg_list)
+(clusters = unique(as.character(res$cluster)))
+
+enrichedRes <- list()
+for(i in 1:length(clusters)){
+    geneRank = res[res$cluster == clusters[i],]
+    geneRank = geneRank[geneRank$avg_logFC >= 0.5 & geneRank$p_val_adj < 0.05, ]
+    geneRank = geneRank[order(geneRank["avg_logFC"]),c("gene","avg_logFC")]  %>% tibble::deframe()
+    tmp <- enrichr(names(geneRank), dbs) #dbs[-which(dbs %in% "dbGaP")])
+    # record and remove empty element in tmp
+    emp <- c()
+    for(k in seq_along(tmp)) {
+        if(nrow(tmp[[k]]) > 0 ) {
+            tmp[[k]][,"library"] = names(tmp[k])
+        } else emp = c(emp, k)
+    }
+    if(!is.null(emp)) tmp[emp] = NULL
+    
+    tmp = bind_rows(tmp)
+    tmp = tmp[tmp$Adjusted.P.value < 0.05,]
+    if(nrow(tmp) > 0 ) {
+        tmp$cluster = clusters[i]
+    } else tmp =NULL
+    enrichedRes[[i]] = tmp
+    Progress(i, length(clusters))
+}
+df_enrichedRes =  bind_rows(enrichedRes)
+df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
+write.xlsx(df_enrichedRes, asTable = F,
+           file = paste0(save.path,"enrichR_celltypes_FDR0.05.xlsx"),
+           borders = "surrounding")
+
+enrichedRes_list <- split(df_enrichedRes, f = df_enrichedRes$library)
+for(i in seq_along(enrichedRes_list)){
+    write.csv(enrichedRes_list[[i]], file = paste0(save.path,"enrichR_celltypes_",
+                                                   names(enrichedRes_list)[i],".csv"),
+              row.names = FALSE)
+    Progress(i, length(enrichedRes_list))
+    
+}
+write.xlsx(enrichedRes_list, asTable = F,
+           file = paste0(save.path,"enrichR_celltypes_FDR0.25_pval0.05.xlsx"),
+           borders = "surrounding")
+
 ##################
 projects = c("C_Cell_types/","A_Sample_types/adj p < 10(-20)",
             #"B_Cell_groups/adj p < 10(-20)",
@@ -318,10 +319,18 @@ res_list <- pblapply(superfamily, function(sheet) {
     readxl::read_excel("Yang/Lung_30/DE_analysis/F_EVGs_allCells/Lung_30-EVGs-full.xlsx",
                        sheet = sheet)
     })
+cbind.fill <- function(...){
+    nm <- list(...) 
+    nm <- lapply(nm, as.matrix)
+    n <- max(sapply(nm, nrow)) 
+    do.call(cbind, lapply(nm, function (x) 
+        rbind(x, matrix("", n-nrow(x), ncol(x))))) 
+}
+
 res_df <- do.call(cbind.fill, res_list)
 
 df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
-cell.types <- sort(df$cell.types)
+(cell.types <- sort(df$cell.types))
 deg_list <- pblapply(cell.types, function(cell){
     tmp = res_df[,grep(paste0("^",cell,"_"),colnames(res_df),value = T)] %>% as.data.frame()
     tmp = tmp[!is.na(tmp[,paste0(cell,"_gene")]),]
@@ -373,3 +382,12 @@ for(i in seq_along(enrichedRes_list)){
 write.xlsx(enrichedRes_list, asTable = F,
            file = paste0(save.path,"enrichR_EVG_celltypes.xlsx"),
            borders = "surrounding")
+#how many samples (and how many different tissues) were used in this HGA data set? 
+library(data.table)
+HGA <- fread('https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=Human_Gene_Atlas',
+             fill=TRUE,comment.char=.)
+# For GTEx, was the v8 release of GTEx included in Enrichr? This will give an idea how many samples were included overall.
+GTEx <- fread('https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=GTEx_Tissue_Sample_Gene_Expression_Profiles_up',
+              fill=TRUE)
+GTEx <- fread("/Users/yah2014/Downloads/GTEx_Tissue_Sample_Gene_Expression_Profiles_up.txt",fill=TRUE,
+              sep="\t")
