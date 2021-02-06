@@ -5,6 +5,8 @@ library(magrittr)
 library(Seurat)
 library(kableExtra)
 library(openxlsx)
+library(data.table)
+
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
@@ -13,24 +15,36 @@ set.seed(101)
 GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
                          stringsAsFactors = F)
 rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
+rownames(GTE_meta.data) = gsub("-","\\.", rownames(GTE_meta.data))
+select = paste(rownames(GTE_meta.data),collapse = "|")
 
+# counts
 counts = CePa::read.gct("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct")
 format(object.size(counts),unit = "GB")
 
-rownames(GTE_meta.data) = gsub("-","\\.", rownames(GTE_meta.data))
-select = paste(rownames(GTE_meta.data),collapse = "|")
 select = grep(select,colnames(counts), value = T)
 
 counts = counts[,select]
 counts = counts[rowSums(counts) > 0,]
-write.csv(counts, file="data/RNA-seq/GTEx-Lung")
+write.csv(counts, file="data/RNA-seq/GTEx-Lung-counts.csv")
+
+# tpm
+tpm =  CePa::read.gct("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct")
+format(object.size(tpm),unit = "GB")
+select = grep(select,colnames(tpm), value = T)
+
+tpm = tpm[,select]
+tpm = tpm[rowSums(tpm) > 0,]
+write.csv(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
+#fwrite(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
 
 # on Mac
 GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
                          stringsAsFactors = F)
 rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
-counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
-counts = counts[-1,]
+
+#counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
+counts = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
 df_counts = data.frame(ensembl_gene_id = gsub("\\..*","",rownames(counts)),
                        row.names = rownames(counts))
 
@@ -81,7 +95,7 @@ save(object, file = "data/Lung_GTEx_20200307.Rda")
 df_counts  = as.matrix(object[["RNA"]]@counts)
 df_counts = cbind(object[["Age.Bracket"]],t(df_counts))
 df_counts = df_counts[order(df_counts[,"Age.Bracket"]),]
-write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-counts.csv")
+write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-tpm.csv")
 df_counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 
 # read optimized DEGs
