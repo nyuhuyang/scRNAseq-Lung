@@ -15,15 +15,13 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-
-
 # load files
 object = readRDS(file = "data/Lung_30_20200710.rds") 
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "F_EVGs"
+step = "Epithelial"
 save.path <- paste0("Yang/Lung_30/DE_analysis/",step,"/")
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
@@ -152,7 +150,7 @@ if(step == "A_Sample_types-age"){ #  need 64 GB for all cells. need 32 GB for ot
                                  ".csv"))
 }
 
-if(step == "F_EVGs"){ #  need 64 GB for all cells. need 32 GB for others.
+if(step == "F_EVGs"){ # need 64 GB for all cells. need 32 GB for others.
     cell.types = c("AT1","AT2","AT2-1","AT2-p","BC-p","BC1","BC2","C1","C2","C3",
                    "d-S","g-Muc","g-Ser","H","IC1","IC2","IC3","Ion","ME","NE",
                    "p-C","S","Cr","En-a","En-c","En-c1","En-l","En-p","En-sm","En-v",
@@ -220,4 +218,31 @@ if(step == "F_EVGs"){ #  need 64 GB for all cells. need 32 GB for others.
     if(args < 10) args = paste0("0", args)
     write.csv(DEG, file = paste0(save.path,"Lung_30_",args,"_",i,
                                  "_",cell.type,"_",ident1,"_vs_",ident2,".csv"))
+}
+
+if(step == "Epithelial"){
+    anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+    table(anno$Abbreviation %in% object$annotations3)
+    object$cell_types <- plyr::mapvalues(object$annotations3,
+                                         from = anno$Abbreviation,
+                                         to = anno$`Revised abbreviations`)
+    cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                                            "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                            "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                           "Airway epithelial cells"=c("BC1","BC-p","BC2","C1","C2","C3","H","IC3",
+                                       "IC1","IC2","Ion","p-C","S","d-S","g-Muc","g-Ser"))
+    cell.type_unlist = unlist(cell.type_list)
+    cell.type = cell.type_unlist[args]
+    group = gsub("[1-9+]","",names(cell.type))
+    
+    Idents(object) = "cell_types"
+    object %<>% subset(idents = cell.type_list[[group]])
+    Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, ident.2 = NULL,
+                                    logfc.threshold = 0, only.pos = F,
+                                    latent.vars = "nFeature_RNA",
+                                    test.use = "MAST",min.cells.group = 2)
+    Lung_markers$gene = rownames(Lung_markers)
+    Lung_markers$cluster = paste(cell.type, "vs.", group)
+    if(args < 10) args = paste0("0", args)
+    write.csv(Lung_markers,paste0(save.path,"Lung_30-",args,"_FC0_",cell.type,"_vs_", group,".csv"))
 }
