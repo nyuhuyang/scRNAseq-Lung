@@ -90,25 +90,30 @@ EVGs_df <- do.call(cbind.fill, EVGs_list)
 EVGs_sorted = EVGs_df[,grep("gene",colnames(EVGs_df))]
 colnames(EVGs_sorted) %<>% gsub("_gene$","",.)
 cell.types = colnames(EVGs_sorted)
-df_counts = fread("data/RNA-seq/GTEx-Lung-tpm.csv",header = T)
-if(df_counts$V1[1] == "Age.Bracket") df_counts = df_counts[-1,]
-temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",sheet = "AT1")
+df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm.csv",header = T)
+if(df_TPM$V1[1] == "Age.Bracket") df_TPM = df_TPM[-1,]
+TPM <- column_to_rownames(df_TPM, var = "V1") %>% sapply(as.numeric) %>%
+    as.data.frame
+TPM = cbind("V1"=df_TPM$V1,TPM)
+rownames(TPM) = TPM$V1
+
+temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",sheet = "AT1",)
 colnames(temp)[1] = "V1"
 exp_list <- list()
 for(i in seq_along(cell.types)) {
     genes <- EVGs_sorted[,cell.types[i]]
     genes = genes[genes != ""]
     genes = genes[!is.na(genes)]
-    exp <- df_counts %>% filter(V1 %in% genes) %>% setcolorder(colnames(temp))
+    exp <- TPM[genes,colnames(temp)]
     genes = genes[genes %in% exp$V1]
     exp = exp[match(genes, exp$V1),]
-    exp_list[[i]] = rbind.data.frame(temp,exp)
+    exp_list[[i]] = exp#rbind.data.frame(temp,exp)
     colnames(exp_list[[i]])[1] = ""
     Progress(i, length(cell.types))
 }
 
 names(exp_list) = cell.types
-openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",
+openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered~.xlsx",
                      colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # =============Volcano plots =============

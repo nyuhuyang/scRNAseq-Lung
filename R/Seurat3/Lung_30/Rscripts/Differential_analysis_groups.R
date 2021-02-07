@@ -230,7 +230,7 @@ if(step == "Epithelial"){
                                             "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
                                             "g-Ser","AT1","AT2","AT2-1","AT2-p"),
                            "Airway epithelial cells"=c("BC1","BC-p","BC2","C1","C2","C3","H","IC3",
-                                       "IC1","IC2","Ion","p-C","S","d-S","g-Muc","g-Ser"))
+                                       "IC1","IC2","Ion","p-C","S","d-S","ME"))
     cell.type_unlist = unlist(cell.type_list)
     cell.type = cell.type_unlist[args]
     group = gsub("[1-9+]","",names(cell.type))
