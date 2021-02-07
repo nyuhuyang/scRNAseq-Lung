@@ -21,7 +21,7 @@ DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "Epithelial"
+step = "groups"
 save.path <- paste0("Yang/Lung_30/DE_analysis/",step,"/")
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
@@ -220,7 +220,7 @@ if(step == "F_EVGs"){ # need 64 GB for all cells. need 32 GB for others.
                                  "_",cell.type,"_",ident1,"_vs_",ident2,".csv"))
 }
 
-if(step == "Epithelial"){
+if(step == "groups"){
     anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
     table(anno$Abbreviation %in% object$annotations3)
     object$cell_types <- plyr::mapvalues(object$annotations3,
@@ -229,8 +229,17 @@ if(step == "Epithelial"){
     cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
                                             "H","p-C","C1","C2","C3","Ion","NE","g-Muc",
                                             "g-Ser","AT1","AT2","AT2-1","AT2-p","ME"),
-                           "Airway epithelial cells"=c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
-                                                       "H","p-C","C1","C2","C3","Ion","NE"))
+                           "Surface Airway Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                                                       "H","p-C","C1","C2","C3","Ion","NE"),
+                           "Airway Epithelial" = c("AT1","AT2","AT2-1","AT2-p"),
+                           "Structural" = c("ME","Cr","Gli","F1","F2","F3","F4",
+                                            "Nr","Pr","SM1","SM2","SM3",
+                                            "En-a","En-c","En-c1","En-l","En-p","En-sm","En-v"),
+                           "Immune" = c("B","DC",
+                                        "M-p","M0","M1","M1-2","M2","MC","Mon","Neu",
+                                        "p-DC","PC","RBC",
+                                        "T-cn","T-ifn","T-int","T-NK","T-p","T-reg","T-rm")
+                           )
     
     cell.type_unlist = unlist(cell.type_list)
     cell.type = cell.type_unlist[args]
@@ -245,5 +254,8 @@ if(step == "Epithelial"){
     Lung_markers$gene = rownames(Lung_markers)
     Lung_markers$cluster = paste(cell.type, "vs.", group)
     if(args < 10) args = paste0("0", args)
+    
+    save.path <- paste0(save.path,group,"/")
+    if(!dir.exists(save.path))dir.create(save.path, recursive = T)
     write.csv(Lung_markers,paste0(save.path,"Lung_30-",args,"_FC0_",cell.type,"_vs_", group,".csv"))
 }
