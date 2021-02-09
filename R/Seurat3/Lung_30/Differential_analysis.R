@@ -324,3 +324,32 @@ group_list[group_list == "ALL CELLS"][[1]] =
         unique(unlist(group_list[2:53]))
 write.csv(as.data.frame.matrix(table(object$annotations3, object$age)), 
           file = paste0(save.path, "Distal_celltypes_vs_age.csv"))
+
+# ================
+save.path <- paste0("Yang/Lung_30/DE_analysis/groups/")
+cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                                        "H","p-C","C1","C2","C3","Ion","NE","g-Muc",
+                                        "g-Ser","AT1","AT2","AT2-1","AT2-p","ME"),
+                       "Surface Airway Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                                                       "H","p-C","C1","C2","C3","Ion","NE"),
+                       "Airway Epithelial" = c("AT1","AT2","AT2-1","AT2-p"),
+                       "Structural" = c("ME","Cr","Gli","F1","F2","F3","F4",
+                                        "Nr","Pr","SM1","SM2","SM3",
+                                        "En-a","En-c","En-c1","En-l","En-p","En-sm","En-v"),
+                       "Immune" = c("B","DC",
+                                    "M-p","M0","M1","M1-2","M2","MC","Mon","Neu",
+                                    "p-DC","PC","RBC",
+                                    "T-cn","T-ifn","T-int","T-NK","T-p","T-reg","T-rm")
+)
+
+for(g in names(cell.type_list[c(1,3:5)])){
+        csv_list = list.files(paste0(save.path,g),full.names = T)
+        deg_list = pbapply::pblapply(csv_list, function(x) {
+                read.csv(x,row.names = 1) %>% filter(avg_logFC > 0)
+                })
+        names(deg_list) = cell.type_list[[g]]
+        openxlsx::write.xlsx(deg_list, 
+                             file =  paste0(save.path,"DE_results_",g,".xlsx"),
+                             colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+}
+

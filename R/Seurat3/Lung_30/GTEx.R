@@ -252,25 +252,24 @@ counts_meta <- cbind(meta.data, counts[rownames(meta.data),])
 write.csv(t(counts_meta), paste0(path, "GTEx_counts.csv"))
 
 
-# 20201108 ===============
 library(dplyr)
 library(magrittr)
 library(openxlsx)
 # assemble a file containing cell type genes with FC and p adj values retrieved from the April analysis. 
 
 # read optimized DEGs
-save.path = "Yang/GTEx/results_2020April/"
-if(save.path == "Yang/GTEx/results_2020April/"){
+GTEx.path = "Yang/GTEx/results_2020April/"
+if(GTEx.path == "Yang/GTEx/results_2020April/"){
         DEGs <- read.csv(file = "Yang/Lung_30/DE_analysis/Optimized_cell_type_DEG.csv",row.names = 1)
         DEGs = DEGs[,c("gene","cluster")]
         colnames(DEGs)[2] ="cell.type"
 }
 
-save.path = "Yang/GTEx/results_2020December/"
-
-if(save.path == "Yang/GTEx/results_2020December/"){
+# read optimized DEGs
+GTEx.path = "Yang/GTEx/results_2020December/"
+if(GTEx.path == "Yang/GTEx/results_2020December/"){
         # Age-related GTEx analysis – you would need to extract only data for EVG genes from age-related GTEx genes
-        EVGs.path <- "Yang/Lung_30/DE_analysis/F_EVGs/"
+        EVGs.path <- "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
         superfamily <- c("Epithelial","Structural","Immune")
         EVGs_list <- lapply(superfamily, function(s) {
                 tmp = readxl::read_excel(paste0(EVGs.path,"Lung_30-EVGs.xlsx"), sheet = s)
@@ -288,8 +287,16 @@ if(save.path == "Yang/GTEx/results_2020December/"){
         EVGs = EVGs[!is.na(EVGs$gene),]
         DEGs = EVGs
 }
+# 20210209 =============
+# read supersignatures
+GTEx.path = "Yang/GTEx/results_2021Feb/"
+if(!dir.exists(GTEx.path))dir.create(GTEx.path, recursive = T)
 
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+# Age-related GTEx analysis – you would need to extract only data for EVG genes from age-related GTEx genes
+EVGs.path <- "Yang/Lung_30/DE_analysis/C_Cell_types/"
+DEGs = readxl::read_excel(paste0(EVGs.path,"supersignatures.xlsx"))
+colnames(DEGs) %<>% gsub("cluster","cell.type",.)
+DEGs = DEGs[,c("cell.type","gene")]
 # combine with previous results_2020April
 read.path = "Yang/GTEx/Archive/"
 
@@ -298,15 +305,15 @@ dge = read.csv(paste0(read.path, "age_markers_FC0.csv"))
 if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
 dge %<>% right_join(DEGs, by = "gene") 
 dge = dge[order(dge$cell.type),]
-write.xlsx(dge, file = paste0(save.path,"1a.All (both males and females) young vs old.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+rownames(dge) = NULL
+write.csv(dge, file = paste0(GTEx.path,"1a.All (both males and females) young vs old.csv"))
+
 #1b. age_markers
 dge = read.csv(paste0(read.path, "age_markers_subset_FC0.csv"))
 if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
 dge %<>% right_join(DEGs, by = "gene") 
 dge = dge[order(dge$cell.type),]
-write.xlsx(dge, file = paste0(save.path,"1b.All (both males and females) part of young vs old.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+write.csv(dge, file = paste0(GTEx.path,"1b.All (both males and females) part of young vs old.csv"))
 
 
 #2a. age_gender_markers
@@ -315,7 +322,7 @@ for(i in 1:2){
         dge <- readxl::read_excel(paste0(read.path,"2a-age_gender_markers_FC0.xlsx"),sheet = sex)
         dge %<>% right_join(DEGs, by = "gene")
         dge = dge[order(dge$cell.type),]
-        write.xlsx(dge, file = paste0(save.path,"2a.",sex,"-young_vs_old.xlsx"),
+        write.xlsx(dge, file = paste0(GTEx.path,"2a.",sex,"-young_vs_old.xlsx"),
                    colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
         svMisc::progress(i, 2)
 }
@@ -324,11 +331,9 @@ for(i in 1:2){
 dge <- read.csv(paste0(read.path,"2b-age_gender_markers_FC0.csv"), row.names = 1)
 dge %<>% right_join(DEGs, by = "gene")
 dge = dge[order(dge$cell.type),]
-write.xlsx(dge, file = paste0(save.path,"2b-male_vs_female_by_age.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female_by_age.xlsx"))
 
 dge <- read.csv(paste0(read.path,"2b-gender_markers_FC0.csv"), row.names = 1)
 dge %<>% right_join(DEGs, by = "gene")
 dge = dge[order(dge$cell.type),]
-write.xlsx(dge, file = paste0(save.path,"2b-male_vs_female.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female.csv"))
