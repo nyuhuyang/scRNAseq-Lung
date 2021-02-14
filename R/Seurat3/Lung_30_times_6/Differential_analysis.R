@@ -92,3 +92,35 @@ table(top$cluster)
 range(top$avg_logFC)
 write.csv(as.character(as.vector(top$gene)), file = paste0(read.path,"/top1000_epi_time6_genes.csv"), 
           row.names = F)
+
+# identify all overlapping (intersections) and non-overlapping DEGs between:
+# Lung_time_6_DEG_celltypes 
+# Surface airway epithelium
+read.path = "Yang/Lung_30_time_6/Lung_time_6/DE files/"
+
+DEG_celltypes <- readxl::read_excel(paste0(read.path, "Lung_time_6_DEG_celltypes-2.xlsx"))
+anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+DEG_celltypes$cluster %<>% plyr::mapvalues(from = anno$Abbreviation,
+                                             to = anno$`Revised abbreviations`)
+DEG_celltypes = DEG_celltypes[,-1]
+unique(DEG_celltypes$cluster)[!(unique(DEG_celltypes$cluster) %in% anno$`Revised abbreviations`)]
+DEG_list <- split(DEG_celltypes, f = DEG_celltypes$cluster)
+
+Surface_Airway_Epithelial = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                              "H","p-C","C1","C2","C3","Ion","NE")
+Epi_list <- pbapply::pblapply(Surface_Airway_Epithelial, function(x){
+     tmp = readxl::read_excel("Yang/Lung_30/DE_analysis/groups/DE_results_Surface Airway Epithelial.xlsx",
+                              sheet = x)
+     tmp$cluster %<>% gsub(" vs.*","",.)
+    tmp[,-1]
+})
+Epi_DE <- bind_rows(Epi_list)
+
+merge_de_list <- list()
+for(cell.type in names(DEG_list)) {
+    merge_de_list[[cell.type]] <- full_join(x = DEG_list[[cell.type]],
+                          y = Epi_DE,
+                            by = "gene")
+}
+openxlsx::write.xlsx(merge_de_list, file =  "Yang/Lung_30_time_6/Lung_time_6/DE files/Lung_time_6_DEG_celltypes_Surface airway epithelium.xlsx",
+                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))

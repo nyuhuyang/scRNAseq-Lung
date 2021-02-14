@@ -342,7 +342,7 @@ cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S"
                                     "T-cn","T-ifn","T-int","T-NK","T-p","T-reg","T-rm")
 )
 
-for(g in names(cell.type_list[c(1,3:5)])){
+for(g in names(cell.type_list)){
         csv_list = list.files(paste0(save.path,g),full.names = T)
         deg_list = pbapply::pblapply(csv_list, function(x) {
                 read.csv(x,row.names = 1) %>% filter(avg_logFC > 0)

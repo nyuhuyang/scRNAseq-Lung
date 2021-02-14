@@ -252,6 +252,20 @@ counts_meta <- cbind(meta.data, counts[rownames(meta.data),])
 write.csv(t(counts_meta), paste0(path, "GTEx_counts.csv"))
 
 
+tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
+tpm = tpm[-1,]
+tpm %<>% tibble::rownames_to_column(var = "gene")
+
+EVGs.path <- "Yang/Lung_30/DE_analysis/C_Cell_types/"
+DEGs = readxl::read_excel(paste0(EVGs.path,"supersignatures.xlsx"))
+colnames(DEGs) %<>% gsub("cluster","cell.type",.)
+DEGs = DEGs[,c("cell.type","gene")]
+DEGs = DEGs[!duplicated(DEGs$gene),]
+tpm %<>% right_join(DEGs,by = "gene")
+tpm %<>% tibble::column_to_rownames(var = "gene")
+tpm = tpm[,-grep("cell.type",colnames(tpm))]
+write.csv(tpm, paste0(path, "GTEx_TPM_supersignatures.csv"))
+
 library(dplyr)
 library(magrittr)
 library(openxlsx)
@@ -293,8 +307,8 @@ GTEx.path = "Yang/GTEx/results_2021Feb/"
 if(!dir.exists(GTEx.path))dir.create(GTEx.path, recursive = T)
 
 # Age-related GTEx analysis – you would need to extract only data for EVG genes from age-related GTEx genes
-EVGs.path <- "Yang/Lung_30/DE_analysis/C_Cell_types/"
-DEGs = readxl::read_excel(paste0(EVGs.path,"supersignatures.xlsx"))
+read.path <- "Yang/Lung_30/DE_analysis/C_Cell_types/"
+DEGs = readxl::read_excel(paste0(read.path,"supersignatures_Extended.xlsx"))
 colnames(DEGs) %<>% gsub("cluster","cell.type",.)
 DEGs = DEGs[,c("cell.type","gene")]
 # combine with previous results_2020April
