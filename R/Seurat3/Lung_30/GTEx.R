@@ -92,11 +92,30 @@ FeaturePlot.1(object,features = "nCount_RNA")
 FeaturePlot.1(object,features = "Age")
 save(object, file = "data/Lung_GTEx_20200307.Rda")
 
+# write counts
 df_counts  = as.matrix(object[["RNA"]]@counts)
 df_counts = cbind(object[["Age.Bracket"]],t(df_counts))
 df_counts = df_counts[order(df_counts[,"Age.Bracket"]),]
 write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-tpm.csv")
 df_counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
+
+# write TPM with  final integrated signatures
+library(tibble)
+tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
+tpm = tpm[-1,]
+tpm %<>% rownames_to_column(var = "gene")
+tpm[,2:ncol(tpm)] %<>% apply(2,as.numeric)
+df = readxl::read_excel("doc/Integrated-signatures-categorized.xlsx")
+colnames(df) %<>% tolower()
+sheet = unique(tpm$`excel sheet`)
+tpm %<>% left_join(df,., by = "gene")
+tpm_list <- split(tpm,f = tpm$`excel sheet`)
+tpm_list = tpm_list[sheet]
+tpm_list %<>% lapply(function(x) x[,-4])
+write.xlsx(tpm_list, file = "Yang/GTEx/Integrated-signatures-categorized - 577 GTEx samples ordered.xlsx",
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
 
 # read optimized DEGs
 DEGs <- read.csv(file = "Yang/Lung_30/DE_analysis/Optimized_cell_type_DEG.csv",row.names = 1)
@@ -308,7 +327,7 @@ if(!dir.exists(GTEx.path))dir.create(GTEx.path, recursive = T)
 
 # Age-related GTEx analysis – you would need to extract only data for EVG genes from age-related GTEx genes
 read.path <- "Yang/Lung_30/DE_analysis/C_Cell_types/"
-DEGs = readxl::read_excel(paste0(read.path,"supersignatures_Extended.xlsx"))
+DEGs = read.csv(paste0(read.path,"supersignatures_Extended.csv"))
 colnames(DEGs) %<>% gsub("cluster","cell.type",.)
 DEGs = DEGs[,c("cell.type","gene")]
 # combine with previous results_2020April
@@ -350,4 +369,52 @@ write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female_by_age.xlsx"))
 dge <- read.csv(paste0(read.path,"2b-gender_markers_FC0.csv"), row.names = 1)
 dge %<>% right_join(DEGs, by = "gene")
 dge = dge[order(dge$cell.type),]
+write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female.csv"))
+
+# 20210222 =============
+# read supersignatures
+GTEx.path = "Yang/GTEx/results_2021Feb~/"
+if(!dir.exists(GTEx.path))dir.create(GTEx.path, recursive = T)
+
+df = readxl::read_excel("doc/Integrated-signatures-categorized.xlsx")
+colnames(df) %<>% tolower()
+DEGs = df[,c("gene","family","category")]
+# combine with previous results_2020April
+read.path = "Yang/GTEx/Archive/"
+
+#1a. age_markers
+dge = read.csv(paste0(read.path, "age_markers_FC0.csv"))
+if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
+dge %<>% left_join(DEGs, ., by = "gene") 
+rownames(dge) = NULL
+write.csv(dge, file = paste0(GTEx.path,"1a.All (both males and females) young vs old.csv"))
+
+#1b. age_markers
+dge = read.csv(paste0(read.path, "age_markers_subset_FC0.csv"))
+if("X" %in% colnames(dge)) dge = dge[, -which(colnames(dge) %in% "X")]
+dge %<>% left_join(DEGs,., by = "gene") 
+#dge = dge[order(dge$cell.type),]
+write.csv(dge, file = paste0(GTEx.path,"1b.All (both males and females) part of young vs old.csv"))
+
+
+#2a. age_gender_markers
+for(i in 1:2){
+        sex = c("male","female")[i]
+        dge <- readxl::read_excel(paste0(read.path,"2a-age_gender_markers_FC0.xlsx"),sheet = sex)
+        dge %<>% left_join(DEGs,., by = "gene")
+        #dge = dge[order(dge$cell.type),]
+        write.xlsx(dge, file = paste0(GTEx.path,"2a.",sex,"-young_vs_old.xlsx"),
+                   colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+        svMisc::progress(i, 2)
+}
+
+#"2b-age_gender_markers"
+dge <- read.csv(paste0(read.path,"2b-age_gender_markers_FC0.csv"), row.names = 1)
+dge %<>% left_join(DEGs,., by = "gene")
+#dge = dge[order(dge$cell.type),]
+write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female_by_age.xlsx"))
+
+dge <- read.csv(paste0(read.path,"2b-gender_markers_FC0.csv"), row.names = 1)
+dge %<>% left_join(DEGs,., by = "gene")
+#dge = dge[order(dge$cell.type),]
 write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female.csv"))

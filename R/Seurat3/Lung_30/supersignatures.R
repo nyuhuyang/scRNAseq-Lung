@@ -74,9 +74,6 @@ read.path = "Yang/Lung_30/DE_analysis/"
 write.csv(supersignatures1, 
           file =  paste0(paste0(read.path,"C_Cell_types/intersection_supersignatures_Extended.csv")))
 
-
-
-
 # =======
 
 df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm.csv",header = T)
@@ -104,3 +101,8 @@ for(i in seq_along(cell.types)) {
 names(exp_list) = cell.types
 openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type supersignatures genes - 577 GTEx samples ordered.xlsx",
                      colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+# final integrated signatures=================
+df_samples <- readxl::read_excel("doc/Integrated-signatures-categorized.xlsx")
+sheets = unique(df_samples$`Excel sheet`)
