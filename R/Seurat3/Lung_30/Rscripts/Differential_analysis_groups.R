@@ -243,7 +243,7 @@ if(step == "groups"){
     
     cell.type_unlist = unlist(cell.type_list)
     cell.type = cell.type_unlist[args]
-    group = gsub("[1-9+]","",names(cell.type))
+    group = gsub("[1-100]","",names(cell.type))
     
     Idents(object) = "cell_types"
     object %<>% subset(idents = cell.type_list[[group]])

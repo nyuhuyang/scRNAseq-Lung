@@ -124,3 +124,42 @@ for(cell.type in names(DEG_list)) {
 }
 openxlsx::write.xlsx(merge_de_list, file =  "Yang/Lung_30_time_6/Lung_time_6/DE files/Lung_time_6_DEG_celltypes_Surface airway epithelium.xlsx",
                      colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+# identify all overlapping (intersections) and non-overlapping d28 DEGs between:
+# Lung_time_6_DEG_celltypes for d28 only
+# Surface airway epithelium
+read.path = "Yang/Lung_30_time_6/Lung_time_6/DE files/"
+
+DEG_list <- list.files("output/20210223",full.names = T) %>% 
+    pbapply::pblapply(function(x) {
+        tmp = read.csv(x)
+        tmp = tmp[tmp$p_val_adj < 0.05,]
+        tmp = tmp[tmp$avg_logFC > 0 ,]
+        tmp = tmp[,-1]
+        tmp
+        })
+clusters <- sapply(DEG_list,function(x) unique(x$cluster))
+names(DEG_list) = clusters
+openxlsx::write.xlsx(DEG_list, file =  paste0(read.path,"Lung_time_6_DEG_d28_celltypes.xlsx"),
+                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+Surface_Airway_Epithelial = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+                              "H","p-C","C1","C2","C3","Ion","NE")
+Epi_list <- pbapply::pblapply(Surface_Airway_Epithelial, function(x){
+    tmp = readxl::read_excel("Yang/Lung_30/DE_analysis/groups/DE_results_Surface Airway Epithelial.xlsx",
+                             sheet = x)
+    tmp$cluster %<>% gsub(" vs.*","",.)
+    tmp[,-1]
+})
+Epi_DE <- bind_rows(Epi_list)
+
+merge_de_list <- list()
+for(cell.type in names(DEG_list)) {
+    merge_de_list[[cell.type]] <- full_join(x = DEG_list[[cell.type]],
+                                            y = Epi_DE,
+                                            by = "gene")
+}
+openxlsx::write.xlsx(merge_de_list, file =  "Yang/Lung_30_time_6/Lung_time_6/DE files/Lung_time_6_DEG_d28_Surface airway epithelium.xlsx",
+                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
