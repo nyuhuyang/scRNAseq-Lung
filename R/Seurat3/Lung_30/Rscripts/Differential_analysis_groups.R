@@ -243,10 +243,11 @@ if(step == "groups"){
     
     cell.type_unlist = unlist(cell.type_list)
     cell.type = cell.type_unlist[args]
-    group = gsub("[1-100]","",names(cell.type))
+    group = gsub("[0-9+]","",names(cell.type))
     
     Idents(object) = "cell_types"
     object %<>% subset(idents = cell.type_list[[group]])
+    GC()
     Lung_markers <- FindMarkers.UMI(object, ident.1 = cell.type, ident.2 = NULL,
                                     logfc.threshold = 0, only.pos = F,
                                     latent.vars = "nFeature_RNA",
