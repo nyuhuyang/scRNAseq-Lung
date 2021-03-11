@@ -11,7 +11,8 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 set.seed(101)
-# on linux
+#================
+# on linux ================
 GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
                          stringsAsFactors = F)
 rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
@@ -37,14 +38,12 @@ tpm = tpm[,select]
 tpm = tpm[rowSums(tpm) > 0,]
 write.csv(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
 #fwrite(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
-
+#==============
 # on Mac
-GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
-                         stringsAsFactors = F)
-rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
 
 #counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 counts = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
+# change gene name
 df_counts = data.frame(ensembl_gene_id = gsub("\\..*","",rownames(counts)),
                        row.names = rownames(counts))
 
@@ -65,39 +64,51 @@ df_counts = df_counts[, -grep("ensembl_gene_id|gene",colnames(df_counts))]
 df_counts %<>% as.matrix()
 
 colnames(df_counts) %<>% gsub("\\.SM.*","",.)
+write.csv(df_counts, file = "data/RNA-seq/GTEx-Lung-tpm~.csv")
+
+# analysis bulk RNA-seq with Seurat pipeline
+counts = read.csv("data/RNA-seq/GTEx-Lung-tpm~.csv",row.names = 1)
+if("Age.Bracket" %in% rownames(counts)) counts = counts[-grep("Age.Bracket",rownames(counts)),]
+
+GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
+                         stringsAsFactors = F)
+rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
 rownames(GTE_meta.data) %<>% gsub("-",".",.)
-GTE_meta.data = GTE_meta.data[colnames(df_counts),]
-table(rownames(GTE_meta.data) == colnames(df_counts) )
-object <- CreateSeuratObject(counts = df_counts, meta.data = GTE_meta.data,
+GTE_meta.data = GTE_meta.data[colnames(counts),]
+table(rownames(GTE_meta.data) == colnames(counts) )
+object <- CreateSeuratObject(counts = counts, meta.data = GTE_meta.data,
                              min.cells = 3, min.features = 200)
-object %<>% SCTransform
+object[["RNA"]]@data = as(log2(as.matrix(object[["RNA"]]@counts)+1), "sparseMatrix")
 object %<>% FindVariableFeatures(selection.method = "vst",
                                num.bin = 20,nfeatures = 2000,
                                mean.cutoff = c(0.1, 8), 
                                dispersion.cutoff = c(1, Inf))
+object %<>%  ScaleData
 object %<>%  RunPCA
 object %<>%  FindNeighbors(dims = 1:20)
 object %<>%  FindClusters
 object %<>%  RunUMAP(dims = 1:20)
 object@meta.data$Age = gsub("-.*","",object$Age.Bracket) %>% as.integer()
-object@meta.data$SCT_snn_res.0.8 %<>% as.numeric()
+object@meta.data$RNA_snn_res.0.8 %<>% as.numeric()
 object@meta.data %>%
-        group_by(SCT_snn_res.0.8, Age, Sex) %>%
+        group_by(RNA_snn_res.0.8, Age, Sex) %>%
         summarize(n())
 object@meta.data %>%
-        group_by(SCT_snn_res.0.8) %>%
+        group_by(RNA_snn_res.0.8) %>%
         summarize(mean = mean(Age))
 UMAPPlot.1(object, group.by = "Age.Bracket", do.print = T, cols = Singler.colors)#Sex Age.Bracket
 FeaturePlot.1(object,features = "nCount_RNA")
 FeaturePlot.1(object,features = "Age")
-save(object, file = "data/Lung_GTEx_20200307.Rda")
-
+save(object, file = "data/Lung_GTEx_20210226.Rda")
+load("data/Lung_GTEx_20210226.Rda")
 # write counts
-df_counts  = as.matrix(object[["RNA"]]@counts)
-df_counts = cbind(object[["Age.Bracket"]],t(df_counts))
-df_counts = df_counts[order(df_counts[,"Age.Bracket"]),]
-write.csv(t(df_counts), file = "data/RNA-seq/GTEx-Lung-tpm.csv")
-df_counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
+tpm  = as.matrix(object[["RNA"]]@counts)
+temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",sheet = "AT1",)
+temp %<>% tibble::column_to_rownames(var = "...1")
+table(colnames(temp) ==colnames(tpm))
+tpm = tpm[,colnames(temp)]
+tpm %<>% rbind(temp,.)
+write.csv(tpm, file = "Yang/GTEx/GTEx-Lung-tpm_reordered.csv")
 
 # write TPM with  final integrated signatures
 library(tibble)
@@ -418,3 +429,11 @@ dge <- read.csv(paste0(read.path,"2b-gender_markers_FC0.csv"), row.names = 1)
 dge %<>% left_join(DEGs,., by = "gene")
 #dge = dge[order(dge$cell.type),]
 write.csv(dge, file = paste0(GTEx.path,"2b-male_vs_female.csv"))
+
+
+
+# replace gene name
+counts = read.csv("data/RNA-seq/GTEx-Lung-tpm~.csv",row.names = 1)
+gene_name <- read.csv("output/20210302/gene_name.csv")
+table(gene_name$Single.cell %in% rownames(counts))
+gene_name[(gene_name$GTEx.v8 %in% rownames(counts)),]

@@ -125,7 +125,6 @@ for(cell.type in names(DEG_list)) {
 openxlsx::write.xlsx(merge_de_list, file =  "Yang/Lung_30_time_6/Lung_time_6/DE files/Lung_time_6_DEG_celltypes_Surface airway epithelium.xlsx",
                      colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
-
 # identify all overlapping (intersections) and non-overlapping d28 DEGs between:
 # Lung_time_6_DEG_celltypes for d28 only
 # Surface airway epithelium

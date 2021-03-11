@@ -7,15 +7,15 @@ library(ggsci)
 library(fgsea)
 library(openxlsx)
 library(progress)
-
+library(BiocParallel)
 
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 
 # prepare gmt file
-repare_gmt_file = FALSE
-if(repare_gmt_file) {
+prepare_gmt_file = FALSE
+if(prepare_gmt_file) {
     read.path = "../seurat_resources/msigdb/"
     folder_list <- c("@1-Development","@2-Physiology","@3-Disease","@4-Cancer")
     for(i in seq_along(folder_list)){
@@ -59,6 +59,7 @@ msigdb_list <- list("hallmark" = hallmark,
 
 set.seed(101)
 read.path = "Yang/Lung_30/DE_analysis/"
+
 #===========================
 # read data
 # C_Cell_types

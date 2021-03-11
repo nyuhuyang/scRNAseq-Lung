@@ -1,5 +1,5 @@
 invisible(lapply(c("dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
-                   "gplots"), function(x) {
+                   "gplots","data.table"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 #========
@@ -48,7 +48,7 @@ EVGs_df <- do.call(cbind.fill, EVGs_list)
 EVGs_df = apply(EVGs_df,2,as.character)
 
 deg_list <- split(supersignatures, f = supersignatures$cluster)
-
+cell.types = names(deg_list)
 deg_list1 = pbapply::pblapply(deg_list, function(x) {
                           cell.type = unique((x$cluster))
                           x$EVG = x$gene %in% na.omit(EVGs_df[,cell.type])
@@ -76,33 +76,66 @@ write.csv(supersignatures1,
 
 # =======
 
-df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm.csv",header = T)
-if(df_TPM$V1[1] == "Age.Bracket") df_TPM = df_TPM[-1,]
-TPM <- column_to_rownames(df_TPM, var = "V1") %>% sapply(as.numeric) %>%
-        as.data.frame
-TPM = cbind("V1"=df_TPM$V1,TPM)
-rownames(TPM) = TPM$V1
+df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm~.csv",header = T)
+TPM <- column_to_rownames(df_TPM, var = "V1")
+dim(TPM)
+# or 
+load("data/Lung_GTEx_20210226.Rda")
+TPM <- as.matrix(object[["RNA"]]@counts)
+dim(TPM)
 
-temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",sheet = "AT1",)
-colnames(temp)[1] = "V1"
+temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx")
+temp = temp[-1]
+
+# replace gene name 
+#all_genes = unique(supersignatures[,"gene"])
+#old_gene = all_genes[!(all_genes %in% rownames(TPM))]
+#"PLAAT4" %in% rownames(TPM)
+
+
 exp_list <- list()
 for(i in seq_along(cell.types)) {
         genes <- supersignatures[supersignatures$cluster == cell.types[i],"gene"]
         genes = genes[genes != ""]
         genes = genes[!is.na(genes)]
+        genes = genes[(genes %in% rownames(TPM))]
         exp <- TPM[genes,colnames(temp)]
-        genes = genes[genes %in% exp$V1]
-        exp = exp[match(genes, exp$V1),]
         exp_list[[i]] = exp#rbind.data.frame(temp,exp)
         colnames(exp_list[[i]])[1] = ""
         Progress(i, length(cell.types))
 }
 
 names(exp_list) = cell.types
-openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type supersignatures genes - 577 GTEx samples ordered.xlsx",
-                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+#openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type supersignatures genes - 577 GTEx samples ordered.xlsx",
+#                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 
 # final integrated signatures=================
-df_samples <- readxl::read_excel("doc/Integrated-signatures-categorized.xlsx")
-sheets = unique(df_samples$`Excel sheet`)
+Int_supersignatures <- readxl::read_excel("doc/Integrated-signatures-categorized.xlsx") 
+sheets = unique(Int_supersignatures$`Excel sheet`)
+
+# replace gene name 
+all_genes = pull(Int_supersignatures[,"Gene"])
+table(all_genes %in% rownames(TPM))
+old_gene = all_genes[!(all_genes %in% rownames(TPM))]
+write.csv(old_gene,file = paste0(path, "old_genes.csv"))
+
+Int_supersignatures %<>% as.data.frame()
+exp_list <- list()
+for(i in seq_along(sheets)) {
+        row_tmp = Int_supersignatures[Int_supersignatures$`Excel sheet` == sheets[i],]
+        genes <- row_tmp$Gene
+        genes = genes[genes != ""]
+        genes = genes[!is.na(genes)]
+        genes = genes[(genes %in% rownames(TPM))]
+        exp <- TPM[genes,colnames(temp)]
+        exp %<>% rownames_to_column(var = "Gene")
+        exp_list[[i]] = left_join(row_tmp,exp, by = "Gene")
+        Progress(i, length(sheets))
+}
+names(exp_list) = sheets
+openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Integrated-signatures-categorized - 577 GTEx samples ordered.xlsx",
+                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+# replace name
