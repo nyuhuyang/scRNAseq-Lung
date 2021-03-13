@@ -7,7 +7,6 @@ source("R/Seurat3/differential_expression.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
-
 FPKM <- readxl::read_excel("data/RNA-seq/P-D paired samples FPKM revised.xlsx", sheet = "FPKM")
 meta.data <- readxl::read_excel("data/RNA-seq/P-D paired samples FPKM revised.xlsx", sheet = "meta.data")
 meta.data %<>% column_to_rownames(var = "...1") %>% t %>% as.data.frame()
