@@ -44,7 +44,7 @@ write.csv(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
 #counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 counts = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
 # change gene name
-df_counts = data.frame(ensembl_gene_id = gsub("\\..*","",rownames(counts)),
+df_counts = data.frame(ensembl_gene_id = gsub("\\.\\d+$","",rownames(counts)),
                        row.names = rownames(counts))
 
 ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")

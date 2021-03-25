@@ -2,10 +2,65 @@ invisible(lapply(c("Seurat","dplyr","cowplot","kableExtra",
                    "magrittr","eulerr","biomaRt"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path))dir.create(path, recursive = T)
+set.seed(101)
+#=========== read 10X genes ============
+list.dirs("data")
 
+sample_id <- c("UNC_52_D","UNC_66_D","VU_37-D")
+tsv_list <- pbapply::pblapply(sample_id, function(x){
+        file_name = paste0("data/",x,"/outs/filtered_feature_bc_matrix/features.tsv")
+        tmp <- read.table(file = gzfile(paste0(file_name,".gz")),
+                               sep = '\t', header = F)
+        tmp
+})
+tsv_list[[4]] <- read.table(file = 'data/UNC_44_D/outs/filtered_gene_bc_matrices/hg19/genes.tsv',
+                           sep = '\t', header = F)
+identical(tsv_list[[1]],tsv_list[[2]])
+identical(tsv_list[[1]],tsv_list[[3]])
+tsv_list[[3]]$V3 = NULL
+identical(tsv_list[[3]],tsv_list[[4]])
+hg_19 <- tsv_list[[4]]
+colnames(hg_19) = c("ensembl_gene_id","gene_87")
+hg_19$gene_87 %<>% make.unique()
+hg_19$gene_87 %<>% gsub("_","-",.)
+hg_19$single_cell = "single_cell"
+# load single-cell
 Single_cell <- readRDS(file = "data/Lung_30_20200710.rds") 
+single_cell_genes <- rownames(Single_cell) 
 load("data/Lung_bulk_20210226.Rda")
-bulk <- object
+bulk <- object;rm(object);GC()
+table(rownames(Single_cell)  %in% hg_19$gene_87)
+rownames(bulk)[!(rownames(bulk)  %in% hg_19$gene_87)]
+
+hg_19$gene_87[!(hg_19$gene_87 %in% single_cell_genes)]
+
+
+#counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
+tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
+# change gene name
+hg_38 = data.frame(ensembl_gene_id = gsub("\\.\\d+$","",rownames(tpm)),
+                   GTEx = "GTEx",
+                       row.names = rownames(tpm))
+
+ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
+attributes <- listAttributes(ensembl)
+head(attributes,20)
+symbols <- getBM(attributes=c("ensembl_gene_id",'hgnc_symbol'), 
+                 #filters = 'ensembl_gene_id', 
+                 #values = hg_38$ensembl_gene_id, 
+                 mart = ensembl)
+hg_38 %<>% full_join(symbols,by="ensembl_gene_id")
+colnames(hg_38)[3] = "gene_103"
+hg_19_38 <- full_join(hg_19, hg_38,by="ensembl_gene_id")
+dim(hg_19_38)
+hg_19_38 %<>% as.matrix()
+hg_19_38[hg_19_38[,"gene_103"] == "","gene_103"] = NA
+hg_19_38 %<>% as.data.frame
+saveRDS(hg_19_38,"data/RNA-seq/hg_19_38.rds")
+
 GTEx <- data.table::fread("data/RNA-seq/GTEx-Lung-tpm~.csv")
 gene_names <- read.csv("output/20210302/gene_name.csv")
 Int_supersignatures <- readxl::read_excel("doc/Integrated-signatures-categorized.xlsx") 

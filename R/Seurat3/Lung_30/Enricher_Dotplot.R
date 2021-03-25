@@ -24,18 +24,18 @@ selected_tissues <- list("GTEx tissue" = c("Lung",
                                            "Esophagus",
                                            "Skin",
                                            "Stomach",
-                                           "Salivary",
+                                           #"Salivary",
                                            "Testis",
                                            "Brain",
-                                           "Adipose",
+                                           #"Adipose",
                                            #"Vessel",
                                            "Blood",
                                            "Nerve"#,"Spleen"
                                            ),
                          "Human Gene Atlas" = c("Trachea",
                                                 "Olfactory",
-                                                "HBEC",
-                                                "Tongue",
+                                                #"HBEC",
+                                                #"Tongue",
                                                 #"CD33+ Myeloid",
                                                 "CD14+ Mon",
                                                 "BDCA4+ DC",
@@ -66,8 +66,39 @@ object$cell_types <- plyr::mapvalues(object$annotations3,
 Idents(object) = "cell_types"
 len <- 40
 
-dotplot_df <- readxl::read_excel("doc/40-gene for for dotplot revised.xlsx")
-features_list <- dotplot_df[1:len,superfamily]
+dotplot_df <- readxl::read_excel("doc/20210322_40-gene for for dotplot revised.xlsx")
+dotplot_df <- dotplot_df[1:len,superfamily]
+dot_features = c(dotplot_df[,superfamily[1]],
+                 dotplot_df[,superfamily[2]],
+                 dotplot_df[,superfamily[3]]) %>% unlist
+gene_names = GTEx$V1
+dot_features[!(dot_features %in% gene_names)]
+all_genes = rownames(object)
+dot_features[!(dot_features %in% all_genes)]
+dot_features[!(dot_features %in% all_genes)]
+
+replace_gene_names <- read.csv("Yang/GTEx/replace_gene_names.csv")
+plyr::mapvalues(dot_features[!(dot_features %in% all_genes)], from = replace_gene_names$Single.cell,
+                to = replace_gene_names$GTEx.v8)
+
+newnames = plyr::mapvalues(all_genes, from = replace_gene_names$Single.cell,
+                           to = replace_gene_names$GTEx.v8)
+# RenameGenesSeurat  ------------------------------------------------------------------------------------
+# https://github.com/satijalab/seurat/issues/2617
+# Replace gene names in different slots of a Seurat object. Run this before integration. Run this before integration. It only changes obj@assays$RNA@counts, @data and @scale.data.
+RenameGenesSeurat <- function(obj , newnames) { 
+    print("Run this before integration. It only changes obj@assays$SCT@counts, @data and @scale.data.")
+    SCT <- obj@assays$SCT
+    
+    if (nrow(SCT) == length(newnames)) {
+        if (length(SCT@counts)) SCT@counts@Dimnames[[1]]            <- newnames
+        if (length(SCT@data)) SCT@data@Dimnames[[1]]                <- newnames
+        #if (length(SCT@scale.data)) SCT@scale.data@Dimnames[[1]]    <- newnames
+    } else {"Unequal gene sets: nrow(SCT) != nrow(newnames)"}
+    obj@assays$SCT <- SCT
+    return(obj)
+}
+object = RenameGenesSeurat(obj = object, newnames = newnames)
 
 # for top 3 figures ===========
 g <- list()
@@ -77,21 +108,21 @@ for(i in seq_along(superfamily)){
     Idents(sub_object) %<>% factor(levels = cell.type_list[[group]])
     features = features_list[[group]]
     g[[i]] <- DotPlot.1(sub_object, features = rev(features),
-                        log.data = log2,exp.max = 7,dot.scale = 7, 
+                        log.data = log2,exp.max = 7,dot.scale = 6, 
                        scale = FALSE,
                        cluster.idents = FALSE,
                        cluster.features = FALSE,
                        cols = c("blue","green","yellow","orange","chocolate1","red"))+
         ggtitle(group)+
         theme(axis.line=element_blank(),
-                text = element_text(size=22),#16
+                text = element_text(size=16),#16
                 panel.grid.major = element_blank(),
-                axis.text.x = element_text(size=22,#16
+                axis.text.x = element_text(size=16,#16
                                            angle = 90, 
                                            hjust = 0,
                                            vjust= 0.5),
                 axis.title.x = element_blank(),
-                axis.text.y = element_text(size=20),#14
+                axis.text.y = element_text(size=14),#14
                 axis.title.y = element_blank(),
                 plot.title = element_text(face = "plain",hjust = 0.5))+
         scale_y_discrete(position = "right")+
@@ -104,7 +135,7 @@ for(i in seq_along(superfamily)){
 adj = 10^-4
 exp.max = 300
 
-{
+
 Enrichr_list <- list()
 prop_table_list <- list()
 Score_table_list <- list()
@@ -187,15 +218,10 @@ for(i in seq_along(superfamily)){
     g[[i+3]] <- DotPlot.2(Score_df,prop_df, features = cell.types, 
                           id = tissue, scale = FALSE,log.data = NULL,
                           scale.by = "size", scale.max  = 90,
-                          col.min = 0, exp.max = 300,dot.scale = 8)
+                          col.min = 0, exp.max = 300,dot.scale = 6)
     if(i < 3) g[[i+3]] = g[[i+3]] + NoLegend()
 }
 
-jpeg(paste0(save.path,"Dotplot_largerFont.jpeg"), units="in", width=24, #20
-     height=17,res=900)
-print(wrap_plots(g, ncol = 36, nrow = 20,design = layout_largerFont))
-dev.off()
-}
 
 # === generate figure =======
 layout <- c(
@@ -207,24 +233,19 @@ layout <- c(
     area(14, 19, 20, 27)
 )
 layout_largerFont <- c(
-    area(1, 1, 13, 13),
-    area(1, 14, 13, 24),
-    area(1, 25, 13, 36),
-    area(14, 1, 20, 13),
-    area(14, 14, 20, 24),
-    area(14, 25, 20, 36)
+    area(1, 1, 14, 13),
+    area(1, 14, 14, 24),
+    area(1, 25, 14, 36),
+    area(15, 1, 20, 13),
+    area(15, 14, 20, 24),
+    area(15, 25, 20, 36)
 )
-plot(layout)
+plot(layout_largerFont)
 
-gene_len <- c(40,45)
-for(len in gene_len){
-    jpeg(paste0(save.path,"Dotplot_",len,".jpeg"), units="in", width=24, 
-         height=switch (as.character(len),
-                        "40" = 14.5,
-                        "45" = 15),res=600)
-    print(wrap_plots(g, ncol = 31, nrow = 20,design = layout))
-    dev.off()
-}
+jpeg(paste0(save.path,"Dotplot_final.jpeg"), units="in", width=19, 
+     height= 14,res=900)
+print(wrap_plots(g, nrow = 20, ncol = 36,design = layout_largerFont))
+dev.off()
 
 for(k in seq_along(csv_list)){
     prop_table_list[[k]][is.na(prop_table_list[[k]])] = 0
@@ -271,7 +292,7 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
           col.min = 0,
           col.max = 1000,
           dot.min = 0,
-          dot.scale = 6,
+          dot.scale = 4,
           scale = FALSE, scale.by = 'radius', split.by = NULL,split.colors = FALSE,
           scale.min = NA,scale.max = NA,exp.min = NA,exp.max = NA,n.breaks = NULL){
     prop_df %<>% rownames_to_column(var = "id") %>%
@@ -359,13 +380,13 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
         plot <- plot + guides(color = guide_colorbar(title = 'Average Expression'))
     }
     plot = plot + theme(axis.line=element_blank(),
-                  text = element_text(size=22),
+                  text = element_text(size=16),
                   panel.grid.major = element_blank(),
-                  axis.text.x = element_text(size=22,
+                  axis.text.x = element_text(size=16,
                                              angle = 90, 
                                              hjust = 1,
                                              vjust= 0.5),
-                  axis.text.y = element_text(size=20),
+                  axis.text.y = element_text(size=14),
                   axis.title.x = element_blank(),
                   axis.title.y = element_blank(),
                   plot.title = element_text(face = "plain"))

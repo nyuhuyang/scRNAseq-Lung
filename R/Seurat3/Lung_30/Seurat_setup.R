@@ -157,3 +157,7 @@ for(i in 1:length(resolutions)){
                    do.print = T, save.path = save.path)
         Progress(i,length(resolutions))
 }
+object@assays$RNA = NULL
+format(object.size(object), unit = "GB")
+saveRDS(object,file = "data/Lung_SCT_30_20200710.rds")
+

@@ -62,7 +62,7 @@ names(gde_list) = paste0("res=",2)
 
 
 #================== DE on cell types ================
-read.path = "output/20200814/"
+read.path = "Yang/Lung_30/DE_analysis/C_Cell_types/"
 args=1:62
 args[args < 10] = paste0("0", args[args < 10])
 cell_types = sort(c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
@@ -79,11 +79,31 @@ csv_list[!(csv_list %in% list_files)]
 gde.all <- lapply(paste0(read.path,list_files), function(x) {
         tmp = read.csv(x, stringsAsFactors = F)
         tmp = tmp[tmp$p_val <0.05, ]
-        tmp[,-1]
+        colnames(tmp) %<>% plyr::mapvalues(from = "cluster",
+                                           to = "cell_type") 
+        tmp
         })
 names(gde.all) = cell_types
-gde <- bind_rows(gde.all)
-write.xlsx(gde, file = paste0(path,"DEG_markers_by_cell_types.xlsx"),
+gde = bind_rows(gde.all)
+replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
+keep = (!is.na(replace_gene_names$single_cell) &
+                !is.na(replace_gene_names$gene_103))
+replace_gene_names = replace_gene_names[keep,]
+keep = replace_gene_names$gene_87 != replace_gene_names$gene_103
+replace_gene_names = replace_gene_names[keep,]
+replace_gene_names = replace_gene_names[,-c(3,4)]
+colnames(replace_gene_names) = c("ensembl_gene_id","hg19","hg38")
+rownames(replace_gene_names) = NULL
+write.csv(replace_gene_names,file = paste0(path,"replace_hg19_hg38.csv"))
+replace_gene_names = replace_gene_names[(replace_gene_names$hg19 %in% gde$gene),]
+rownames(replace_gene_names) = NULL
+write.csv(replace_gene_names,file = paste0(path,"replace_hg19_hg38_in_gde.csv"))
+
+gde$gene %<>% plyr::mapvalues(from = replace_gene_names$hg19,
+                to = replace_gene_names$hg38)
+gde.all <- split(gde, f = gde$cell_type)
+
+write.xlsx(gde.all, file = paste0(read.path,"DEG_markers_by_cell_types.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 #================== DE on group -A ================
