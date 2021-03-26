@@ -7,7 +7,7 @@ invisible(lapply(c("dplyr","magrittr","data.table","pbapply","tibble","tidyr"), 
     suppressPackageStartupMessages(library(x,character.only = T))
 }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
-read.path = "Yang/Lung_30/DE_analysis/A_Sample_types/"
+read.path = "Yang/Lung_30/DE_analysis/C_Sample_types/"
 #read.path = "Yang/Lung_30/DE_analysis/D_age/"
 
 save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
@@ -16,7 +16,15 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 #=======
 Expression = data.table::fread(file = "output/20201215/Lung_30-Cell.types_expression.txt",
                    sep = "\t") %>% as.data.frame()
-Expression %<>% column_to_rownames(var = "V1")
+replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
+replace_gene_names %<>% filter(!is.na(hg19)) %>%
+    filter(!is.na(hg38)) %>%
+    filter(hg19 != hg38) %>%
+    select(c("ensembl_gene_id","hg19","hg38")) %>%
+    filter(hg19 %in% Expression$V1)
+Expression$V1 %<>% plyr::mapvalues(from = replace_gene_names$hg19,
+                              to = replace_gene_names$hg38)
+Expression %<>% tibble::column_to_rownames(var = "V1")
 Expression[1:4,1:4]
 
 anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
@@ -26,7 +34,7 @@ superfamily <- c("Epithelial","Structural","Immune")
 EVG <- vector(mode = "list",length = length(superfamily))
 for(i in seq_along(superfamily)){
     selected.cell.types <- df$cell.types[df$Cell.group %in% superfamily[i]] %>% sort
-    gene_list = pbsapply(selected.cell.types,function(ident.1){
+    gene_list = pbapply::pbsapply(selected.cell.types,function(ident.1){
         ident.2 = selected.cell.types[!(selected.cell.types %in% ident.1)]
         keep1 = Expression[,paste0(ident.1,".pct")] >= 1/3
         keep2 = Expression[,ident.1]/rowMeans(Expression[,ident.2]) >= 2
@@ -90,7 +98,7 @@ EVGs_df <- do.call(cbind.fill, EVGs_list)
 EVGs_sorted = EVGs_df[,grep("gene",colnames(EVGs_df))]
 colnames(EVGs_sorted) %<>% gsub("_gene$","",.)
 cell.types = colnames(EVGs_sorted)
-df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm.csv",header = T)
+df_TPM = fread("data/RNA-seq/GTEx-Lung-tpm~.csv",header = T)
 if(df_TPM$V1[1] == "Age.Bracket") df_TPM = df_TPM[-1,]
 TPM <- column_to_rownames(df_TPM, var = "V1") %>% sapply(as.numeric) %>%
     as.data.frame
@@ -113,6 +121,15 @@ for(i in seq_along(cell.types)) {
 }
 
 names(exp_list) = cell.types
+names(exp_list) %<>% gsub("d-S","TASC",.)
+new_cell_types_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                             "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                             "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                            "Stromal"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                        "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                            "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                         "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
+exp_list = exp_list[unlist(new_cell_types_list)]
 openxlsx::write.xlsx(exp_list, file =  "Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered~.xlsx",
                      colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
@@ -145,6 +162,12 @@ EVGs_df <- lapply(superfamily, function(s) {
     colnames(tmp) %<>% gsub("_gene","",.)
     tmp
 }) %>% do.call(cbind.fill,.)
+
+
+write.xlsx(gde.all, file = paste0(read.path,"DEG_markers_by_cell_types.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+read.path = "Yang/Lung_30/DE_analysis/C_Cell_types/"
+
 
 
 for(i in seq_along(DE_list)) {
@@ -260,13 +283,46 @@ for(i in seq_along(DE_list)) {
     svMisc::progress(i,length(DE_list))
 }
 
-#============
-(DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL CELLS",.,value = T))
-(DE_list <- list.files(path = read.path,pattern = "\\.csv") %>% grep("ALL ",.,value = T))
+#-20210326 Include column “K” (call it “EVG”) to indicate if the gene is also “EVG” for this cell type
+read.path = "Yang/Lung_30/DE_analysis/C_Cell_types/"
+new_cell_types_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                             "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                             "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                            "Stromal"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                        "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                            "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                         "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
+cell_types = unlist(new_cell_types_list)
+names(cell_types) = cell_types
+gde_list = pbapply::pblapply(cell_types,function(s){
+    tmp = readxl::read_excel(paste0(read.path,"DEG_markers_by_cell_types.xlsx"),sheet = s)
+    tmp %<>% tibble::column_to_rownames(var = "X")
+    tmp
+})
 
+read.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
+# read EVGs
+superfamily <- c("Epithelial","Structural","Immune")
+EVGs_df <- lapply(superfamily, function(s) {
+    tmp = readxl::read_excel(paste0(read.path,"Lung_30-EVGs-full.xlsx"), sheet = s)
+    tmp = tmp[,-1]
+    tmp = tmp[,grep("_gene",colnames(tmp),value = T)]
+    colnames(tmp) %<>% gsub("_gene","",.)
+    tmp
+}) %>% do.call(cbind.fill,.)
 EVGs_long <- gather(as.data.frame(EVGs_df), "cell.type","gene") %>%
     filter(gene != "")
+EVGs_long$cell.type %<>% gsub("d-S","TASC",.)
+
+replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
+#replace_gene_names %<>% filter(!is.na(hg19)) 
+    #filter(hg19 %in% Expression$V1)
+EVGs_long$gene[!EVGs_long$gene %in% replace_gene_names$hg38]
+table(EVGs_long$gene %in% replace_gene_names$hg19) 
+table(EVGs_long$gene %in% replace_gene_names$hg38) 
+
 EVGs_full <- data.frame("gene" = sort(unique(EVGs_long$gene)))
+
 cell.types <- unique(EVGs_long$cell.type)
 for(i in seq_along(cell.types)) {
     tmp = EVGs_long[EVGs_long$cell.type %in% cell.types[i],]
@@ -278,14 +334,14 @@ EVGs <- apply(EVGs_full,1, function(x) as.character(na.exclude(x))) %>%
 colnames(EVGs) = 1:(ncol(EVGs))-1
 colnames(EVGs) %<>% paste0("EVGs_",.)
 colnames(EVGs)[1] = "gene"
-for(i in seq_along(DE_list)) {
-    DE_file <- tryCatch(expr = read.csv(paste0(read.path,DE_list[i]),row.names = 1),
-                        error = function(cond) {
-                            return(cond$message)
-                        })
-    DE_file %<>% full_join(EVGs,by = "gene") %>% as.matrix()
-    
-    DE_file[is.na(DE_file)]=""
-    write.csv(DE_file,paste0(save.path,DE_list[i]))
-    svMisc::progress(i,length(DE_list))
-    }
+
+table(EVGs$gene %in% replace_gene_names$hg38)
+
+gde_list %<>% pblapply(function(gde){
+    gde %<>% left_join(EVGs,by = "gene")
+    rownames(gde) = gde$gene
+    gde
+})
+write.xlsx(gde_list, file = paste0(read.path,"DEG_markers_by_cell_types_EVGs.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+

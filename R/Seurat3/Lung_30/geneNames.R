@@ -23,19 +23,19 @@ identical(tsv_list[[1]],tsv_list[[3]])
 tsv_list[[3]]$V3 = NULL
 identical(tsv_list[[3]],tsv_list[[4]])
 hg_19 <- tsv_list[[4]]
-colnames(hg_19) = c("ensembl_gene_id","gene_87")
-hg_19$gene_87 %<>% make.unique()
-hg_19$gene_87 %<>% gsub("_","-",.)
+colnames(hg_19) = c("ensembl_gene_id","hg19")
+hg_19$hg19 %<>% make.unique()
+hg_19$hg19 %<>% gsub("_","-",.)
 hg_19$single_cell = "single_cell"
 # load single-cell
-Single_cell <- readRDS(file = "data/Lung_30_20200710.rds") 
+Single_cell <- readRDS(file = "data/Lung_SCT_30_20200710.rds") 
 single_cell_genes <- rownames(Single_cell) 
 load("data/Lung_bulk_20210226.Rda")
 bulk <- object;rm(object);GC()
-table(rownames(Single_cell)  %in% hg_19$gene_87)
-rownames(bulk)[!(rownames(bulk)  %in% hg_19$gene_87)]
+table(rownames(Single_cell)  %in% hg_19$hg19)
+rownames(bulk)[!(rownames(bulk)  %in% hg_19$hg19)]
 
-hg_19$gene_87[!(hg_19$gene_87 %in% single_cell_genes)]
+hg_19$hg19[!(hg_19$hg19 %in% single_cell_genes)]
 
 
 #counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
@@ -53,13 +53,28 @@ symbols <- getBM(attributes=c("ensembl_gene_id",'hgnc_symbol'),
                  #values = hg_38$ensembl_gene_id, 
                  mart = ensembl)
 hg_38 %<>% full_join(symbols,by="ensembl_gene_id")
-colnames(hg_38)[3] = "gene_103"
+colnames(hg_38)[3] = "hg38"
 hg_19_38 <- full_join(hg_19, hg_38,by="ensembl_gene_id")
 dim(hg_19_38)
 hg_19_38 %<>% as.matrix()
-hg_19_38[hg_19_38[,"gene_103"] == "","gene_103"] = NA
+hg_19_38[hg_19_38[,"hg38"] == "","hg38"] = NA
 hg_19_38 %<>% as.data.frame
 saveRDS(hg_19_38,"data/RNA-seq/hg_19_38.rds")
+hg_19_38 = readRDS("data/RNA-seq/hg_19_38.rds")
+
+hg_19_38 %<>% filter(hg19 %in% single_cell_genes) %>%
+        filter(!is.na(hg38)) %>%
+        filter(hg19 != hg38)
+
+newnames <- plyr::mapvalues(single_cell_genes,
+                            from = hg_19_38$hg19,
+                            to = hg_19_38$hg38)
+newnames %<>% make.unique()
+Single_cell %<>% RenameGenesSeurat(newnames = newnames)
+Single_cell %<>% FindVariableFeatures
+Single_cell@assays$SCT@scale.data = matrix(0,0,0)
+Single_cell@meta.data$cell_types %<>% gsub("^d-S$","TASC",.)
+saveRDS(Single_cell, file = "data/Lung_SCT_30_20200710.rds")
 
 GTEx <- data.table::fread("data/RNA-seq/GTEx-Lung-tpm~.csv")
 gene_names <- read.csv("output/20210302/gene_name.csv")

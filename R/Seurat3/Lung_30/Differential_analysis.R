@@ -47,13 +47,13 @@ write.xlsx(gde_list, file = paste0(path,"Lung_30_DEG.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 l_clusters = length(temp_csv) - 1
-gde.all <- list()
+gde_list <- list()
 for(k in 0:l_clusters){
-        gde.all[[k+1]] = read.csv(paste0(read.path,"Lung_29-res=",res,"_cluster=",k,".csv"),
+        gde_list[[k+1]] = read.csv(paste0(read.path,"Lung_29-res=",res,"_cluster=",k,".csv"),
                                   stringsAsFactors = F)
         Progress(k, l_clusters+1)
 }
-gde <- bind_rows(gde.all)
+gde <- bind_rows(gde_list)
 gde = gde[gde$avg_logFC >0.5 & gde$p_val < 0.05,]
 gde_list[[1]] = gde
         
@@ -65,46 +65,73 @@ names(gde_list) = paste0("res=",2)
 read.path = "Yang/Lung_30/DE_analysis/C_Cell_types/"
 args=1:62
 args[args < 10] = paste0("0", args[args < 10])
-cell_types = sort(c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
+new_cell_types_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                        "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                        "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                       "Stromal"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                   "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                       "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                    "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
+
+old_cell_types = sort(c("AT1","AT2","AT2-1","AT2-p","BC","BC-p","BC-S","IC1","IC2","IC-S","H","p-C",
                     "C1","C2","C3","S","S-d","Ion","NEC","SMG-Muc","SMG-Ser","MEC","Cr",
                     "F1","F2","F3","F4","Gli","SM1","SM2","SM3","Pr","En-A","En-C","En-C1",
                     "En-V","En-p","En-SM","En-L","Nr","Neu","MC","Mon","M0","M1","M2",
                     "M1-2","M-p","DC","P-DC","B","PC","T-cn","T-reg","T-rm","T-NK","T7",
                     "T-ifn","T-int","T-p","T-un","RBC"))
-csv_list <- paste0("Lung_30-",args,"_FC0.1_",cell_types,".csv")
+csv_list <- paste0("Lung_30-",args,"_FC0.1_",old_cell_types,".csv")
 
 list_files <- list.files(path = read.path, pattern ="Lung_30-")
 csv_list[!(csv_list %in% list_files)]
 
-gde.all <- lapply(paste0(read.path,list_files), function(x) {
+anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+
+gde_list <- lapply(paste0(read.path,list_files), function(x) {
         tmp = read.csv(x, stringsAsFactors = F)
         tmp = tmp[tmp$p_val <0.05, ]
         colnames(tmp) %<>% plyr::mapvalues(from = "cluster",
                                            to = "cell_type") 
+        suppressMessages(tmp$cell_type %<>% plyr::mapvalues(from = anno$Abbreviation,
+                                           to = anno$`Revised abbreviations`))
         tmp
         })
-names(gde.all) = cell_types
-gde = bind_rows(gde.all)
+cell_types <- sapply(gde_list, function(x) unique(x$cell_type))
+names(gde_list) = cell_types
+
+gde.all = bind_rows(gde_list)
 replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
-keep = (!is.na(replace_gene_names$single_cell) &
-                !is.na(replace_gene_names$gene_103))
-replace_gene_names = replace_gene_names[keep,]
-keep = replace_gene_names$gene_87 != replace_gene_names$gene_103
-replace_gene_names = replace_gene_names[keep,]
-replace_gene_names = replace_gene_names[,-c(3,4)]
-colnames(replace_gene_names) = c("ensembl_gene_id","hg19","hg38")
-rownames(replace_gene_names) = NULL
-write.csv(replace_gene_names,file = paste0(path,"replace_hg19_hg38.csv"))
-replace_gene_names = replace_gene_names[(replace_gene_names$hg19 %in% gde$gene),]
-rownames(replace_gene_names) = NULL
-write.csv(replace_gene_names,file = paste0(path,"replace_hg19_hg38_in_gde.csv"))
-
-gde$gene %<>% plyr::mapvalues(from = replace_gene_names$hg19,
+replace_gene_names %<>% filter(!is.na(hg19)) %>%
+        filter(!is.na(hg38)) %>%
+        filter(hg19 != hg38) %>%
+        select(c("ensembl_gene_id","hg19","hg38")) %>%
+        filter(hg19 %in% gde.all$gene) 
+dim(replace_gene_names)
+gde.all$gene %<>% plyr::mapvalues(from = replace_gene_names$hg19,
                 to = replace_gene_names$hg38)
-gde.all <- split(gde, f = gde$cell_type)
+gde.all = gde.all[,-1]
+gde_list <- split(gde.all, f = gde.all$cell_type)
+gde_list = gde_list[unlist(new_cell_types_list)]
+gde_list %<>% pblapply(function(x) {
+        rownames(x) = x$gene
+        x
+        })
 
-write.xlsx(gde.all, file = paste0(read.path,"DEG_markers_by_cell_types.xlsx"),
+write.xlsx(gde_list, file = paste0(read.path,"DEG_markers_by_cell_types.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+#-20210326 Include column “K” (call it “EVG”) to indicate if the gene is also “EVG” for this cell type
+
+read.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
+
+# read EVGs
+superfamily <- c("Epithelial","Structural","Immune")
+EVGs_df <- lapply(superfamily, function(s) {
+        tmp = readxl::read_excel(paste0(read.path,"Lung_30-EVGs-full.xlsx"), sheet = s)
+        tmp = tmp[,-1]
+        tmp = tmp[,grep("_gene",colnames(tmp),value = T)]
+        colnames(tmp) %<>% gsub("_gene","",.)
+        tmp
+}) %>% do.call(cbind.fill,.)
+colnames(EVGs_df) %<>% sub("d-S","TASC",.)
 
 #================== DE on group -A ================
 read.path = "Yang/Lung_30/DE_analysis/"

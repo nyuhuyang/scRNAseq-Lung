@@ -13,7 +13,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 set.seed(101)
 # ========== define dotplot rownames and colnames =================
-cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","d-S",
+cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
                                         "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
                                         "g-Ser","AT1","AT2","AT2-1","AT2-p"),
                        "Stromal"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
@@ -53,52 +53,15 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 superfamily <- c("Epithelial","Stromal","Immune")
 #======1.2 load  Seurat =========================
 # load files
-object = readRDS(file = "data/Lung_30_20200710.rds") 
+object = readRDS(file = "data/Lung_SCT_30_20200710.rds") 
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
-table(anno$Abbreviation %in% object$annotations3)
-object$cell_types <- plyr::mapvalues(object$annotations3,
-                                     from = anno$Abbreviation,
-                                     to = anno$`Revised abbreviations`)
-Idents(object) = "cell_types"
 len <- 40
 
 dotplot_df <- readxl::read_excel("doc/20210322_40-gene for for dotplot revised.xlsx")
 dotplot_df <- dotplot_df[1:len,superfamily]
-dot_features = c(dotplot_df[,superfamily[1]],
-                 dotplot_df[,superfamily[2]],
-                 dotplot_df[,superfamily[3]]) %>% unlist
-gene_names = GTEx$V1
-dot_features[!(dot_features %in% gene_names)]
-all_genes = rownames(object)
-dot_features[!(dot_features %in% all_genes)]
-dot_features[!(dot_features %in% all_genes)]
-
-replace_gene_names <- read.csv("Yang/GTEx/replace_gene_names.csv")
-plyr::mapvalues(dot_features[!(dot_features %in% all_genes)], from = replace_gene_names$Single.cell,
-                to = replace_gene_names$GTEx.v8)
-
-newnames = plyr::mapvalues(all_genes, from = replace_gene_names$Single.cell,
-                           to = replace_gene_names$GTEx.v8)
-# RenameGenesSeurat  ------------------------------------------------------------------------------------
-# https://github.com/satijalab/seurat/issues/2617
-# Replace gene names in different slots of a Seurat object. Run this before integration. Run this before integration. It only changes obj@assays$RNA@counts, @data and @scale.data.
-RenameGenesSeurat <- function(obj , newnames) { 
-    print("Run this before integration. It only changes obj@assays$SCT@counts, @data and @scale.data.")
-    SCT <- obj@assays$SCT
-    
-    if (nrow(SCT) == length(newnames)) {
-        if (length(SCT@counts)) SCT@counts@Dimnames[[1]]            <- newnames
-        if (length(SCT@data)) SCT@data@Dimnames[[1]]                <- newnames
-        #if (length(SCT@scale.data)) SCT@scale.data@Dimnames[[1]]    <- newnames
-    } else {"Unequal gene sets: nrow(SCT) != nrow(newnames)"}
-    obj@assays$SCT <- SCT
-    return(obj)
-}
-object = RenameGenesSeurat(obj = object, newnames = newnames)
 
 # for top 3 figures ===========
 g <- list()
@@ -106,7 +69,7 @@ for(i in seq_along(superfamily)){
     group = superfamily[i]
     sub_object <- subset(object, idents =  cell.type_list[[group]])
     Idents(sub_object) %<>% factor(levels = cell.type_list[[group]])
-    features = features_list[[group]]
+    features = dotplot_df[[group]]
     g[[i]] <- DotPlot.1(sub_object, features = rev(features),
                         log.data = log2,exp.max = 7,dot.scale = 6, 
                        scale = FALSE,

@@ -26,6 +26,16 @@ rownames(supersignatures) = make.unique(supersignatures$gene)
 anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
 supersignatures$cluster %<>% plyr::mapvalues(from = anno$Abbreviation,
                                              to = anno$`Revised abbreviations`)
+replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
+replace_gene_names %<>% filter(!is.na(hg19)) %>%
+        filter(!is.na(hg38)) %>%
+        filter(hg19 != hg38) %>%
+        select(c("ensembl_gene_id","hg19","hg38")) %>%
+        filter(hg19 %in% supersignatures$gene)
+
+supersignatures$gene %<>% plyr::mapvalues(from = replace_gene_names$hg19,
+                              to = replace_gene_names$hg38)
+
 write.csv(supersignatures, 
           file =  paste0(paste0(read.path,"C_Cell_types/supersignatures_Extended.csv")))
 
@@ -49,23 +59,14 @@ EVGs_df = apply(EVGs_df,2,as.character)
 
 deg_list <- split(supersignatures, f = supersignatures$cluster)
 cell.types = names(deg_list)
+colnames(EVGs_df) %<>% sub("d-S","TASC",.)
+deg_list = deg_list[cell.types[cell.types %in% colnames(EVGs_df)]]
 deg_list1 = pbapply::pblapply(deg_list, function(x) {
                           cell.type = unique((x$cluster))
                           x$EVG = x$gene %in% na.omit(EVGs_df[,cell.type])
                           x
                  })
 
-deg_list1 <- list()
-for(i in seq_along(deg_list)) {
-        x = deg_list[[i]]
-        cell.type = unique((x[,"cluster"]))
-        if(!(cell.type %in% colnames(EVGs_df))) {
-                x[,"EVG"] = FALSE
-                next
-                }
-        x[,"EVG"] = x[,"gene"] %in% na.omit(EVGs_df[,cell.type])
-        deg_list1[[i]] = x
-}
 supersignatures1 = bind_rows(deg_list1)
 supersignatures1 = supersignatures1[order(supersignatures1$gene),]
 supersignatures1$EVG  %<>% plyr::mapvalues(from = c(TRUE, FALSE),
