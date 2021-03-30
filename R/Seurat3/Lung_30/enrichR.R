@@ -324,13 +324,22 @@ cbind.fill <- function(...){
     nm <- lapply(nm, as.matrix)
     n <- max(sapply(nm, nrow)) 
     do.call(cbind, lapply(nm, function (x) 
-        rbind(x, matrix("", n-nrow(x), ncol(x))))) 
+        rbind(x, matrix(NA, n-nrow(x), ncol(x))))) 
 }
 
 res_df <- do.call(cbind.fill, res_list)
 
-df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
-(cell.types <- sort(df$cell.types))
+#df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
+#(cell.types <- sort(df$cell.types))
+cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                        "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                        "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                       "Structural"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                      "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                       "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                    "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
+cell.types = unlist(cell.type_list)
+names(cell.types) = cell.types
 deg_list <- pblapply(cell.types, function(cell){
     tmp = res_df[,grep(paste0("^",cell,"_"),colnames(res_df),value = T)] %>% as.data.frame()
     tmp = tmp[!is.na(tmp[,paste0(cell,"_gene")]),]
@@ -368,10 +377,12 @@ for(i in 1:length(cell.types)){
 df_enrichedRes =  bind_rows(enrichedRes)
 df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
 write.xlsx(df_enrichedRes, asTable = F,
-           file = paste0(save.path,"enrichR_EVG_all.xlsx"),
+           file = paste0(save.path,"enrichR_EVG_all~.xlsx"),
            borders = "surrounding")
+df_enrichedRes <- readxl::read_excel(paste0(save.path,"enrichR_EVG_all~.xlsx"))
 
 enrichedRes_list <- split(df_enrichedRes, f = df_enrichedRes$library)
+
 for(i in seq_along(enrichedRes_list)){
     write.csv(enrichedRes_list[[i]], file = paste0(save.path,"enrichR_EVG_",
                                                    names(enrichedRes_list)[i],".csv"),
@@ -379,6 +390,7 @@ for(i in seq_along(enrichedRes_list)){
     Progress(i, length(enrichedRes_list))
     
 }
+names(enrichedRes_list) %<>% substr(1, 30)   
 write.xlsx(enrichedRes_list, asTable = F,
            file = paste0(save.path,"enrichR_EVG_celltypes.xlsx"),
            borders = "surrounding")

@@ -137,3 +137,14 @@ plot(euler(geneNames[c("GRCh37","Single_cell")], shape = "circle"), quantities =
 
 plot(euler(geneNames[c("bulk","GRCh38")], shape = "circle"), quantities = TRUE)
 plot(euler(geneNames[c("Single_cell","GRCh38","GRCh37")], shape = "circle"), quantities = TRUE)
+
+
+
+# GTEX
+genes <-scan("../seurat_resources/Enrichr/GTEx_Tissue_Sample_Gene_Expression_Profiles_up.txt", what="", sep="\t")
+genes = genes[-grep(" ",genes)] %>% unique
+table(genes %in% hg_19_38$hg19)
+table(genes %in% hg_19_38$hg38)
+
+genes[genes %in% hg_19_38$hg19]
+genes[!(genes %in% hg_19_38$hg38)]

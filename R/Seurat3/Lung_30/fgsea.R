@@ -17,7 +17,7 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 prepare_gmt_file = FALSE
 if(prepare_gmt_file) {
     read.path = "../seurat_resources/msigdb/"
-    folder_list <- c("@1-Development","@2-Physiology","@3-Disease","@4-Cancer")
+    #folder_list <- c("@1-Development","@2-Physiology","@3-Disease","@4-Cancer")
     for(i in seq_along(folder_list)){
         pathway_name_list <- list.files(paste0(read.path,folder_list[i])) %>% 
             gsub("\\.txt","",.) %>% gsub("^[0-9][0-9]_","",.)
@@ -32,15 +32,12 @@ if(prepare_gmt_file) {
 }
 
 # read pathway
-hallmark <- fgsea::gmtPathways("../seurat_resources/msigdb/h.all.v7.1.symbols.gmt")
-names(hallmark) = gsub("HALLMARK_","",names(hallmark))
-names(hallmark) = gsub("\\_"," ",names(hallmark))
-
-Biocarta <- gmtPathways("../seurat_resources/msigdb/c2.cp.biocarta.v7.1.symbols.gmt")
-kegg <- gmtPathways("../seurat_resources/msigdb/c2.cp.kegg.v7.1.symbols.gmt")
-pid <- gmtPathways("../seurat_resources/msigdb/c2.cp.pid.v7.1.symbols.gmt")
-reactome <- gmtPathways("../seurat_resources/msigdb/c2.cp.reactome.v7.1.symbols.gmt")
-tft <- gmtPathways("../seurat_resources/msigdb/c3.tft.v7.1.symbols.gmt")
+hallmark <- fgsea::gmtPathways("../seurat_resources/msigdb/h.all.v7.3.symbols.gmt")
+Biocarta <- gmtPathways("../seurat_resources/msigdb/c2.cp.biocarta.v7.3.symbols.gmt")
+kegg <- gmtPathways("../seurat_resources/msigdb/c2.cp.kegg.v7.3.symbols.gmt")
+pid <- gmtPathways("../seurat_resources/msigdb/c2.cp.pid.v7.3.symbols.gmt")
+reactome <- gmtPathways("../seurat_resources/msigdb/c2.cp.reactome.v7.3.symbols.gmt")
+tft <- gmtPathways("../seurat_resources/msigdb/c3.tft.v7.3.symbols.gmt")
 Development <- gmtPathways("../seurat_resources/msigdb/Development.gmt")
 Physiology <- gmtPathways("../seurat_resources/msigdb/Physiology.gmt")
 Disease <- gmtPathways("../seurat_resources/msigdb/Disease.gmt")
@@ -56,6 +53,10 @@ msigdb_list <- list("hallmark" = hallmark,
                     "Physiology" = Physiology,
                     "Disease" = Disease,
                     "Cancer" = Cancer)
+
+
+replace_gene_names <- readRDS("data/RNA-seq/hg_19_38.rds")
+table(unlist(hallmark) %in% replace_gene_names$hg38)
 
 set.seed(101)
 read.path = "Yang/Lung_30/DE_analysis/"

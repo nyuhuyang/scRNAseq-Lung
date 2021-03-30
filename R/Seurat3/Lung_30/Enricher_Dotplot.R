@@ -53,10 +53,12 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 superfamily <- c("Epithelial","Stromal","Immune")
 #======1.2 load  Seurat =========================
 # load files
-object = readRDS(file = "data/Lung_SCT_30_20200710.rds") 
+object <- readRDS(file = "data/Lung_SCT_30_20200710.rds") 
+
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
+Idents(object) = "cell_types"
 
 len <- 40
 
@@ -203,12 +205,13 @@ layout_largerFont <- c(
     area(15, 14, 20, 24),
     area(15, 25, 20, 36)
 )
-plot(layout_largerFont)
+#plot(layout_largerFont)
 
 jpeg(paste0(save.path,"Dotplot_final.jpeg"), units="in", width=19, 
      height= 14,res=900)
 print(wrap_plots(g, nrow = 20, ncol = 36,design = layout_largerFont))
 dev.off()
+
 
 for(k in seq_along(csv_list)){
     prop_table_list[[k]][is.na(prop_table_list[[k]])] = 0

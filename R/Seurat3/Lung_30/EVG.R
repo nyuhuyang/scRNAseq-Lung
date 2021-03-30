@@ -26,14 +26,22 @@ Expression$V1 %<>% plyr::mapvalues(from = replace_gene_names$hg19,
                               to = replace_gene_names$hg38)
 Expression %<>% tibble::column_to_rownames(var = "V1")
 Expression[1:4,1:4]
+colnames(Expression) %<>% gsub("d-S","TASC",.)
 
-anno <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx")
+#df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
+new_cell_types_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                             "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                             "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                            "Structural"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                        "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                            "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                         "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
 
-df <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx",col_names = T)
 superfamily <- c("Epithelial","Structural","Immune")
 EVG <- vector(mode = "list",length = length(superfamily))
 for(i in seq_along(superfamily)){
-    selected.cell.types <- df$cell.types[df$Cell.group %in% superfamily[i]] %>% sort
+    #selected.cell.types <- df$cell.types[df$Cell.group %in% superfamily[i]]
+    selected.cell.types <- new_cell_types_list[[superfamily[i]]]
     gene_list = pbapply::pbsapply(selected.cell.types,function(ident.1){
         ident.2 = selected.cell.types[!(selected.cell.types %in% ident.1)]
         keep1 = Expression[,paste0(ident.1,".pct")] >= 1/3
@@ -46,7 +54,7 @@ for(i in seq_along(superfamily)){
 }
 names(EVG) = superfamily
 openxlsx::write.xlsx(EVG, file =  paste0(save.path,"Lung_30-EVGs.xlsx"),
-                     colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+                     colNames = TRUE,row.names = F,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 
 #===== generate FC===================
@@ -61,11 +69,13 @@ cbind.fill <- function(...){
     nm <- lapply(nm, as.matrix)
     n <- max(sapply(nm, nrow)) 
     do.call(cbind, lapply(nm, function (x) 
-        rbind(x, matrix("", n-nrow(x), ncol(x))))) 
+        rbind(x, matrix(NA, n-nrow(x), ncol(x))))) 
 }
 
 for(i in seq_along(superfamily)){
-    selected.cell.types <- df$cell.types[df$Cell.group %in% superfamily[i]] %>% sort
+    #selected.cell.types <- df$cell.types[df$Cell.group %in% superfamily[i]] %>% sort
+    selected.cell.types <- new_cell_types_list[[superfamily[i]]]
+    
     genes.de = pblapply(selected.cell.types,function(ident.1){
         ident.2 = selected.cell.types[!(selected.cell.types %in% ident.1)]
         genes  = EVG_df %>% filter(cell.type == ident.1) %>% dplyr::select(genes) %>% pull
@@ -73,12 +83,12 @@ for(i in seq_along(superfamily)){
         keep1 = Expression[,paste0(ident.1,".pct")] >= 1/3
         keep2 = Expression[,ident.1]/rowMeans(Expression[,ident.2]) >= 2
         rownames(Expression)[keep1 & keep2]
-        de = data.frame(gene  = genes,
-                        exp.1 = Expression[genes,ident.1],
-                        exp.2 = rowMeans(Expression[genes,ident.2]),
-                        pct.1 = Expression[genes,paste0(ident.1,".pct")],
-                        pct.2 = rowMeans(Expression[genes,paste0(ident.2,".pct")]),
-                        FC = Expression[genes,ident.1]/rowMeans(Expression[genes,ident.2])
+        de =     tibble(`gene`  = genes,
+                        `exp.1` = Expression[genes,ident.1],
+                        `exp.2` = rowMeans(Expression[genes,ident.2]),
+                        `pct.1` = Expression[genes,paste0(ident.1,".pct")],
+                        `pct.2` = rowMeans(Expression[genes,paste0(ident.2,".pct")]),
+                        `FC` = Expression[genes,ident.1]/rowMeans(Expression[genes,ident.2])
         )
         de %<>% arrange(desc(FC))
         colnames(de) %<>% paste0(ident.1,"_",.)
@@ -91,7 +101,8 @@ for(i in seq_along(superfamily)){
 
 names(EVGs_list) = superfamily
 openxlsx::write.xlsx(EVGs_list, file =  paste0(save.path,"Lung_30-EVGs-full.xlsx"),
-                     colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+                     colNames = TRUE,row.names = FALSE,borders = "surrounding",
+                     colWidths = c(NA, "auto", "auto"), keepNA = FALSE)
 #========= expression data for 577 GTEx samples ==============
 library(data.table)
 EVGs_df <- do.call(cbind.fill, EVGs_list)
@@ -296,7 +307,6 @@ cell_types = unlist(new_cell_types_list)
 names(cell_types) = cell_types
 gde_list = pbapply::pblapply(cell_types,function(s){
     tmp = readxl::read_excel(paste0(read.path,"DEG_markers_by_cell_types.xlsx"),sheet = s)
-    tmp %<>% tibble::column_to_rownames(var = "X")
     tmp
 })
 
@@ -326,7 +336,7 @@ EVGs_full <- data.frame("gene" = sort(unique(EVGs_long$gene)))
 cell.types <- unique(EVGs_long$cell.type)
 for(i in seq_along(cell.types)) {
     tmp = EVGs_long[EVGs_long$cell.type %in% cell.types[i],]
-    EVGs_full %<>% left_join(tmp,by = "gene")
+    EVGs_full %<>% full_join(tmp,by = "gene")
 }
 EVGs_full %<>% as.matrix()
 EVGs <- apply(EVGs_full,1, function(x) as.character(na.exclude(x))) %>%
@@ -339,9 +349,24 @@ table(EVGs$gene %in% replace_gene_names$hg38)
 
 gde_list %<>% pblapply(function(gde){
     gde %<>% left_join(EVGs,by = "gene")
-    rownames(gde) = gde$gene
+    
+    gde$EVG = apply(gde,1, function(x) {
+        as.character(x["cell_type"]) %in% as.character(x[colnames(EVGs)])
+        })
+    gde$EVG %<>% plyr::mapvalues(from = c(TRUE,FALSE),
+                                 to = c("yes","no"))
+    EVG_col = grep("EVG",colnames(gde))
+    gde = gde[,c(1:min(EVG_col-1),last(EVG_col),EVG_col[-length(EVG_col)])]
     gde
 })
-write.xlsx(gde_list, file = paste0(read.path,"DEG_markers_by_cell_types_EVGs.xlsx"),
+save.path = "Yang/Lung_30/DE_analysis/F_EVGs_allCells/"
+
+openxlsx::write.xlsx(gde_list, file = paste0(save.path,"DEG_markers_by_cell_types_EVGs.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+#1 - a separate version for this supplemental table DEG – for EVG keep only column J like in this last version (for yes, no), 
+# remove additional columns (K-W) for EVG in other cell types
+gde_list %<>% pblapply(function(gde) gde[,-grep("EVGs_[0-9]",colnames(gde))])
+
+openxlsx::write.xlsx(gde_list, file = paste0(save.path,"DEG_markers_by_cell_types_EVGs_short.xlsx"),
+                     colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
