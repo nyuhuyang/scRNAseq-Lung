@@ -246,7 +246,7 @@ hist(s1,breaks = 30,xlab = "Combine.score",
      main = "Histogram of GTEx Combine.score with p > 1")
 hist(s2,breaks = 30,xlab = "Combine.score",
      main = "Histogram of HGA Combine.score with p > 1")
-
+DotPlot.1
 
 #' @param Score_df score or expression matrix, demonstrated in color
 #' @param prop_df score or expression matrix, demonstrated in dot size

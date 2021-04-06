@@ -1,4 +1,4 @@
-invisible(lapply(c("Seurat","dplyr","magrittr","tibble","edgeR","Biobase"), function(x) {
+invisible(lapply(c("Seurat","dplyr","magrittr","tibble","edgeR","Biobase","biomaRt"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -12,13 +12,23 @@ meta.data <- readxl::read_excel("data/RNA-seq/P-D paired samples FPKM revised.xl
 meta.data %<>% column_to_rownames(var = "...1") %>% t %>% as.data.frame()
 meta.data$patient %<>% as.factor()
 meta.data$region %<>% as.factor()
-
-# remove dup gene by mean expression
 FPKM = FPKM[order(rowMeans(FPKM[,-1]),decreasing = TRUE),]
-FPKM = FPKM[!duplicated(FPKM$gene),]
+
+#================== upgrate hg19 to hg38 ========
+hg_19_38 = readRDS("data/RNA-seq/hg_19_38.rds")
+hg_19_38_short <- hg_19_38 %>% filter(hg19 %in% FPKM$gene) %>%
+  filter(grch38 != "") %>%
+  filter(hg19 != grch38)
+dim(hg_19_38_short)
+newnames <- plyr::mapvalues(FPKM$gene,
+                            from = hg_19_38_short$hg19,
+                            to = hg_19_38_short$grch38)
+table(duplicated(newnames))
+newnames %<>% make.unique()
+FPKM$gene = newnames
 FPKM %<>% column_to_rownames(var = "gene") 
 TPM = pbapply::pbapply(FPKM,2, function(x) x/sum(x)* 10^6) 
-head(TPM)
+TPM[1:5,1:5]
 table(rownames(meta.data) == colnames(TPM) )
 write.csv(TPM,file = "data/RNA-seq/P-D paired samples TPM revised.csv")
 
@@ -69,13 +79,27 @@ log2FC_table <- function(data){
 
 df1 = log2FC_table(TPM)
 write.csv(df1,file = "Yang/RNA-seq/TPM_log2FC.csv",row.names = T)
+df_1 <- df1 %>% filter(ttest <= 0.05) %>% arrange(desc(Mean_log2FC_D_vs_P))
+df_1$gene = rownames(df_1)
+openxlsx::write.xlsx(list("TPM_log2FC" = df1, "significant" = df_1),
+                     file =  "Yang/RNA-seq/TPM_log2FC.xlsx",
+                     colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
 FPKM %<>% as.matrix()
 
 df2 = log2FC_table(FPKM)
 write.csv(df2,file = "Yang/RNA-seq/FPKM_log2FC.csv",row.names = T)
+df_2 <- df2 %>% filter(ttest <= 0.05) %>% arrange(desc(Mean_log2FC_D_vs_P))
+df_2$gene = rownames(df_2)
+openxlsx::write.xlsx(list("FPKM_log2FC" = df2, "significant" = df_2),
+                     file =  "Yang/RNA-seq/FPKM_log2FC.xlsx",
+                     colNames = TRUE,row.names = TRUE,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 
-FPKM_FC <- readxl::read_excel("~/Downloads/D-P log2FC paired t test RS 3-9-21.xlsx")
+
+
+FPKM_FC <- readxl::read_excel("Yang/RNA-seq/D-P log2FC paired t test RS 3-9-21.xlsx")
 renat_deg <- FPKM_FC$`remove non-coding`
 which(renat_deg %in% c("SFTPB","DGCR11","PSKH1","COX7A1"))
 
@@ -157,8 +181,8 @@ PCAPlot.1(object, group.by = "region", do.print = T)
 PCAPlot.1(object, group.by = "patient", do.print = T, cols = Singler.colors)
 
 FeaturePlot.1(object,features = "nCount_RNA")
-save(object, file = "data/Lung_bulk_20210226.Rda")
-load("data/Lung_bulk_20210226.Rda")
+saveRDS(object, file = "data/Lung_bulk_20210402.rds")
+object <- readRDS(file = "data/Lung_bulk_20210402.rds")
 # differential anlaysis
 Idents(object) = "region"
 sub_object <- subset(object, idents = c("Prox","Distal"))

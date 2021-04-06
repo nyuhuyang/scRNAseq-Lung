@@ -6,6 +6,20 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 set.seed(101)
+"Notation:"
+"grch37, grch38: gene names from Ensembl datasets"
+"hg19, hg38: gene names from single cell or GTEx, with unknown manipulation"
+
+#=========== load grch37 genes ==========
+grch37 = useEnsembl(biomart="ENSEMBL_MART_ENSEMBL", dataset="hsapiens_gene_ensembl",GRCh = 37)
+attributes <-listAttributes(grch37)
+head(attributes[,c("name","description")],5)
+symbols_grch37 <- getBM(attributes=c("ensembl_gene_id","external_gene_name"), 
+                 #filters = 'ensembl_gene_id', 
+                 #values = hg_38$ensembl_gene_id, 
+                 mart = grch37)
+colnames(symbols_grch37)[2] = "grch37"
+
 #=========== read 10X genes ============
 list.dirs("data")
 
@@ -16,66 +30,120 @@ tsv_list <- pbapply::pblapply(sample_id, function(x){
                                sep = '\t', header = F)
         tmp
 })
-tsv_list[[4]] <- read.table(file = 'data/UNC_44_D/outs/filtered_gene_bc_matrices/hg19/genes.tsv',
+hg_19 <- read.table(file = 'data/UNC_44_D/outs/filtered_gene_bc_matrices/hg19/genes.tsv',
                            sep = '\t', header = F)
-identical(tsv_list[[1]],tsv_list[[2]])
-identical(tsv_list[[1]],tsv_list[[3]])
-tsv_list[[3]]$V3 = NULL
-identical(tsv_list[[3]],tsv_list[[4]])
-hg_19 <- tsv_list[[4]]
 colnames(hg_19) = c("ensembl_gene_id","hg19")
 hg_19$hg19 %<>% make.unique()
 hg_19$hg19 %<>% gsub("_","-",.)
 hg_19$single_cell = "single_cell"
 # load single-cell
-Single_cell <- readRDS(file = "data/Lung_SCT_30_20200710.rds") 
+Single_cell <- readRDS(file = "data/Lung_30_20200710.rds") 
 single_cell_genes <- rownames(Single_cell) 
-load("data/Lung_bulk_20210226.Rda")
-bulk <- object;rm(object);GC()
-table(rownames(Single_cell)  %in% hg_19$hg19)
-rownames(bulk)[!(rownames(bulk)  %in% hg_19$hg19)]
 
-hg_19$hg19[!(hg_19$hg19 %in% single_cell_genes)]
+table(single_cell_genes %in% symbols_grch37$grch37)
+table(single_cell_genes %in% hg_19$hg19)
 
+single_cell_genes[!single_cell_genes %in% symbols_grch37$grch37]
+
+"grch37 doesn't have all gene names from 10X genes,
+because make.unique fabricated gene names"
+
+hg_19_37 <- full_join(symbols_grch37, hg_19,by="ensembl_gene_id")
+hg_19_37[is.na(hg_19_37)] = ""
+missing_37 <- hg_19_37$grch37 %in% hg_19_37[duplicated(hg_19_37$grch37),"grch37"] & 
+        stringr::str_length(hg_19_37$hg19) > 0 &
+        hg_19_37$grch37 != hg_19_37$hg19
+table(missing_37)
+hg_19_37[missing_37,"grch37"] = hg_19_37[missing_37,"hg19"]
+
+table(single_cell_genes %in% hg_19_37$hg19)
+table(single_cell_genes %in% hg_19_37$grch37)
+still_missing <- hg_19_37$hg19 %in% single_cell_genes[!single_cell_genes %in% hg_19_37$grch37]
+hg_19_37[hg_19_37$hg19 %in% single_cell_genes[!single_cell_genes %in% hg_19_37$grch37],]
 
 #counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
 tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
 # change gene name
 hg_38 = data.frame(ensembl_gene_id = gsub("\\.\\d+$","",rownames(tpm)),
                    GTEx = "GTEx",
-                       row.names = rownames(tpm))
+                   row.names = rownames(tpm))
 
-ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
-attributes <- listAttributes(ensembl)
-head(attributes,20)
-symbols <- getBM(attributes=c("ensembl_gene_id",'hgnc_symbol'), 
+grch38 = useMart("ensembl",dataset="hsapiens_gene_ensembl")
+attributes <-listAttributes(grch38)
+head(attributes[,c("name","description")],20)
+symbols_grch38 <- getBM(attributes=c(attributes$name[1],'external_gene_name'), 
                  #filters = 'ensembl_gene_id', 
                  #values = hg_38$ensembl_gene_id, 
-                 mart = ensembl)
-hg_38 %<>% full_join(symbols,by="ensembl_gene_id")
-colnames(hg_38)[3] = "hg38"
-hg_19_38 <- full_join(hg_19, hg_38,by="ensembl_gene_id")
+                 mart = grch38)
+hg_38 %<>% full_join(symbols_grch38,by="ensembl_gene_id")
+
+
+colnames(hg_38)[3] = "grch38"
+hg_19_38 <- full_join(hg_19_37, hg_38,by="ensembl_gene_id")
 dim(hg_19_38)
-hg_19_38 %<>% as.matrix()
-hg_19_38[hg_19_38[,"hg38"] == "","hg38"] = NA
-hg_19_38 %<>% as.data.frame
+hg_19_38[is.na(hg_19_38)] = ""
+hg_19_38 %<>% filter(grch37 != "" | hg19 != "" | grch38 != "")
+dim(hg_19_38) # 76292
 saveRDS(hg_19_38,"data/RNA-seq/hg_19_38.rds")
+
+# load bulk and replace names
+load("data/Lung_bulk_20210226.Rda")
+keep_genes <- (rownames(object)  %in% hg_19_38$grch37)
+table(keep_genes)
+bulk_genes <- rownames(object)[keep_genes]
+object %<>% subset(features = bulk_genes)
+
 hg_19_38 = readRDS("data/RNA-seq/hg_19_38.rds")
 
-hg_19_38 %<>% filter(hg19 %in% single_cell_genes) %>%
-        filter(!is.na(hg38)) %>%
-        filter(hg19 != hg38)
+hg_19_38_short <- hg_19_38 %>% filter(hg19 %in% bulk_genes) %>%
+        filter(grch38 != "") %>%
+        filter(hg19 != grch38)
+dim(hg_19_38_short)
+newnames <- plyr::mapvalues(bulk_genes,
+                            from = hg_19_38_short$hg19,
+                            to = hg_19_38_short$grch38)
+table(duplicated(newnames))
+newnames %<>% make.unique()
+object %<>% RenameGenesSeurat(newnames = newnames)
+object %<>% FindVariableFeatures
+object@assays$RNA@scale.data = matrix(0,0,0)
 
+rownames(object)[!(rownames(object) %in% c(hg_19_38$grch38,hg_19_38$hg19))]
+saveRDS(object, file = "data/Lung_bulk_20210402.rds")
+bulk <- readRDS(file = "data/Lung_bulk_20210402.rds")
+# replace names for single cell
+hg_19_38 = readRDS("data/RNA-seq/hg_19_38.rds")
+
+hg_19_38_short <- hg_19_38 %>% filter(hg19 %in% single_cell_genes) %>%
+        filter(grch38 != "") %>%
+        filter(hg19 != grch38)
+dim(hg_19_38_short)
 newnames <- plyr::mapvalues(single_cell_genes,
-                            from = hg_19_38$hg19,
-                            to = hg_19_38$hg38)
+                            from = hg_19_38_short$hg19,
+                            to = hg_19_38_short$grch38)
 newnames %<>% make.unique()
 Single_cell %<>% RenameGenesSeurat(newnames = newnames)
 Single_cell %<>% FindVariableFeatures
 Single_cell@assays$SCT@scale.data = matrix(0,0,0)
 Single_cell@meta.data$cell_types %<>% gsub("^d-S$","TASC",.)
+table(rownames(Single_cell) %in% hg_19_38$grch38)
+table(rownames(Single_cell) %in% hg_19_38$hg19)
+
+rownames(Single_cell)[!(rownames(Single_cell) %in% hg_19_38$hg19)]
+rownames(Single_cell)[!(rownames(Single_cell) %in% c(hg_19_38$grch38,hg_19_38$hg19))]
+
+Single_cell@assays$RNA = NULL
+Single_cell@assays$SCT@scale.data = matrix(0,0,0)
+format(object.size(Single_cell), unit = "GB")
+
 saveRDS(Single_cell, file = "data/Lung_SCT_30_20200710.rds")
 
+
+
+
+
+
+object <- readRDS(file = "data/Lung_SCT_30_20200710.rds")
 GTEx <- data.table::fread("data/RNA-seq/GTEx-Lung-tpm~.csv")
 gene_names <- read.csv("output/20210302/gene_name.csv")
 Int_supersignatures <- readxl::read_excel("doc/Integrated-signatures-categorized.xlsx") 

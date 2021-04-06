@@ -42,7 +42,7 @@ write.csv(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
 # on Mac
 
 #counts = read.csv("data/RNA-seq/GTEx-Lung-counts.csv",row.names = 1)
-counts = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
+counts = read.csv("data/RNA-seq/GTEx-Lung-tpm~.csv",row.names = 1)
 # change gene name
 df_counts = data.frame(ensembl_gene_id = gsub("\\.\\d+$","",rownames(counts)),
                        row.names = rownames(counts))
@@ -50,12 +50,12 @@ df_counts = data.frame(ensembl_gene_id = gsub("\\.\\d+$","",rownames(counts)),
 ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
 attributes <- listAttributes(ensembl)
 head(attributes,20)
-symbols <- getBM(attributes=c("ensembl_gene_id",'hgnc_symbol'), 
-                filters = 'ensembl_gene_id', 
-                values = df_counts$ensembl_gene_id, 
+symbols <- getBM(attributes=c("ensembl_gene_id",'external_gene_name'), 
+                #filters = 'ensembl_gene_id', 
+                #values = df_counts$ensembl_gene_id, 
                 mart = ensembl)
 df_counts$gene <- symbols[match(df_counts$ensembl_gene_id, symbols$ensembl_gene_id),
-                      "hgnc_symbol"]
+                      "external_gene_name"]
 df_counts %<>% cbind(counts)
 df_counts = subset(df_counts, gene != "")
 df_counts = df_counts[!duplicated(df_counts$gene),]
@@ -99,8 +99,8 @@ object@meta.data %>%
 UMAPPlot.1(object, group.by = "Age.Bracket", do.print = T, cols = Singler.colors)#Sex Age.Bracket
 FeaturePlot.1(object,features = "nCount_RNA")
 FeaturePlot.1(object,features = "Age")
-save(object, file = "data/Lung_GTEx_20210226.Rda")
-load("data/Lung_GTEx_20210226.Rda")
+save(object, file = "data/Lung_GTEx_20210402.Rda")
+load("data/Lung_GTEx_20210402.Rda")
 # write counts
 tpm  = as.matrix(object[["RNA"]]@counts)
 temp = readxl::read_excel("Yang/GTEx/Cell type EVG genes - 577 GTEx samples ordered.xlsx",sheet = "AT1",)
@@ -112,18 +112,17 @@ write.csv(tpm, file = "Yang/GTEx/GTEx-Lung-tpm_reordered.csv")
 
 # write TPM with  final integrated signatures
 library(tibble)
-tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm.csv",row.names = 1)
-tpm = tpm[-1,]
+tpm = read.csv("data/RNA-seq/GTEx-Lung-tpm~.csv",row.names = 1)
 tpm %<>% rownames_to_column(var = "gene")
-tpm[,2:ncol(tpm)] %<>% apply(2,as.numeric)
+#tpm[,2:ncol(tpm)] %<>% apply(2,as.numeric)
 df = readxl::read_excel("doc/Integrated-signatures-categorized.xlsx")
 colnames(df) %<>% tolower()
-sheet = unique(tpm$`excel sheet`)
+(sheet <- unique(tpm$`excel sheet`))
 tpm %<>% left_join(df,., by = "gene")
 tpm_list <- split(tpm,f = tpm$`excel sheet`)
 tpm_list = tpm_list[sheet]
 tpm_list %<>% lapply(function(x) x[,-4])
-write.xlsx(tpm_list, file = "Yang/GTEx/Integrated-signatures-categorized - 577 GTEx samples ordered.xlsx",
+openxlsx::write.xlsx(tpm_list, file = "Yang/GTEx/Integrated-signatures-categorized - 577 GTEx samples ordered.xlsx",
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 
@@ -134,7 +133,7 @@ DEGs = DEGs[,c("gene","cluster")]
 colnames(DEGs)[2] ="cell.type"
 
 #  ======== DE Between different age groups============
-(load(file = "data/Lung_GTEx_20200307.Rda"))
+(load(file = "data/Lung_GTEx_20210402.Rda"))
 Idents(object) = "Age.Bracket"
 object %<>% sortIdent()
 gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",

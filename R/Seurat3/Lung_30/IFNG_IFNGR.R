@@ -1,5 +1,5 @@
 invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
-                   "tidyverse","ggpubr","rstatix","kableExtra"), function(x) {
+                   "tidyverse","ggpubr","rstatix","kableExtra","patchwork"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -7,6 +7,109 @@ save.path = "Yang/Lung_30/Cell_Phone_DB/IFNG_IFNGR1/figures/"
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
 set.seed(101)
+
+"
+heatmap for gene expression
+"
+object <- readRDS(file = "data/Lung_SCT_30_20200710.rds") 
+
+DefaultAssay(object) = "SCT"
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
+Idents(object) = "cell_types"
+
+
+hg_19_38 = readRDS("data/RNA-seq/hg_19_38.rds")
+table(rownames(object) %in% hg_19_38$hg38)
+table(rownames(object) %in% c(hg_19_38$hg19,hg_19_38$hg38))
+
+superfamily <- c("Epithelial","Stromal","Immune")
+
+cell.type_list <- list("Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                        "H","p-C","C1","C2","C3","Ion","NE","ME","g-Muc",
+                                        "g-Ser","AT1","AT2","AT2-1","AT2-p"),
+                       "Stromal"=c("F1","F2","F3","F4","Cr","Gli","Nr","SM1",
+                                   "SM2","SM3","Pr","En-a","En-c","En-c1","En-v","En-l","En-sm","En-p"),
+                       "Immune" = c("MC","Neu","Mon","M0","M1","M1-2","M2","M-p","DC","p-DC",
+                                    "B","PC","T-cn","T-reg","T-int","T-rm","T-NK","T-ifn","T-p"))
+cell.type <- unlist(cell.type_list,use.names = FALSE)
+
+feature_list <- list(
+        "Panel_1" = c("IFNG", "IFNGR1", "IFNGR2", "TNF", "TNFRSF1A"),
+        "Panel_2" = c("IL33", "IL1RL1", "TSLP", "CRLF2","IL5", "IL13"),
+        "Panel_3" = c("AREG", "KIT", "EREG", "EGFR", "ERBB2", "ERBB4", "NMU", "NMUR1"),
+        "Panel_4" = c("GATA3", "RORC", "CRLF2", "PTGDR2", "KLRG1", "BCL11B", "IL7R", "IL7")
+)
+features <- unlist(feature_list,use.names = FALSE) %>% unique
+table(features %in% rownames(object))
+features[!(features %in% rownames(object))]
+features = features[(features %in% rownames(object))]
+Idents(object) = "cell_types"
+Idents(object) %<>% factor(levels = cell.type)
+
+panels_df <- data.frame("superfamily" = rep(superfamily,4),
+                        "features" = paste0("Panel_",rep(1:4,each=3)))
+g <- list()
+for(i in 1:nrow(panels_df)){
+        group = panels_df[i,"superfamily"]
+        panels_names = panels_df[i,"features"]
+        sub_object <- subset(object, idents =  cell.type_list[[group]])
+        Idents(sub_object) %<>% factor(levels = cell.type_list[[group]])
+        features = feature_list[[panels_names]]
+        p <- DotPlot.1(sub_object, features = rev(features),
+                       log.data = log2,
+                       exp.max = 2, #exp.max = 7,
+                       scale.max = 0.5, #scale.max = NA
+                       dot.scale = 6, 
+                            scale = FALSE,
+                            cluster.idents = FALSE,
+                            cluster.features = FALSE,
+                            cols = c("blue","green","yellow","orange","chocolate1","red"))+
+                theme(axis.line=element_blank(),
+                      text = element_text(size=16),#16
+                      panel.grid.major = element_blank(),
+                      axis.text.x = element_text(size=16,#16
+                                                 angle = 90, 
+                                                 hjust = 0,
+                                                 vjust= 0.5),
+                      axis.title.x = element_blank(),
+                      axis.text.y = element_text(size=14),#14
+                      axis.title.y = element_blank(),
+                      plot.title = element_text(face = "plain",hjust = 0.5))+
+                scale_y_discrete(position = "right")+
+                coord_flip()
+        if(i <= 3) { p  =  p + ggtitle(group)
+        } else p  =  p +  theme(axis.text.x=element_blank(),
+                                axis.ticks.x=element_blank())
+        if(group != "Epithelial") p = p + theme(axis.text.y=element_blank(),
+                                                axis.ticks.y=element_blank())
+        p = p + NoLegend()
+       g[[i]] = p
+        
+        Progress(i, nrow(panels_df))
+}
+
+ layout_largerFont <- c(
+        area(1, 1, 6, 13),
+        area(1, 14, 6, 24),
+        area(1, 25, 6, 36),
+        area(7, 1, 12, 13),
+        area(7, 14, 12, 24),
+        area(7, 25, 12, 36),
+        area(13, 1, 21, 13),
+        area(13, 14, 21, 24),
+        area(13, 25, 21, 36),
+        area(22, 1, 30, 13),
+        area(22, 14, 30, 24),
+        area(22, 25, 30, 36)
+)
+plot(layout_largerFont)
+jpeg(paste0(save.path,"Dotplot_IFNG_IFNGR_augmented.jpeg"), units="in", width=15, 
+     height= 8,res=900)
+print(wrap_plots(g, nrow = 30, ncol = 36,design = layout_largerFont))
+dev.off()
+
+
 "
 Analysis 1
 3 groups: D-young; D-old; COPD
