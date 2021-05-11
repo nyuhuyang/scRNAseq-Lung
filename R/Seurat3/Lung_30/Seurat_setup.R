@@ -21,9 +21,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # cells, we do no additional filtering here
 df_samples <- readxl::read_excel("doc/20200701_scRNAseq_info.xlsx")
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:16)))
 #sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
-df_samples <- df_samples[sample_n,]
 print(df_samples)
 (samples = df_samples$sample)
 nrow(df_samples)

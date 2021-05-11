@@ -19,6 +19,9 @@ object = readRDS(file = "data/Lung_30_20200710.rds")
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
+
+
+
 Idents(object) = "conditions"
 
 df_abbr <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx",
@@ -32,7 +35,6 @@ object$long_annotations3 <- plyr::mapvalues(object$annotations3,
 sub_object <- subset(object, idents = c("distal","terminal","proximal"))
 Idents(sub_object) = "conditions"
 Idents(sub_object) %<>% factor(levels = c("proximal", "distal", "terminal"))
-Idents(sub_object) %<>% factor(levels = c("terminal","distal", "proximal"))
 
 UMAPPlot.1(sub_object,group.by = "conditions", cols = c("#4ca64c","#1F78B4","#E6AB02"), 
            label = F, label.repel = F, 
@@ -275,3 +277,5 @@ UMAPPlot.1(object, cols = ExtractMetaColor(object),no.legend = T, do.print = T)
 sub_object <- subset(object, idents = c("IC3","T-int"))
 UMAPPlot.1(sub_object, cols = ExtractMetaColor(sub_object),no.legend = T, do.print = T)
 saveRDS(object, file = "data/Lung_30_20200710.rds")
+
+

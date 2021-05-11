@@ -137,6 +137,7 @@ colnames(DEGs)[2] ="cell.type"
 Idents(object) = "Age.Bracket"
 object %<>% sortIdent()
 gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
+                                    test.use = "wilcox",
                                     logfc.threshold = 0,
                                     return.thresh = 1,
                                     only.pos = F, 
@@ -167,6 +168,7 @@ table(Idents(object))
 age_markers <- FindPairMarkers(object, 
                                ident.1 = Young_ages,
                                ident.2 = old_ages,
+                               test.use = "wilcox",
                                p.adjust.methods = "BH",
                                logfc.threshold = 0,
                                return.thresh = 1,
@@ -207,6 +209,7 @@ for(gender in c("male","female")){
         age_markers <- FindPairMarkers(sub_object, 
                                        ident.1 = Young_ages,
                                        ident.2 = old_ages,
+                                       test.use = "wilcox",
                                        p.adjust.methods = "BH",
                                        logfc.threshold = 0,
                                        return.thresh = 1,
@@ -235,6 +238,7 @@ Idents(object) = "Age_Sex"
 age_markers <- FindPairMarkers(object, 
                                ident.1 = ages_male,
                                ident.2 = ages_female,
+                               test.use = "wilcox",
                                p.adjust.methods = "BH",
                                logfc.threshold = 0,
                                return.thresh = 1,
@@ -245,7 +249,9 @@ age_markers$FC = 2^(age_markers$avg_logFC)
 write.csv(age_markers,paste0(path,"2b-age_gender_markers_FC0.csv"))
 
 Idents(object) = "Sex"
-gender_marker <- FindAllMarkers.UMI(object, p.adjust.methods = "BH",
+gender_marker <- FindAllMarkers.UMI(object, 
+                                    test.use = "wilcox",
+                                    p.adjust.methods = "BH",
                                     logfc.threshold = 0,
                                     return.thresh = 1,
                                     only.pos = F, 

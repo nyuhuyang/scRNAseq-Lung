@@ -212,13 +212,21 @@ jpeg(paste0(save.path,"Dotplot_final.jpeg"), units="in", width=19,
 print(wrap_plots(g, nrow = 20, ncol = 36,design = layout_largerFont))
 dev.off()
 
+Score_table[is.na(Score_table)] = 0
+prop_table[is.na(prop_table)] = 0
+dotplot_res = list("Combined.Score" =Score_table[tissue,unlist(cell.type_list)],
+                   "Percentage.Expressed" = prop_table[tissue,unlist(cell.type_list)]*100)
+openxlsx::write.xlsx(dotplot_res, file = paste0(save.path,"Dotplot_Enricher_data.xlsx"),
+                     colNames = TRUE,rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
 
 for(k in seq_along(csv_list)){
     prop_table_list[[k]][is.na(prop_table_list[[k]])] = 0
-    write.csv(prop_table_list[[k]]*100,
+    Colnames = cell.types[cell.types %in% colnames(prop_table_list[[k]])]
+    write.csv(prop_table_list[[k]][tissue,Colnames]*100,
               file =  paste0(save.path,"Percent_",csv_list[k]))
     Score_table_list[[k]][is.na(Score_table_list[[k]])] = 0
-    write.csv(Score_table_list[[k]],
+    write.csv(Score_table_list[[k]][tissue,Colnames],
               file =  paste0(save.path,"Combined.Score_",csv_list[k]))
 }
 
@@ -246,7 +254,7 @@ hist(s1,breaks = 30,xlab = "Combine.score",
      main = "Histogram of GTEx Combine.score with p > 1")
 hist(s2,breaks = 30,xlab = "Combine.score",
      main = "Histogram of HGA Combine.score with p > 1")
-DotPlot.1
+
 
 #' @param Score_df score or expression matrix, demonstrated in color
 #' @param prop_df score or expression matrix, demonstrated in dot size
@@ -358,3 +366,15 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
                   plot.title = element_text(face = "plain"))
     return(plot)
 }
+
+
+object$cell_group = plyr::mapvalues(object$cell_types, 
+                                    from = cell.type_list[["Epithelial"]],
+                                    to = rep("Epithelial",length(cell.type_list[["Epithelial"]])))
+object$cell_group %<>% plyr::mapvalues(from = cell.type_list[["Stromal"]],
+                                       to = rep("Stromal",length(cell.type_list[["Stromal"]])))
+object$cell_group %<>% plyr::mapvalues(from = cell.type_list[["Immune"]],
+                                    to = rep("Immune",length(cell.type_list[["Immune"]])))
+table(object$cell_group)
+
+FindAllMarkers.UMI  

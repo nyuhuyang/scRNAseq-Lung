@@ -4,7 +4,7 @@
 # 
 # ######################################################################
 invisible(lapply(c("R.utils","Seurat","dplyr","kableExtra","ggplot2","scater",
-        "scran","scran","BiocSingular"), function(x) {
+        "BiocSingular"), function(x) {
         suppressPackageStartupMessages(library(x,character.only = T))
         }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
@@ -19,73 +19,57 @@ if(!dir.exists("doc")) dir.create("doc")
 # ######################################################################
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
-#args <- commandArgs(trailingOnly = TRUE)
-if(length(args)==0) stop("Sample info must be provided in excel!")
-df_samples <- readxl::read_excel("doc/20200612_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20200701_scRNAseq_info.xlsx")
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% paste0("test",16))
-#sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
-df_samples <- df_samples[sample_n,]
+rm = c(paste0("Day-",c(0,3,7,14,21,28,56,122)),
+       "UNC-44-P","VU-29-D","VU-35-D")
+df_samples = df_samples[!(df_samples$sample %in% rm),]
+
 print(df_samples)
 (samples = df_samples$sample)
 nrow(df_samples)
+
 # check missing data
-current <- list.files("data")
+current <- list.files("data/scRNA-seq/counts")
 (current <- current[!grepl(".Rda|RData",current)])
 (missing_data <- df_samples$sample.id[!(df_samples$sample.id %in% current)])
 
-# select species
-if(unique(df_samples$species) %in% c("Homo_sapiens","Human")) species <- "hg19"
-if(unique(df_samples$species) %in% c("Mus_musculus","Mouse")) species <- "mm10"
-if(unique(df_samples$species) %in% c("Danio_rerio")) species <- "danRer10"
-
-message("Copying the datasets")
-if(length(missing_data)>0){
-        # Move files from Download to ./data and rename them
-        for(missing_dat in missing_data){
-                old.pth  <- paste("~/Downloads", missing_dat,"outs",
-                                  "filtered_feature_bc_matrix",sep = "/")
-                list.of.files <- list.files(old.pth)
-                new.folder <- paste("./data", missing_dat,"outs",
-                                    "filtered_feature_bc_matrix",sep = "/")
-                if(!dir.exists(new.folder)) dir.create(new.folder, recursive = T)
-                # copy the files to the new folder
-                file.copy(paste(old.pth, list.of.files, sep = "/"), new.folder)
-                print(list_files <- list.files(new.folder))
-        }
-}
-message("Loading the datasets")
-Seurat_raw <- list()
-Seurat_list <- list()
-
-## Load the new version 10X dataset
-sample_n = which(df_samples$tests %in% c("control",paste0("test",16)))
-for(i in sample_n){
-        Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/",df_samples$sample.id[i],
-                                                     "/outs/filtered_feature_bc_matrix/"))
-        colnames(Seurat_raw[[i]]) = paste0(df_samples$sample[i],"_",colnames(Seurat_raw[[i]]))
-        Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
-                                               min.cells = 0,
-                                               min.features = 0)
-        Seurat_list[[i]]@meta.data$tests <- df_samples$tests[i]
-        
-}
-remove(Seurat_raw);GC()
 #======1.1.2 record data quality before removing low quanlity cells =========================
 # if args 2 is passed
+message("read metrics_summary")
+QC_list <- lapply(df_samples$sample.id, function(x){
+        tmp = read.csv(file = paste0("data/scRNA-seq/counts/",x,
+                               "/outs/metrics_summary.csv"))
+        t(tmp)
+})
 
-message("QC")
-cell.number <- sapply(Seurat_list, function(x) length(colnames(x)))
-raw_nCount_RNA <- sapply(Seurat_list, function(x) mean(x$nCount_RNA))
-raw_nFeature_RNA <- sapply(Seurat_list, function(x) mean(x$nFeature_RNA))
+QC = bind_cols(QC_list) %>% as.data.frame()
+colnames(QC) = df_samples$sample.id
+rownames(QC) = rownames(QC_list[[1]])
+QC["Sequencing.Saturation",] %>% gsub("%","",.) %>% as.numeric %>% mean
+QC["Estimated.Number.of.Cells",] %>% gsub(",","",.) %>% as.numeric %>% sum
 
-QC.list <- cbind(df_samples,cell.number, raw_nCount_RNA, raw_nFeature_RNA,
-                 row.names = df_samples$sample)
-write.csv(QC.list,paste0(path,"test31_QC_list.csv"))
-QC.list %>% kable() %>% kable_styling()
-remove(QC.list,cell.number,raw_nCount_RNA,raw_nFeature_RNA);GC()
+write.csv(QC,paste0(path,"metrics_summary.csv"))
 
+message("Loading the datasets")
+## Load the dataset
+Seurat_raw <- list()
+Seurat_list <- list()
+for(i in seq_along(df_samples$sample)){
+        Seurat_raw[[i]] <- Read10X(data.dir = paste0("data/scRNA-seq/counts/",
+                                                     df_samples$sample.id[i],"/",
+                                                     df_samples$read.path[i]))
+        colnames(Seurat_raw[[i]]) %<>% gsub("-[0-9+]","",.)
+        
+        colnames(Seurat_raw[[i]]) = paste0(df_samples$`sample name`[i],"-",colnames(Seurat_raw[[i]]))
+        Seurat_list[[i]] <- CreateSeuratObject(Seurat_raw[[i]],
+                                               min.cells = 0,
+                                               names.delim = "-",
+                                               min.features = 0)
+        Progress(i, length(df_samples$sample))
+}
+remove(Seurat_raw);GC()
 #========1.1.3 g1 QC plots before filteration=================================
 object <- Reduce(function(x, y) merge(x, y, do.normalize = F), Seurat_list)
 remove(Seurat_list);GC()

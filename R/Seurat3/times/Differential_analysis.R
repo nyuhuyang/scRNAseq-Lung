@@ -10,7 +10,7 @@ library(tidyr)
 library(kableExtra)
 library(gplots)
 library(MAST)
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #3.1  Compare DE across all major cell types==================
@@ -21,9 +21,9 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # 3.1.1 load data
 # Rename ident
-(samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28",
-             "Day-56","Day-122"))
-(load(file = "data/Lung_8_time_20190808.Rda"))
+samples = c("All","Day-0","Day-3","Day-7","Day-14","Day-21","Day-28")
+             #"Day-56","Day-122"))
+object = readRDS(file = "data/Lung_time_6_20201001.rds")
 Idents(object) <-  "Doublets"
 #table(Idents(object)) %>% prop.table(margin=2) %>% kable_styling()
 object %<>% subset(idents = "Singlet")
@@ -35,7 +35,7 @@ for(sample in samples){
                                            only.pos = T)
         
         write.csv(Lung_markers,paste0(path,"Lung_6-",sample,"_markers.csv"))
-}
+
         Lung_markers =read.csv(file = paste0("output/20190808/Lung_6-",sample,"_markers.csv"),
                                row.names = 1, stringsAsFactors=F)
         TSNEPlot.1(sub_object,label = T, repel = T, label.repel = T,no.legend = F,pt.size = 1,

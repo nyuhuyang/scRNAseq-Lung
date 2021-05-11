@@ -19,11 +19,13 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # setup Seurat objects since both count matrices have already filtered
 # cells, we do no additional filtering here
-df_samples <- readxl::read_excel("doc/20200612_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20200701_scRNAseq_info.xlsx")
+df_samples = as.data.frame(df_samples)
 colnames(df_samples) <- colnames(df_samples) %>% tolower
-sample_n = which(df_samples$tests %in% paste0("test",c(1:3,5:16)))
-#sample_n = intersect(sample_n, grep("COPD",df_samples$group,invert = T))
-df_samples <- df_samples[sample_n,]
+rm = c(paste0("Day-",c(0,3,7,14,21,28,56,122)),
+       "UNC-44-P","VU-29-D","VU-35-D")
+df_samples = df_samples[!(df_samples$sample %in% rm),]
+
 print(df_samples)
 (samples = df_samples$sample)
 nrow(df_samples)

@@ -5,11 +5,11 @@ library(kableExtra)
 library(magrittr)
 library(readxl)
 library(cowplot)
-source("../R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 #====== 2.1 Identify cell types ==========================================
-(load(file="data/Lung_8_20190808.Rda"))
+object = readRDS(file = "data/Lung_time_6_20201001.rds")
 DefaultAssay(object) <- 'RNA'
 df_markers <- readxl::read_excel("doc/Renat.markers.xlsx",sheet = "20190613")
 
