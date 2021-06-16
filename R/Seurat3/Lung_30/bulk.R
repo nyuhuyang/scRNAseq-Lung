@@ -31,7 +31,7 @@ TPM = pbapply::pbapply(FPKM,2, function(x) x/sum(x)* 10^6)
 TPM[1:5,1:5]
 table(rownames(meta.data) == colnames(TPM) )
 write.csv(TPM,file = "data/RNA-seq/P-D paired samples TPM revised.csv")
-
+TPM <- read.csv(file = "data/RNA-seq/P-D paired samples TPM revised.csv")
 ##========= remove Pseudogene genes and others=============
 rm_genes <- grep("^AC[0-9+]|^AL[0-9+]|^LINC[0-9+]",rownames(TPM),value = T)
 rm_genes %<>% c(grep("^CTD-|^CTB-|^CTC-",rownames(TPM),value = T))

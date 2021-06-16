@@ -22,7 +22,7 @@ object <- subset(object, idents = "Singlet")
 
 
 
-Idents(object) = "conditions"
+ Idents(object) = "conditions"
 
 df_abbr <- readxl::read_excel("doc/Annotations/Cell type abbreviation.xlsx",
                               sheet = "abbreviation_20201116")

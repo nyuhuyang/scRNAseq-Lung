@@ -130,3 +130,5 @@ ggviolin(QC_list, y= "mean.percent.mt",
               axis.title.x=element_blank(),
               axis.text.x=element_blank())
 dev.off()
+
+

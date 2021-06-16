@@ -21,7 +21,7 @@ DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
 
-step = "groups"
+step = "surface_airway_epithelial"
 save.path <- paste0("Yang/Lung_30/DE_analysis/",step,"/")
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
@@ -260,3 +260,34 @@ if(step == "groups"){
     if(!dir.exists(save.path))dir.create(save.path, recursive = T)
     write.csv(Lung_markers,paste0(save.path,"Lung_30-",args,"_FC0_",cell.type,"_vs_", group,".csv"))
 }
+
+if(step == "surface_airway_epithelial"){ 
+    object$cell_types %<>% gsub("d-S","TASC",.)
+    cell.type_list <- list("Surface Airway Epithelial" = c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC",
+                                                           "H","p-C","C1","C2","C3","Ion","NE")
+    )
+    Idents(object) = "cell_types"
+    object %<>% subset(idents = cell.type_list$`Surface Airway Epithelial`)
+    Idents(object) = "conditions"
+    Idents_list = list(ident1 = list("distal",
+                                     c("distal","terminal"),
+                                     "COPD"),
+                       ident2 = list("proximal",
+                                     "proximal",
+                                     "distal"))
+    print(ident1 <- Idents_list$ident1[[args]])
+    print(ident2 <- Idents_list$ident2[[args]])
+    
+    GC()
+    DEG <- FindMarkers.UMI(object, ident.1 = ident1, ident.2 = ident2,
+                                    logfc.threshold = 0, only.pos = F,
+                                    latent.vars = "nFeature_RNA",
+                                    test.use = "MAST")
+    if(length(ident1) >1) ident1 %<>% paste(collapse = "+")
+    DEG$cluster = paste(ident1, "vs.", ident2)
+    DEG$gene = rownames(DEG)
+    DEG = DEG[order(DEG$avg_logFC,decreasing = T),]
+    if(args < 10) args = paste0("0", args)
+    write.csv(DEG, file = paste0(save.path,"Lung_30_",args,
+                                 "_",ident1,"_vs_",ident2,".csv"))
+    }
