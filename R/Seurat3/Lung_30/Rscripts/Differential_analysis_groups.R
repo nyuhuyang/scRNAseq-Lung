@@ -279,8 +279,8 @@ if(step == "surface_airway_epithelial"){
     print(ident2 <- Idents_list$ident2[[args]])
     
     GC()
-    DEG <- FindMarkers.UMI(object, ident.1 = ident1, ident.2 = ident2,
-                                    logfc.threshold = 0, only.pos = F,
+    DEG <- FindMarkers.UMI(object, ident.1 = ident1, ident.2 = ident2,features = c("SCGB3A2","SCGB1A1"),
+                                    logfc.threshold = 0, only.pos = F, min.pct = 0, # need 64GB
                                     latent.vars = "nFeature_RNA",
                                     test.use = "MAST")
     if(length(ident1) >1) ident1 %<>% paste(collapse = "+")

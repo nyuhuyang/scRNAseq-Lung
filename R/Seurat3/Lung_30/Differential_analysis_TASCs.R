@@ -9,16 +9,13 @@ invisible(lapply(c("Seurat","dplyr","cowplot",
                    }))
 
 # ######################################################################
-invisible(lapply(reqPkg, function(x) {
-                           suppressPackageStartupMessages(library(x,character.only = T))
-                   }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
 #======1.2 load  Seurat =========================
 # load files
-object = readRDS(file = "data/Lung_SCT_30_20200710.rds") 
+object = readRDS(file = "data/Lung_SCT_30_20200710.rds")
 DefaultAssay(object) = "SCT"
 Idents(object) = "Doublets"
 object <- subset(object, idents = "Singlet")
