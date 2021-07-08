@@ -29,7 +29,8 @@ print(paste0("slurm_arrayid=",args))
 # criteria 2: adj p <0.05 and log2FC 0.5 or higher and -0.5 or lower
 object = readRDS(file = "data/Lung_30_20200710.rds") 
 DefaultAssay(object) = "SCT"
-
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
 object$cell_types %<>% gsub("d-S","TASC",.)
 SAE <- c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC","H","p-C","C1","C2","C3","Ion","NE")
 Idents(object) = "cell_types"
@@ -90,9 +91,9 @@ saveRDS(object, file = paste0("data/reRunMAP_SAE_",names(version),".rds"))
 # aggregate by sample
 ######################################################
 object = readRDS(file = "data/Lung_30_20200710.rds") 
-
 DefaultAssay(object) = "SCT"
-
+Idents(object) = "Doublets"
+object <- subset(object, idents = "Singlet")
 object$cell_types %<>% gsub("d-S","TASC",.)
 SAE <- c("BC1","BC2","BC-p","IC1","IC2","IC3","S","TASC","H","p-C","C1","C2","C3","Ion","NE")
 Idents(object) = "cell_types"
@@ -110,39 +111,178 @@ rownames(meta.data) = meta.data$orig.ident
 meta.data = meta.data[rownames(bulk@meta.data),]
 bulk@meta.data = meta.data
 
-bulk %<>% FindVariableFeatures()
-VariableFeatures(bulk) = unique(deg[abs(deg$avg_logFC) > 0.1 & deg$pct.d > 0.1, "gene"])
-bulk %<>% ScaleData(features = VariableFeatures(bulk))
-bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
-ElbowPlot(bulk)
-Idents(bulk) = "conditions"
-PCAPlot(bulk)
-bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
-colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("option1_",.)
-bulk[["option1.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
-                                                 key = "option1UMAP_", assay = DefaultAssay(bulk))
-colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("option1_",.)
-bulk[["option1.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
-                                               key = "option1PCA_", assay = DefaultAssay(bulk))
+#======= read Feature_selection results ==================
+featureScores = read.csv("Yang/Lung_30/Feature_selection/chi2.csv",)
+featureScores = featureScores[order(featureScores$Score,decreasing = T),]
+rownames(featureScores) = NULL
+head(featureScores)
+VariableFeatures(bulk) = featureScores$genes[1:75]
 
-#Option 2: abs(deg$avg_logFC) > 0.1 & deg$pct.d > 0.1, ~2.500 genes
-bulk@reductions$umap = NULL
-bulk@reductions$pca = NULL
-VariableFeatures(bulk) = unique(deg[abs(deg$avg_logFC) > 0.5, "gene"])
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk,c(4, 3))
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:5)
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("PD_",.)
+bulk[["PD.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                          key = "PDUMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("PD_",.)
+bulk[["PD.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                         key = "PDPCA_", assay = DefaultAssay(bulk))
+feature_exp = exp$SCT[featureScores$genes[1:75],]
+feature_exp * featureScores$Score[1:75]
+#======= read paired wilcox ==================
+# D-P t-test: pval <- 0.05
+read.path <- "Yang/Lung_30/DE_analysis/surface_airway_epithelial/"
+deg <- readxl::read_excel(paste0(read.path,"DEG D-P paired +1 log2 method RS.xlsx"))
+deg = deg[,c(43,44,45)]
+colnames(deg) = c("gene","avg_log2FC","p")
+deg = deg[-1,]
+deg$avg_log2FC %<>% as.numeric()
+deg = deg[!is.na(deg$avg_log2FC),]
+length(unique(as.vector(deg$gene)))
+v_genes = deg$gene
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+
 bulk %<>% ScaleData(features = VariableFeatures(bulk))
 bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
 ElbowPlot(bulk)
 Idents(bulk) = "conditions"
 PCAPlot(bulk)
 bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
-colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("option2_",.)
-bulk[["option2.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
-                                               key = "option2UMAP_", assay = DefaultAssay(bulk))
-colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("option2_",.)
-bulk[["option2.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
-                                              key = "option2PCA_", assay = DefaultAssay(bulk))
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("PD_",.)
+bulk[["PD.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                                 key = "PDUMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("PD_",.)
+bulk[["PD.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                                key = "PDPCA_", assay = DefaultAssay(bulk))
+# D-P t-test: pval <- 0.05
 bulk@reductions$umap = NULL
 bulk@reductions$pca = NULL
+deg1 <- readxl::read_excel(paste0(read.path,"DEG T-P paired +1 log2 method RS.xlsx"))
+deg1 = deg1[,c(37:39)]
+colnames(deg1) = c("gene","avg_log2FC","p")
+deg1$avg_log2FC %<>% as.numeric()
+deg1 = deg1[deg1$p < 0.05,]
+length(unique(as.vector(deg1$gene)))
+v_genes = deg1$gene
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk)
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("PT_",.)
+bulk[["PT.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                              key = "PTUMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("PT_",.)
+bulk[["PT.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                             key = "PTPCA_", assay = DefaultAssay(bulk))
+
+# D-P-T t-test: pval <- 0.05
+bulk@reductions$umap = NULL
+bulk@reductions$pca = NULL
+v_genes = unique(c(deg$gene,deg1$gene))
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk)
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("PDT_",.)
+bulk[["PDT.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                              key = "PDTUMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("PDT_",.)
+bulk[["PDT.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                             key = "PDTPCA_", assay = DefaultAssay(bulk))
+bulk@reductions$umap = NULL
+bulk@reductions$pca = NULL
+saveRDS(bulk, file = paste0("data/Pseudobulk_SAE.rds"))
+
+#t-test: pval <- 0.05 & avg_log2FC > 1
+
+
+table(deg$avg_log2FC >1 )
+deg = deg[deg$avg_log2FC >1,]
+length(unique(as.vector(deg$gene)))
+v_genes = deg$gene
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk)
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("ttest2_",.)
+bulk[["ttest2.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                              key = "ttest2UMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("ttest2_",.)
+bulk[["ttest2.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                             key = "ttest2PCA_", assay = DefaultAssay(bulk))
+
+
+#wilcoxon option1: pval <- 0.1 & abs(deg_1A$avg_log2FC > 1)
+deg_1A = read.csv(paste0(read.path,"Option_A_SAE_Pseudobulk_DEGs_P_vs_D.csv"),stringsAsFactors = F)
+table(deg_1A$p_val < 0.1 & abs(deg_1A$avg_log2FC > 1))
+v_genes <- unique(deg_1A[deg_1A$p_val < 0.1 & abs(deg_1A$avg_log2FC > 1),"gene"])
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk)
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
+UMAPPlot(bulk,size =2)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("wilcoxon1_",.)
+bulk[["wilcoxon1.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                                 key = "wilcoxon1UMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("wilcoxon1_",.)
+bulk[["wilcoxon1.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                               key = "wilcoxon1PCA_", assay = DefaultAssay(bulk))
+
+#Option B: abs(deg$avg_logFC) > 0.1 & deg$pct.d > 0.1, ~2.500 genes
+bulk@reductions$umap = NULL
+bulk@reductions$pca = NULL
+deg = read.csv(paste0(read.path,"Option_B_SAE_Pseudobulk_DEGs_P_vs_D+T.csv"),stringsAsFactors = F)
+table(deg$p_val < 0.1 & abs(deg$avg_log2FC > 1))
+
+v_genes = unique(deg[deg$p_val < 0.1 & abs(deg$avg_log2FC > 1), "gene"])
+length(v_genes <- v_genes[v_genes %in% rownames(bulk)])
+VariableFeatures(bulk) = v_genes
+
+bulk %<>% ScaleData(features = VariableFeatures(bulk))
+bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
+ElbowPlot(bulk)
+Idents(bulk) = "conditions"
+PCAPlot(bulk)
+bulk %<>% RunUMAP(reduction = "pca", dims = 1:14)
+UMAPPlot(bulk)
+colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("wilcoxon2_",.)
+bulk[["wilcoxon2.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
+                                               key = "wilcoxon2UMAP_", assay = DefaultAssay(bulk))
+colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("wilcoxon2_",.)
+bulk[["wilcoxon2.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
+                                              key = "wilcoxon2PCA_", assay = DefaultAssay(bulk))
+bulk@reductions$umap = NULL
+bulk@reductions$pca = NULL
+
+
 saveRDS(bulk, file = paste0("data/Pseudobulk_SAE.rds"))
 
 # volcano: COPD vs D; COPD vs P (comparing samples, not cells)
