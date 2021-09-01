@@ -1,4 +1,4 @@
-library(CePa)
+library("readr")
 library(biomaRt)
 library(dplyr)
 library(magrittr)
@@ -17,10 +17,10 @@ GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",
                          stringsAsFactors = F)
 rownames(GTE_meta.data) = GTE_meta.data$Tissue.Sample.ID
 rownames(GTE_meta.data) = gsub("-","\\.", rownames(GTE_meta.data))
-select = paste(rownames(GTE_meta.data),collapse = "|")
+select = paste0("Description|",paste(rownames(GTE_meta.data),collapse = "|"))
 
 # counts
-counts = CePa::read.gct("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct")
+counts = read.delim("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct", skip=2)
 format(object.size(counts),unit = "GB")
 
 select = grep(select,colnames(counts), value = T)
@@ -30,13 +30,22 @@ counts = counts[rowSums(counts) > 0,]
 write.csv(counts, file="data/RNA-seq/GTEx-Lung-counts.csv")
 
 # tpm
-tpm =  CePa::read.gct("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct")
+tpm =  read_tsv("data/RNA-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct",
+                  skip=2)
 format(object.size(tpm),unit = "GB")
 select = grep(select,colnames(tpm), value = T)
 
 tpm = tpm[,select]
-tpm = tpm[rowSums(tpm) > 0,]
-write.csv(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
+colnames(tpm)[1] = "GeneSymbol"
+RowSum = rowSums(tpm[,3:ncol(tpm)])
+tpm = tpm[RowSum > 0,]
+RowSum = RowSum[RowSum > 0]
+RowSum_id = order(RowSum, decreasing = T)
+
+tpm = tpm[RowSum_id,]
+tpm = tpm[!duplicated(tpm$GeneSymbol),]
+write.table(tpm, file="data/RNA-seq/GTEx-Lung-tpm.txt",quote = FALSE,
+            row.names = FALSE,sep = "\t")
 #fwrite(tpm, file="data/RNA-seq/GTEx-Lung-tpm.csv")
 #==============
 # on Mac

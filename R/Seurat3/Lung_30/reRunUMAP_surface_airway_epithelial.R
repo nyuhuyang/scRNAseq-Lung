@@ -112,27 +112,23 @@ meta.data = meta.data[rownames(bulk@meta.data),]
 bulk@meta.data = meta.data
 
 #======= read Feature_selection results ==================
-featureScores = read.csv("Yang/Lung_30/Feature_selection/chi2.csv",)
+N=20
+featureScores = read.csv("Yang/Lung_30/Feature_selection/chi2.csv")
 featureScores = featureScores[order(featureScores$Score,decreasing = T),]
-rownames(featureScores) = NULL
+write.csv(featureScores, "Yang/Lung_30/Feature_selection/chi2.csv")
 head(featureScores)
-VariableFeatures(bulk) = featureScores$genes[1:75]
+VariableFeatures(bulk) = featureScores$genes[1:N]
 
 bulk %<>% ScaleData(features = VariableFeatures(bulk))
 bulk %<>% RunPCA(npcs = 14, verbose = FALSE)
 ElbowPlot(bulk)
 Idents(bulk) = "conditions"
-PCAPlot(bulk,c(4, 3))
-bulk %<>% RunUMAP(reduction = "pca", dims = 1:5)
-UMAPPlot(bulk)
-colnames(bulk[["umap"]]@cell.embeddings) %<>% paste0("PD_",.)
-bulk[["PD.umap"]] <- CreateDimReducObject(embeddings = bulk[["umap"]]@cell.embeddings,
-                                          key = "PDUMAP_", assay = DefaultAssay(bulk))
-colnames(bulk[["pca"]]@cell.embeddings) %<>% paste0("PD_",.)
-bulk[["PD.pca"]] <- CreateDimReducObject(embeddings = bulk[["pca"]]@cell.embeddings,
-                                         key = "PDPCA_", assay = DefaultAssay(bulk))
-feature_exp = exp$SCT[featureScores$genes[1:75],]
-feature_exp * featureScores$Score[1:75]
+PCAPlot(bulk,c(3, 2))
+
+feature_exp = exp$SCT[featureScores$genes[1:N],]
+sample_score = t(feature_exp) %*% featureScores$Score[1:N]
+sample_score[order(sample_score,decreasing = T),] %>% kable() %>% kable_styling()
+
 #======= read paired wilcox ==================
 # D-P t-test: pval <- 0.05
 read.path <- "Yang/Lung_30/DE_analysis/surface_airway_epithelial/"
