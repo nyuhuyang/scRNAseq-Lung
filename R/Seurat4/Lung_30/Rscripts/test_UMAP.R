@@ -17,9 +17,9 @@ print(paste0("slurm_arrayid=",args))
 test_df = data.frame(min_dist = rep(2:5/10,each = 5),
                      spread = rep(3:7/5,times = 4))
 
-# Selina chose args = 18,24,48
 print(spread <- test_df[args,"spread"])
 print(min.dist <- test_df[args,"min_dist"])
+file.name = paste0("dist.",min.dist,"_spread.",spread)
 
 object = readRDS(file = "data/Lung_30_20210831.rds")
 DefaultAssay(object) = "SCT"
@@ -33,16 +33,15 @@ object[[paste0("umap_",file.name)]] <- CreateDimReducObject(embeddings = object@
 umap = object@reductions[paste0("umap_",file.name)]
 saveRDS(umap, file = paste0(save.path, "/umap_",file.name,".rds"))
 
-
 meta.data = object@meta.data[,grep("SCT_snn_res",colnames(object@meta.data),invert = TRUE)]
 object@meta.data = meta.data
 resolutions = c(0.8,seq(1,5, by = 1))
+
 for(i in 1:length(resolutions)){
     object %<>% FindClusters(resolution = resolutions[i], algorithm = 1)
     Progress(i,length(resolutions))
 }
 
-file.name = paste0("dist.",min.dist,"_spread.",spread)
 colnames(object@meta.data) %<>% gsub("SCT_snn_res",file.name,.)
 
 meta.data = object@meta.data[,grep(file.name,colnames(object@meta.data))]

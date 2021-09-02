@@ -109,3 +109,75 @@ object[["SCT"]]@scale.data = matrix(0,0,0)
 format(object.size(object),unit = "GB")
 saveRDS(object, file = "data/Lung_SCT_30_20210831.rds")
 
+#======== prepare shiny =============================
+library(Seurat)
+library(ShinyCell)
+library(magrittr)
+library(SeuratData)
+library(SeuratDisk)
+
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+meta.data = object@meta.data[,grep("SCT_snn_res",colnames(object@meta.data),invert = TRUE)]
+object@meta.data = meta.data
+
+test_df = data.frame(min_dist = rep(2:5/10,each = 5),
+                     spread = rep(3:7/5,times = 4))
+
+for(i in 1:nrow(test_df)) {
+        spread <- test_df[i,"spread"]
+        min.dist <- test_df[i,"min_dist"]
+        file.name = paste0("dist.",min.dist,"_spread.",spread)
+        umap = readRDS(paste0("output/20210901/","umap_",file.name,".rds"))
+        object[[paste0("umap_",file.name)]] <- CreateDimReducObject(embeddings = umap[[paste0("umap_",file.name)]]@cell.embeddings,
+                                                                       key = paste0(i,"UMAP_"), assay = DefaultAssay(object))
+        meta.data = readRDS(paste0("output/20210901/meta.data_",file.name,".rds"))
+        colnames(meta.data) %<>% gsub(paste0(file.name,"."),paste0(i,"UMAP_res="),.)
+        
+        object@meta.data %<>% cbind(meta.data)
+        Progress(i,nrow(test_df))
+}
+
+
+object$Regions %<>% factor(levels = c("proximal","COPD","distal","terminal"))
+
+scConf = createConfig(object, meta.to.include =c("cell_types","orig.ident","Regions","Patient",
+                                                 "nCount_SCT","nFeature_SCT","percent.mt",
+                                                 grep("UMAP_res=",colnames(object@meta.data), value = T),
+                                                 "Doublets"),
+                      maxLevels = 300)
+makeShinyApp(object, scConf, gex.assay = "SCT",gene.mapping = TRUE,
+             gex.slot = "data",default.gene1 = "SCGB1A",default.gene2 = "KRT15",
+             default.multigene = c( "KRT15","SERPINB3","MUC5AC","SCGB1A1","SCGB3A2","SFTPB","FOXA2"),
+             default.dimred = c("UMAP_1","UMAP_2"),shiny.dir = "shinyApp/Lung_30_hg38/",
+             shiny.title = "Region-specific Lung scRNA-seq")
+
+max_exp = qlcMatrix::rowMax(object@assays[["SCT"]]@data)
+max_exp_df = data.frame("val"= as.vector(max_exp),row.names = rownames(object))
+saveRDS(max_exp_df,"shinyApp/Lung_30_hg38/sc1maxlvl.rds")
+
+
+meta.data = object@meta.data
+meta.data = meta.data[!duplicated(meta.data$cell_types),]
+meta.data = meta.data[order(meta.data$cell_types),]
+sc1conf = readRDS("shinyApp/Lung_30_hg38/sc1conf.rds")
+sc1conf$fCL[1] = paste(meta.data$cell_types.colors,collapse = "|")
+sc1conf$fCL[3] = paste(c("#1F78B4","#4ca64c","#E6AB02","#FF0000"),collapse = "|")
+sc1conf$fCL[128] = "orange|black"
+saveRDS(sc1conf,"shinyApp/Lung_30_hg38/sc1conf.rds")
+
+sc1def = readRDS("shinyApp/Lung_30_hg38/sc1def.rds")
+sc1def$grp1 = "cell_types"
+sc1def$meta1 = "cell_types"
+saveRDS(sc1def,"shinyApp/Lung_30_hg38/sc1def.rds")
+
+sc1meta = readRDS("shinyApp/Lung_30_hg38/sc1meta.rds")
+sc1meta$Regions %<>% factor(levels = c("proximal","distal","terminal","COPD"))
+saveRDS(sc1meta, "shinyApp/Lung_30_hg38/sc1meta.rds")
+
+
+object@meta.data = object[["cell_types"]]
+object@reductions = NULL
+file.remove("shinyApp/Lung_30_hg38/sc1csr_gexpr.h5ad")
+SaveH5Seurat(Lung, filename = "shinyApp/Lung_30_hg38/sc1csr_gexpr.h5Seurat")
+Convert("shinyApp/Lung_30_hg38/sc1csr_gexpr.h5Seurat", dest = "h5ad")
+file.remove("shinyApp/Lung_30_hg38/sc1csr_gexpr.h5Seurat")
