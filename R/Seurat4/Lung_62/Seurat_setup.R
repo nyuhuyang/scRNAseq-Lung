@@ -159,10 +159,9 @@ format(object.size(object),unit = "GB")
 
 format(object.size(object@assays$RNA),unit = "GB")
 format(object.size(object@assays$integrated),unit = "GB")
-object[['RNA']] <- NULL
 object[['integrated']] <- NULL
-object[["SCT"]]@scale.data = matrix(0,0,0)
+object[["RNA"]]@scale.data = matrix(0,0,0)
 format(object.size(object),unit = "GB")
-saveRDS(object, file = "data/Lung_SCT_62_20210831.rds")
+saveRDS(object, file = "data/Lung_RNA_62_20210831.rds")
 
 

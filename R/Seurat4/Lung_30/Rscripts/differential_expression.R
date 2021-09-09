@@ -19,7 +19,12 @@ opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                             rep("UMAP_res=3",174),
                             rep("UMAP_res=4",200),
                             rep("UMAP_res=5",227)),
-                  num = c(1:84,1:93,1:137,1:174,1:200,1:227)
+                  num = c(0:83,
+                          0:92,
+                          0:136,
+                          0:173,
+                          0:199,
+                          0:226)
                   )
 
 opt = opts[args,]
@@ -48,10 +53,12 @@ markers = FindMarkers_UMI(object, ident.1 = opt$num,
                              test.use = "MAST",
                              latent.vars = "nFeature_SCT")
 markers$cluster = opt$num
-if(args < 10) args = paste0("0",args)
-if(args < 100) args = paste0("0",args)
-
-if(args < 10) num = paste0("0",opt$num)
+num = opt$num
+if(args < 10) num = paste0("0",num)
 if(args < 100) num = paste0("0",num)
 
-write.csv(markers,paste0(path,args,"_",opt$ident,"_",num, ".csv"))
+arg = args
+if(args < 10) arg = paste0("0",arg)
+if(args < 100) arg = paste0("0",arg)
+
+write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))

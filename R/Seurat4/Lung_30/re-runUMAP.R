@@ -117,8 +117,8 @@ library(SeuratData)
 library(SeuratDisk)
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
-meta.data = object@meta.data[,grep("SCT_snn_res",colnames(object@meta.data),invert = TRUE)]
-object@meta.data = meta.data
+meta_data = object@meta.data[,grep("SCT_snn_res",colnames(object@meta.data),invert = TRUE)]
+object@meta.data = meta_data
 
 test_df = data.frame(min_dist = rep(2:5/10,each = 5),
                      spread = rep(3:7/5,times = 4))
@@ -137,9 +137,14 @@ for(i in 1:nrow(test_df)) {
         Progress(i,nrow(test_df))
 }
 
+#object[["umap"]] <- CreateDimReducObject(embeddings = umap[[paste0("umap_",file.name)]]@cell.embeddings,
+#                                                            key = "UMAP_", assay = DefaultAssay(object))
 
-object$Regions %<>% factor(levels = c("proximal","COPD","distal","terminal"))
-
+object$Regions %<>% factor(levels = c("proximal","distal","terminal","COPD"))
+meta_data = object@meta.data
+meta_data = meta_data[!duplicated(meta_data$orig.ident),]
+meta_data %<>% group_by(Regions) %>% arrange(Regions, orig.ident)
+object$orig.ident %<>% factor(levels = meta_data$orig.ident)
 scConf = createConfig(object, meta.to.include =c("cell_types","orig.ident","Regions","Patient",
                                                  "nCount_SCT","nFeature_SCT","percent.mt",
                                                  grep("UMAP_res=",colnames(object@meta.data), value = T),
@@ -162,7 +167,7 @@ meta.data = meta.data[order(meta.data$cell_types),]
 sc1conf = readRDS("shinyApp/Lung_30_hg38/sc1conf.rds")
 sc1conf$fCL[1] = paste(meta.data$cell_types.colors,collapse = "|")
 sc1conf$fCL[3] = paste(c("#1F78B4","#4ca64c","#E6AB02","#FF0000"),collapse = "|")
-sc1conf$fCL[128] = "orange|black"
+#sc1conf$fCL[128] = "orange|black"
 saveRDS(sc1conf,"shinyApp/Lung_30_hg38/sc1conf.rds")
 
 sc1def = readRDS("shinyApp/Lung_30_hg38/sc1def.rds")
