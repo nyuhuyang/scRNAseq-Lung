@@ -13,7 +13,7 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-opts = paste0("SCT_snn_res.",c(0.01, 0.1, 0.2, 0.5))
+opts = paste0("RNA_snn_res.",c(0.01, 0.1, 0.2, 0.5))
 opt = opts[args]
 print(opt)
 #==========================
@@ -27,6 +27,6 @@ markers = FindAllMarkers_UMI(object,
                           logfc.threshold = 0.5,
                              only.pos = T,
                              test.use = "MAST",
-                             latent.vars = "nFeature_SCT")
+                             latent.vars = "nFeature_RNA")
 
 write.csv(markers,paste0(path,args,"_",opt, ".csv"))
