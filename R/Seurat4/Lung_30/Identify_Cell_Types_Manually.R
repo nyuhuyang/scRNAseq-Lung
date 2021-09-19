@@ -1,0 +1,193 @@
+library(Seurat)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+library(magrittr)
+library(readxl)
+library(cowplot)
+library(stringr)
+library(openxlsx)
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path))dir.create(path, recursive = T)
+# load data
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+DefaultAssay(object) = "SCT"
+umap = object@reductions["umap"]
+meta.data_exp = FetchData(object, vars = c("SFTPC","SCGB1A1","SCGB3A2","SFTPB"))
+saveRDS(umap, "output/20210901/umap_dist.0.3_spread.1.rds")
+saveRDS(meta.data_exp, "output/20210901/meta.data_exp.rds")
+
+
+min.dist = 0.5
+spread = 1.4
+file.name = paste0("dist.",min.dist,"_spread.",spread)
+meta.data = readRDS(paste0("output/20210901/meta.data_",file.name,".rds"))
+colnames(meta.data) %<>% gsub(file.name,"SCT_snn_res",.)
+barcode = rownames(meta.data)
+meta.data %<>% sapply(function(x) as.character(x)) %>% as.data.frame
+rownames(meta.data) = barcode
+
+umap = readRDS("output/20210901/umap_dist.0.3_spread.1_orig.rds")
+table(rownames(meta.data) == rownames(umap$umap@cell.embeddings))
+meta.data %<>% cbind(umap$umap@cell.embeddings)
+meta.data_exp = readRDS("output/20210901/meta.data_exp.rds")
+meta.data %<>% cbind(meta.data_exp)
+
+#======== rename ident =================
+df_annotation <- readxl::read_excel("doc/Annotations/20210917_20UMAP res0.8 annotations.xlsx",
+                                    sheet = "Sheet1")
+resolutions = paste0("SCT_snn_res.",c(0.8,2,4,5))
+res = resolutions[1]
+keep = !is.na(pull(df_annotation[,res]))
+meta.data[,"Cell_subtype"] = plyr::mapvalues(meta.data[,res],
+                                             from = pull(df_annotation[keep,res]),
+                                             to = pull(df_annotation[keep,"Cell_subtype"])
+                                             )
+for(i in 1:length(resolutions)){
+    keep = which(!is.na(pull(df_annotation[,resolutions[i]])))
+        for(m in keep){
+            cl = pull(df_annotation[m,resolutions[i]])
+            change_to = pull(df_annotation[m,"Cell_subtype"])
+            meta.data[meta.data[,resolutions[i]] %in% cl,"Cell_subtype"] = change_to
+            print(paste (resolutions[i],"at",cl,"------->",change_to))
+            }
+}
+
+keep = !is.na(df_annotation$modify_condition)
+df_annotation_UMAP = df_annotation[keep,c("SCT_snn_res.0.8","modify_SCT_snn_res.2","modify_condition","modify_label")]
+colnames(df_annotation_UMAP) %<>% gsub("modify_","",.)
+
+for(i in 1:length(resolutions[1:2])){
+    keep = which(!is.na(pull(df_annotation_UMAP[,resolutions[i]])))
+    for(m in keep){
+        cl = pull(df_annotation_UMAP[m,resolutions[i]])
+        change_to = pull(df_annotation_UMAP[m,"label"])
+        
+        select_id = meta.data %>% filter(!!as.name(resolutions[i]) %in% cl) %>% 
+                              filter(eval(parse(text = df_annotation_UMAP$condition[m])))
+        meta.data[rownames(select_id),"Cell_subtype"] = change_to
+        print(paste (resolutions[i],"at",cl,df_annotation_UMAP$condition[m],"------->",change_to))
+    }
+}
+
+df_annotation = df_annotation %>% filter(!is.na(Cell_subtype)) %>% filter(!duplicated(Cell_subtype))
+
+Cell_types <- c("Cell_type","UMAP_land","Family","Superfamily")
+for(Cell_type in Cell_types){
+    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
+                                            from = pull(df_annotation[,"Cell_subtype"]),
+                                            to = pull(df_annotation[,Cell_type]))
+}
+
+# add color
+df_color = t(data.frame(
+         c("AT1","#C946D4"),#
+         c("AT2","#A794D7"),#
+         c("AT2-1","#FFE699"),
+         c("AT2-p","#FF8B6A"),
+         c("B","#B4C7E7"),#
+         c("BC-p","#C5E0B4"),
+         c("BC","#70AD47"),#
+         c("BC2","#92D050"),
+         c("C1","#FFC000"),#
+         c("C-s","#FFE699"),#
+         c("C3","#FFF2CC"),
+         c("Cr","#B8C6DA"),#
+         c("cDC","#0070C0"),#
+         c("En-a","#00B0F0"),#
+         c("En-ca","#BDD7EE"),#
+         c("En-c1","#A7E5BC"),#
+         c("En-l","#7CAFDD"),#
+         c("En-p","#7768D5"),
+         c("En-SM","#FFF2CC"),#
+         c("En-v","#C7BCE7"),#
+         c("Fb1","#FFA919"),#
+         c("Fb2","#FF8B6A"),#
+         c("Fb3","#FA7FA9"),#
+         c("Fb4","#77D900"),#
+         c("G-Muc","#00B050"),#
+         c("G-Ser","#ADCDEA"),#
+         c("Gli","#8FAADC"),#
+         c("H","#EBE621"),#
+         c("IC","#FBE5D6"),#
+         c("IC2","#9DC3E6"),
+         c("IC3","#DAE3F3"),
+         c("Ion","#0F23FF"),#
+         c("M-p","#C00000"),
+         c("M0","#BFBFBF"),
+         c("M1","#FF6600"),#
+         c("M1-2","#D29F26"),#
+         c("M2","#BFBFBF"),#
+         c("MC","#2FE6F9"),#
+         c("ME","#E169CD"),#
+         c("Mon","#FBC8EF"),#
+         c("NE","#FF0000"),#
+         c("Neu","#FF7C88"),#
+         c("NK","#C00000"),#
+         c("Nr","#FF3990"),
+         c("p-C","#EB6C11"),#
+         c("pDC","#2F5597"),#
+         c("PC","#ED7D31"),#
+         c("Pr","#747474"),#
+         c("S-Muc","#B38600"),#
+         c("S1","#FFBAD1"),#
+         c("SM1","#C8D8E0"),#
+         c("SM2","#0087B6"),#
+         c("SM3","#00D76C"),#
+         c("CD4-T1", "#9EF971"),#
+         c("CD4-T-ifn", "#FD5A00"),#
+         c("T-int", "#ED7D31"),
+         c("CD8-T-NK", "#A5A5A5"),#
+         c("T-p", "#C55A11"),
+         c("T-reg", "#FFC000"),
+         c("CD8-T1", "#5B9BD5"),
+         c("T-un","#9E480E"),
+         c("T7","#FFFF00"),
+         c("TASC","#FF3990"),#
+         c("Un","#DEEBF7")))#
+df_color %<>% as.data.frame
+rownames(df_color) = NULL
+colnames(df_color) = c("cell_types","cell_types.colors")
+table(c(df_annotation$Cell_subtype,"TASC","S-Muc") %in% df_color$cell_types)
+df_annotation$Cell_subtype[!df_annotation$Cell_subtype %in% df_color$cell_types]
+df_color %<>% filter(cell_types %in% c(df_annotation$Cell_subtype,"TASC","S-Muc"))
+table(duplicated(df_color$cell_types.colors))
+meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
+                                                 from = df_color$cell_types,
+                                                 to = df_color$cell_types.colors)
+saveRDS(meta.data[,c("Cell_subtype","Cell_subtype.colors",Cell_types)], "output/20210901/meta.data_Cell_subtype.rds")
+
+
+#=========
+meta.data = readRDS(file = "output/20210901/meta.data_Cell_subtype.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+#colnames(object@meta.data) %<>% gsub("cell_types","old_cell_types",.)
+#object@meta.data %<>% cbind(meta.data)
+object$Cell_subtype = meta.data$Cell_subtype
+object$Cell_subtype.colors = meta.data$Cell_subtype.colors
+object$Cell_type = meta.data$Cell_type
+object$UMAP_land = meta.data$UMAP_land
+object$Family = meta.data$Family
+object$Superfamily = meta.data$Superfamily
+
+saveRDS(object, file = "data/Lung_SCT_30_20210831.rds")
+
+# run Mann-Whitney test to test Differences in TASC% between D and COPD
+df_TASC <- readxl::read_excel("output/20210917/Region specific 30 normal lung TASC percentage.xlsx")
+D <- c("CU_12_D", "CU_12_D_R", "UNC_44_D", "UNC_48_D", "UNC_54_D", "UNC_55_D", "UNC_57_D", "UNC_66_D","UNC_67_D", "UNC_69_D", "UNC_70_D", "UNC_71_D", "VU_27_D")
+COPD <- c("UNC_51_D", "UNC_52_D", "UNC_61_D", "VU_19_D", "VU_37_D")
+table(c(D,COPD) %in% colnames(df_TASC))
+
+y = as.vector(t(df_TASC[3,D]))
+x = as.vector(t(df_TASC[3,COPD]))
+(ASE <- wilcox.test(y,x,correct=FALSE))
+
+y = as.vector(t(df_TASC[8,D]))
+x = as.vector(t(df_TASC[8,COPD]))
+(ASE <- wilcox.test(y,x,correct=FALSE))
+
+y = as.vector(t(df_TASC[13,D]))
+x = as.vector(t(df_TASC[13,COPD]))
+(ASE <- wilcox.test(y,x,correct=FALSE))
+

@@ -115,41 +115,55 @@ library(ShinyCell)
 library(magrittr)
 library(SeuratData)
 library(SeuratDisk)
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
-meta_data = object@meta.data[,grep("SCT_snn_res",colnames(object@meta.data),invert = TRUE)]
-object@meta.data = meta_data
+#meta.data = object@meta.data
+#meta.data = meta.data[, grep("SCT_snn_res",colnames(meta.data), invert = TRUE)]
 
-test_df = data.frame(min_dist = rep(2:5/10,each = 5),
-                     spread = rep(3:7/5,times = 4))
+#object %<>% FindNeighbors(reduction = "umap",dims = 1:2)
+#resolutions = c(0.8,1:5)
+#for(i in 1:length(resolutions)){
+#        object %<>% FindClusters(resolution = resolutions[i], algorithm = 1)
+#        Progress(i,length(resolutions))
+#}
+#colnames(meta.data) %<>% gsub("SCT_snn_res.","0UMAP_res=",.)
+#meta_data = readRDS(file = "output/20210901/meta.data_Cell_subtype.rds")
+#table(rownames(meta.data) == rownames(meta_data))
+#colnames(meta.data) %<>% gsub("cell_types","old_cell_types",.)
+#meta.data %<>% cbind(meta_data)
+#object@meta.data = meta.data
 
-for(i in 1:nrow(test_df)) {
-        spread <- test_df[i,"spread"]
-        min.dist <- test_df[i,"min_dist"]
-        file.name = paste0("dist.",min.dist,"_spread.",spread)
-        umap = readRDS(paste0("output/20210901/","umap_",file.name,".rds"))
-        object[[paste0("umap_",file.name)]] <- CreateDimReducObject(embeddings = umap[[paste0("umap_",file.name)]]@cell.embeddings,
-                                                                       key = paste0(i,"UMAP_"), assay = DefaultAssay(object))
-        meta.data = readRDS(paste0("output/20210901/meta.data_",file.name,".rds"))
-        colnames(meta.data) %<>% gsub(paste0(file.name,"."),paste0(i,"UMAP_res="),.)
-        
-        object@meta.data %<>% cbind(meta.data)
-        Progress(i,nrow(test_df))
-}
+#test_df = data.frame(min_dist = rep(2:5/10,each = 5),
+#                     spread = rep(3:7/5,times = 4))
 
-#object[["umap"]] <- CreateDimReducObject(embeddings = umap[[paste0("umap_",file.name)]]@cell.embeddings,
-#                                                            key = "UMAP_", assay = DefaultAssay(object))
+#for(i in 20) {
+#        spread <- test_df[i,"spread"]
+#        min.dist <- test_df[i,"min_dist"]
+#        file.name = paste0("dist.",min.dist,"_spread.",spread)
+#        umap = readRDS(paste0("output/20210901/","umap_",file.name,".rds"))
+#        object[[paste0("umap_",file.name)]] <- CreateDimReducObject(embeddings = umap[[paste0("umap_",file.name)]]@cell.embeddings,
+#                                                                       key = paste0(i,"UMAP_"), assay = DefaultAssay(object))
+#        meta.data = readRDS(paste0("output/20210901/meta.data_",file.name,".rds"))
+#        colnames(meta.data) %<>% gsub(paste0(file.name,"."),paste0(i,"UMAP_res="),.)
+#        
+#        object@meta.data %<>% cbind(meta.data)
+#        Progress(i,nrow(test_df))
+#}
 
 object$Regions %<>% factor(levels = c("proximal","distal","terminal","COPD"))
 meta_data = object@meta.data
 meta_data = meta_data[!duplicated(meta_data$orig.ident),]
 meta_data %<>% group_by(Regions) %>% arrange(Regions, orig.ident)
 object$orig.ident %<>% factor(levels = meta_data$orig.ident)
-scConf = createConfig(object, meta.to.include =c("cell_types","orig.ident","Regions","Patient",
-                                                 "nCount_SCT","nFeature_SCT","percent.mt",
-                                                 grep("UMAP_res=",colnames(object@meta.data), value = T),
-                                                 "Doublets"),
-                      maxLevels = 300)
+meta.to.include =c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily",
+                   "old_cell_types",
+                   "orig.ident","Regions","Patient",
+                   "nCount_SCT","nFeature_SCT","percent.mt",
+                   grep("UMAP_res=",colnames(object@meta.data), value = T),
+                   "Doublets")
+table(meta.to.include %in% colnames(object@meta.data))
+scConf = createConfig(object, meta.to.include =meta.to.include,maxLevels = 300)
 makeShinyApp(object, scConf, gex.assay = "SCT",gene.mapping = TRUE,
              gex.slot = "data",default.gene1 = "SCGB1A",default.gene2 = "KRT15",
              default.multigene = c( "KRT15","SERPINB3","MUC5AC","SCGB1A1","SCGB3A2","SFTPB","FOXA2"),
@@ -162,22 +176,24 @@ saveRDS(max_exp_df,"shinyApp/Lung_30_hg38/sc1maxlvl.rds")
 
 
 meta.data = object@meta.data
-meta.data = meta.data[!duplicated(meta.data$cell_types),]
-meta.data = meta.data[order(meta.data$cell_types),]
 sc1conf = readRDS("shinyApp/Lung_30_hg38/sc1conf.rds")
-sc1conf$fCL[1] = paste(meta.data$cell_types.colors,collapse = "|")
-sc1conf$fCL[3] = paste(c("#1F78B4","#4ca64c","#E6AB02","#FF0000"),collapse = "|")
-#sc1conf$fCL[128] = "orange|black"
+meta.data1 = meta.data[!duplicated(meta.data$Cell_subtype),]
+meta.data1 = meta.data1[order(meta.data1$Cell_subtype),]
+sc1conf$fCL[1] = paste(meta.data1$Cell_subtype.colors,collapse = "|")
+
+meta.data2 = meta.data[!duplicated(meta.data$old_cell_types),]
+meta.data2 = meta.data2[order(meta.data2$old_cell_types),]
+sc1conf$fCL[6] = paste(meta.data2$old_cell_types.colors,collapse = "|")
+
+sc1conf$fCL[8] = paste(c("#1F78B4","#4ca64c","#E6AB02","#FF0000"),collapse = "|")
+sc1conf$fCL[151] = "orange|black"
 saveRDS(sc1conf,"shinyApp/Lung_30_hg38/sc1conf.rds")
 
 sc1def = readRDS("shinyApp/Lung_30_hg38/sc1def.rds")
-sc1def$grp1 = "cell_types"
-sc1def$meta1 = "cell_types"
+sc1def$grp1 = "Cell_subtype"
+sc1def$meta1 = "Cell_subtype"
 saveRDS(sc1def,"shinyApp/Lung_30_hg38/sc1def.rds")
 
-sc1meta = readRDS("shinyApp/Lung_30_hg38/sc1meta.rds")
-sc1meta$Regions %<>% factor(levels = c("proximal","distal","terminal","COPD"))
-saveRDS(sc1meta, "shinyApp/Lung_30_hg38/sc1meta.rds")
 
 
 object@meta.data = object[["cell_types"]]
