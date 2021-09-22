@@ -16,7 +16,7 @@ print(paste0("slurm_arrayid=",args))
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
 step = c("resolutions","cell_types")[2]
-if(step = "resolutions"){
+if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
                                 rep("UMAP_res=2",137),
@@ -67,7 +67,7 @@ if(step = "resolutions"){
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
 
-if(step = "cell_types"){
+if(step == "cell_types"){
     opts = data.frame(ident = c(rep("Cell_subtype",47),
                                 rep("Cell_type",31),
                                 rep("UMAP_land",20),
@@ -98,7 +98,7 @@ if(step = "cell_types"){
                                  only.pos = T,
                                  test.use = "MAST",
                                  latent.vars = "nFeature_SCT")
-    markers$cluster = opt$type
+    markers$cluster = as.character(opt$type)
     markers$Cell_category = opt$ident
     num = opt$num
     if(args < 10) num = paste0("0",num)
