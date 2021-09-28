@@ -1,4 +1,4 @@
-invisible(lapply(c("dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
+invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
                    "gplots"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
@@ -80,3 +80,55 @@ names(deg_list) =Cell_category
 write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_Cell.category.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+# On Sep 24, 2021, at 13:28, Renat Shaykhiev <res2003@med.cornell.edu> wrote:
+# DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
+save.path = "/Yang/Lung_30/hg38/DE_analysis/"
+xlsx_names <- list.files("output/20210924", pattern = "2021-09-24-")
+deg <- pbapply::pblapply(xlsx_names, function(xlsx){
+        tmp = readxl::read_excel(paste0("output/20210924/",xlsx))
+        tmp[tmp$p_val_adj < 0.05,]
+        return(tmp)
+})
+names(deg) = gsub("2021-09-24-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
+write.xlsx(deg, file = paste0(path,"DEG_analysis_1/Lung_30_DEG_TASC_related.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+# DEG analysis 2 – between different subsets of TASCs
+xlsx_names <- list.files("output/20210927", pattern = ".xlsx",)
+deg <- pbapply::pblapply(xlsx_names, function(xlsx){
+        tmp = readxl::read_excel(paste0("output/20210927/",xlsx))
+        tmp[tmp$p_val_adj < 0.05,]
+        return(tmp)
+})
+names(deg) = gsub("2021-09-28-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
+write.xlsx(deg, file = paste0(path,"Lung_30_DEG_TASC_subset.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+# Color points by dataset
+# Add correlation coefficient by dataset
+expr = FetchData(TASC, vars = c("SCGB1A1", "SCGB3A2","Regions"))
+# Main plot
+pmain <- ggplot(expr, aes_string(x = "SCGB1A1", y = "SCGB3A2",color = "Regions"))+
+        geom_point()+
+        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000")) + theme_classic()
+#stat_cor(aes(color = Regions), method = "spearman")
+
+# Marginal densities along x axis
+xdens <- axis_canvas(pmain, axis = "x")+
+        geom_density(data = expr, aes_string(x = "SCGB1A1", fill = "Regions"),
+                     alpha = 0.5, size = 0.2)+
+        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000"))
+# Marginal densities along y axis
+# Need to set coord_flip = TRUE, if you plan to use coord_flip()
+ydens <- axis_canvas(pmain, axis = "y", coord_flip = TRUE)+
+        geom_density(data = expr, aes_string(x = "SCGB3A2", fill = "Regions"),
+                     alpha = 0.5, size = 0.2)+
+        coord_flip()+
+        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000"))
+p1 <- insert_xaxis_grob(pmain, xdens, grid::unit(.2, "null"), position = "top")
+p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
+
+jpeg(paste0(path,"TASCs.jpeg"), units="in", width=7, height=7,res=600)
+print(ggdraw(p2))
+dev.off()

@@ -14,8 +14,10 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+DefaultAssay(object) = "SCT"
+object %<>% subset(subset = Doublets %in% "Singlet")
 
-step = c("resolutions","cell_types")[2]
+step = c("resolutions","cell_types","DEG analysis 3-option 1")[3]
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -109,4 +111,98 @@ if(step == "cell_types"){
     if(args < 100) arg = paste0("0",arg)
 
     write.csv(markers,paste0(path,arg,"-",opt$ident,"-",num,".",opt$type, ".csv"))
+}
+
+
+if(step == "DEG analysis 3-option 1"){
+    Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
+    categories = lapply(Cell_types, function(Cell_type){
+        unique(object@meta.data[,Cell_type])
+    })
+    names(categories) = Cell_types
+    category_df = data.frame("category" = c(rep(names(categories[1]),length(categories[[1]])),
+                                rep(names(categories[2]),length(categories[[2]])),
+                                rep(names(categories[3]),length(categories[[3]])),
+                                rep(names(categories[4]),length(categories[[4]]))),
+                      "type" = c(categories[[1]],
+                              categories[[2]],
+                              categories[[3]],
+                              categories[[4]])
+                      )
+    category_df = category_df[!duplicated(category_df$type),]
+    category_df %<>% filter(type != "Un")
+                                
+    Idents_list = list(ident1 = list("distal",
+                                     "proximal",
+                                     "proximal",
+                                     c("distal", "terminal"),
+                                     "distal",
+                                     c("proximal", "terminal"),
+                                     "terminal",
+                                     "distal",
+                                     "terminal",
+                                     c("proximal", "distal"),
+                                     "COPD",
+                                     "distal"),
+                       ident2 = list("proximal",
+                                     "distal",
+                                     c("distal", "terminal"),
+                                     "proximal",
+                                     c("proximal","terminal"),
+                                     "distal",
+                                     "distal",
+                                     "terminal",
+                                     c("proximal","distal"),
+                                     "terminal",
+                                     "distal",
+                                     "COPD"))
+    for(i in 1:12) print(paste(Idents_list$ident1[i], "vs",Idents_list$ident2[i]))
+    i = ceiling((args/69) %% 12) # 69 cell types, 12 pairs
+    if(args == 828) i = 12
+    print(ident1 <- Idents_list$ident1[[i]])
+    print(ident2 <- Idents_list$ident2[[i]])
+    
+    k = ((args-1) %% 69)+1
+    print(category <- category_df$category[k])
+    print(type <- category_df$type[k])
+    
+    #==========================
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       &  Doublets == "Singlet"
+    )
+    Idents(object) = category
+    object %<>% subset(idents = type)
+    
+    Idents(object) = "Regions"
+    
+    markers = FindMarkers_UMI(object, ident.1 = ident1,
+                              ident.2 = ident2,
+                              group.by = "Regions",
+                              assay = "SCT",
+                              logfc.threshold = 0.1,
+                              only.pos = T,
+                              test.use = "wilcox")
+    change_name <- function(ident) {
+        switch (ident,
+        "distal" = "D",
+        "terminal" = "T",
+        "proximal" = "P",
+        "COPD" = "COPD",
+        "distal+terminal" = "D+T",
+        "proximal+terminal" = "P+T",
+        "proximal+distal" = "P+D"
+        )
+    }
+    ident1 = change_name(paste(ident1,collapse = "+"))
+    ident2 = change_name(paste(ident2,collapse = "+"))
+    
+    markers$DE_pairs = paste(ident1, "vs", ident2)
+    markers$type = type
+    markers$Cell_category = category
+    
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    if(args < 100) arg = paste0("0",arg)
+    
+    write.csv(markers,paste0(path,arg,"-",ident1,"-vs-",ident2,".",type, ".csv"))
 }

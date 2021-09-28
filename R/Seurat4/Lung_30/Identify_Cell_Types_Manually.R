@@ -82,70 +82,54 @@ for(Cell_type in Cell_types){
 
 # add color
 df_color = t(data.frame(
-         c("AT1","#C946D4"),#
-         c("AT2","#A794D7"),#
-         c("AT2-1","#FFE699"),
-         c("AT2-p","#FF8B6A"),
-         c("B","#B4C7E7"),#
-         c("BC-p","#C5E0B4"),
-         c("BC","#70AD47"),#
-         c("BC2","#92D050"),
-         c("C1","#FFC000"),#
-         c("C-s","#FFE699"),#
-         c("C3","#FFF2CC"),
-         c("Cr","#B8C6DA"),#
-         c("cDC","#0070C0"),#
-         c("En-a","#00B0F0"),#
-         c("En-ca","#BDD7EE"),#
-         c("En-c1","#A7E5BC"),#
-         c("En-l","#7CAFDD"),#
-         c("En-p","#7768D5"),
-         c("En-SM","#FFF2CC"),#
-         c("En-v","#C7BCE7"),#
-         c("Fb1","#FFA919"),#
-         c("Fb2","#FF8B6A"),#
-         c("Fb3","#FA7FA9"),#
-         c("Fb4","#77D900"),#
-         c("G-Muc","#00B050"),#
-         c("G-Ser","#ADCDEA"),#
-         c("Gli","#8FAADC"),#
-         c("H","#EBE621"),#
-         c("IC","#FBE5D6"),#
-         c("IC2","#9DC3E6"),
-         c("IC3","#DAE3F3"),
-         c("Ion","#0F23FF"),#
-         c("M-p","#C00000"),
-         c("M0","#BFBFBF"),
-         c("M1","#FF6600"),#
-         c("M1-2","#D29F26"),#
-         c("M2","#BFBFBF"),#
-         c("MC","#2FE6F9"),#
-         c("ME","#E169CD"),#
-         c("Mon","#FBC8EF"),#
-         c("NE","#FF0000"),#
-         c("Neu","#FF7C88"),#
-         c("NK","#C00000"),#
-         c("Nr","#FF3990"),
-         c("p-C","#EB6C11"),#
-         c("pDC","#2F5597"),#
-         c("PC","#ED7D31"),#
-         c("Pr","#747474"),#
-         c("S-Muc","#B38600"),#
-         c("S1","#FFBAD1"),#
-         c("SM1","#C8D8E0"),#
-         c("SM2","#0087B6"),#
-         c("SM3","#00D76C"),#
-         c("CD4-T1", "#9EF971"),#
-         c("CD4-T-ifn", "#FD5A00"),#
-         c("T-int", "#ED7D31"),
-         c("CD8-T-NK", "#A5A5A5"),#
-         c("T-p", "#C55A11"),
-         c("T-reg", "#FFC000"),
-         c("CD8-T1", "#5B9BD5"),
-         c("T-un","#9E480E"),
-         c("T7","#FFFF00"),
-         c("TASC","#FF3990"),#
-         c("Un","#DEEBF7")))#
+    c("AT1","#C946D4"),
+    c("AT2","#A794D7"),
+    c("B","#B4C7E7"),
+    c("BC","#70AD47"),
+    c("C-s","#FFE699"),
+    c("C1","#FFC000"),
+    c("CD4-T-ifn","#FD5A00"),
+    c("CD4-T1","#9EF971"),
+    c("CD8-T-NK","#A5A5A5"),
+    c("CD8-T1","#5B9BD5"),
+    c("cDC","#0070C0"),
+    c("Cr","#B8C6DA"),
+    c("En-a","#5B9BD5"),
+    c("En-c1","#A7E5BC"),
+    c("En-ca","#BDD7EE"),
+    c("En-l","#7CAFDD"),
+    c("En-SM","#FFF2CC"),
+    c("En-v","#C7BCE7"),
+    c("Fb1","#FFA919"),
+    c("Fb2","#C00000"),
+    c("Fb3","#FA7FA9"),
+    c("Fb4","#77D900"),
+    c("G-Muc","#00B050"),
+    c("G-Ser","#ADCDEA"),
+    c("Gli","#8FAADC"),
+    c("H","#EBE621"),
+    c("IC","#FBE5D6"),
+    c("Ion","#0F23FF"),
+    c("M1","#FF6600"),
+    c("M1-2","#D29F26"),
+    c("M2","#BFBFBF"),
+    c("MC","#2FE6F9"),
+    c("ME","#E169CD"),
+    c("Mon","#FBC8EF"),
+    c("NE","#FF0000"),
+    c("Neu","#FF7C88"),
+    c("NK","#FF8B6A"),
+    c("p-C","#EB6C11"),
+    c("PC","#00B0F0"),
+    c("pDC","#E31A1C"),
+    c("Pr","#747474"),
+    c("S-Muc","#B38600"),
+    c("S1","#FFBAD1"),
+    c("SM1","#C8D8E0"),
+    c("SM2","#0087B6"),
+    c("SM3","#FDBF6F"),
+    c("TASC","#FF3990"),
+    c("Un","#DEEBF7")))#
 df_color %<>% as.data.frame
 rownames(df_color) = NULL
 colnames(df_color) = c("cell_types","cell_types.colors")
@@ -153,6 +137,7 @@ table(c(df_annotation$Cell_subtype,"TASC","S-Muc") %in% df_color$cell_types)
 df_annotation$Cell_subtype[!df_annotation$Cell_subtype %in% df_color$cell_types]
 df_color %<>% filter(cell_types %in% c(df_annotation$Cell_subtype,"TASC","S-Muc"))
 table(duplicated(df_color$cell_types.colors))
+df_color$cell_types.colors[duplicated(df_color$cell_types.colors)]
 meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
                                                  from = df_color$cell_types,
                                                  to = df_color$cell_types.colors)
@@ -191,3 +176,20 @@ y = as.vector(t(df_TASC[13,D]))
 x = as.vector(t(df_TASC[13,COPD]))
 (ASE <- wilcox.test(y,x,correct=FALSE))
 
+
+library(Seurat)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+library(magrittr)
+library(readxl)
+library(cowplot)
+library(stringr)
+library(openxlsx)
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+if(!dir.exists(path))dir.create(path, recursive = T)
+# load data
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+DefaultAssay(object) = "SCT"
+object %<>% subset(subset = Doublets %in% "Singlet")
