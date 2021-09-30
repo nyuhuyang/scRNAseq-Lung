@@ -1,5 +1,6 @@
 library(Seurat)
 library(magrittr)
+library(dplyr)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
@@ -120,18 +121,18 @@ if(step == "DEG analysis 3-option 1"){
         unique(object@meta.data[,Cell_type])
     })
     names(categories) = Cell_types
-    category_df = data.frame("category" = c(rep(names(categories[1]),length(categories[[1]])),
-                                rep(names(categories[2]),length(categories[[2]])),
-                                rep(names(categories[3]),length(categories[[3]])),
-                                rep(names(categories[4]),length(categories[[4]]))),
+    category_df = data.frame("category" = c(rep(names(categories[1]),48),
+                                rep(names(categories[2]),32),
+                                rep(names(categories[3]),8),
+                                rep(names(categories[4]),4)),
                       "type" = c(categories[[1]],
                               categories[[2]],
                               categories[[3]],
                               categories[[4]])
                       )
     category_df = category_df[!duplicated(category_df$type),]
-    category_df %<>% filter(type != "Un")
-                                
+    category_df = category_df[category_df$type != "Un",]
+    
     Idents_list = list(ident1 = list("distal",
                                      "proximal",
                                      "proximal",
@@ -156,7 +157,6 @@ if(step == "DEG analysis 3-option 1"){
                                      "terminal",
                                      "distal",
                                      "COPD"))
-    for(i in 1:12) print(paste(Idents_list$ident1[i], "vs",Idents_list$ident2[i]))
     i = ceiling((args/69) %% 12) # 69 cell types, 12 pairs
     if(args == 828) i = 12
     print(ident1 <- Idents_list$ident1[[i]])

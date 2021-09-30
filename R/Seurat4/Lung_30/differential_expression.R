@@ -104,6 +104,36 @@ names(deg) = gsub("2021-09-28-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
 write.xlsx(deg, file = paste0(path,"Lung_30_DEG_TASC_subset.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+#DEG analysis 3 - between sample groups
+#Option 1 – considering all cells in the group together
+Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
+categories = lapply(Cell_types, function(Cell_type){
+        unique(object@meta.data[,Cell_type])
+})
+names(categories) = Cell_types
+all_cells = unique(unlist(categories,use.names = F))
+all_cells = all_cells[all_cells != "Un"]
+
+csv_names = list.files("output/20210928",pattern = ".csv",full.names = T)
+idx <- gsub("output/20210928/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
+all_idx = 1:828
+table(all_idx %in% idx)
+print(paste("missing",sort(as.character(all_idx[!(all_idx %in% idx)]))))
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1)
+        tmp$gene = rownames(tmp)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        if(tmp$type == TRUE) tmp$type = "T"
+        return(tmp)
+}) %>% bind_rows
+deg = deg[deg$p_val_adj < 0.05,]
+rownames(deg) = NULL
+deg_list = split(deg,f = deg$type)
+
+write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_between_groups_option1.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
 
 # Color points by dataset
 # Add correlation coefficient by dataset
