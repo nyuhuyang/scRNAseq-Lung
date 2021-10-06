@@ -15,10 +15,17 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
-DefaultAssay(object) = "SCT"
-object %<>% subset(subset = Doublets %in% "Singlet")
+meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+table(object$barcode ==meta.data$barcode)
+object@meta.data = meta.data
 
-step = c("resolutions","cell_types","DEG analysis 3-option 1")[3]
+DefaultAssay(object) = "SCT"
+object %<>% subset(subset = Cell_subtype != "Un"
+                   &  Doublets == "Singlet"
+)
+
+step = c("resolutions","cell_types","DEG analysis 3-option 1")[2]
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -71,12 +78,12 @@ if(step == "resolutions"){
 }
 
 if(step == "cell_types"){
-    opts = data.frame(ident = c(rep("Cell_subtype",47),
+    opts = data.frame(ident = c(rep("Cell_subtype",49),
                                 rep("Cell_type",31),
                                 rep("UMAP_land",20),
                                 rep("Family",7),
                                 rep("Superfamily",3)),
-                      num = c(1:47,
+                      num = c(1:49,
                               1:31,
                               1:20,
                               1:7,
@@ -86,9 +93,6 @@ if(step == "cell_types"){
     opt = opts[args,]
 
     #==========================
-    object %<>% subset(subset = Cell_subtype != "Un"
-                       &  Doublets == "Singlet"
-    )
     Idents(object) = opt$ident
     opt$type = sort(levels(object))[opt$num]
     print(opt)
@@ -111,7 +115,10 @@ if(step == "cell_types"){
     if(args < 10) arg = paste0("0",arg)
     if(args < 100) arg = paste0("0",arg)
 
-    write.csv(markers,paste0(path,arg,"-",opt$ident,"-",num,".",opt$type, ".csv"))
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",opt$ident,"-",num,".",opt$type, ".csv"))
 }
 
 
@@ -121,10 +128,10 @@ if(step == "DEG analysis 3-option 1"){
         unique(object@meta.data[,Cell_type])
     })
     names(categories) = Cell_types
-    category_df = data.frame("category" = c(rep(names(categories[1]),48),
-                                rep(names(categories[2]),32),
-                                rep(names(categories[3]),8),
-                                rep(names(categories[4]),4)),
+    category_df = data.frame("category" = c(rep(names(categories[1]),49),
+                                rep(names(categories[2]),31),
+                                rep(names(categories[3]),7),
+                                rep(names(categories[4]),3)),
                       "type" = c(categories[[1]],
                               categories[[2]],
                               categories[[3]],
@@ -157,19 +164,16 @@ if(step == "DEG analysis 3-option 1"){
                                      "terminal",
                                      "distal",
                                      "COPD"))
-    i = ceiling((args/69) %% 12) # 69 cell types, 12 pairs
-    if(args == 828) i = 12
+    i = ceiling((args/90) %% 12) # 90 cell types, 12 pairs
+    if(args == 1080) i = 12
     print(ident1 <- Idents_list$ident1[[i]])
     print(ident2 <- Idents_list$ident2[[i]])
     
-    k = ((args-1) %% 69)+1
+    k = ((args-1) %% 90)+1
     print(category <- category_df$category[k])
     print(type <- category_df$type[k])
     
     #==========================
-    object %<>% subset(subset = Cell_subtype != "Un"
-                       &  Doublets == "Singlet"
-    )
     Idents(object) = category
     object %<>% subset(idents = type)
     
@@ -203,6 +207,10 @@ if(step == "DEG analysis 3-option 1"){
     arg = args
     if(args < 10) arg = paste0("0",arg)
     if(args < 100) arg = paste0("0",arg)
+    if(args < 1000) arg = paste0("0",arg)
     
-    write.csv(markers,paste0(path,arg,"-",ident1,"-vs-",ident2,".",type, ".csv"))
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",ident1,"-vs-",ident2,".",type, ".csv"))
 }

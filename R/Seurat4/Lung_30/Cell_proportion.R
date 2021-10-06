@@ -14,6 +14,11 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 # load data
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+table(object$barcode ==meta.data$barcode)
+object@meta.data = meta.data
+
 DefaultAssay(object) = "SCT"
 object %<>% subset(subset = Doublets %in% "Singlet")
 
@@ -33,43 +38,44 @@ cell_number = lapply(Cell_types, function(Cell_type){
 }) %>% bind_rows()
 # remove En UMAP_land
 cell_number[grep("En\\...",rownames(cell_number)),]
-cell_number = cell_number[-grep("En...87",rownames(cell_number)),]
+cell_number = cell_number[-grep("En\\...",rownames(cell_number))[1],]
 Symbol = gsub("\\..*","",rownames(cell_number))
 cell_number = cell_number[!duplicated(Symbol),]
 rownames(cell_number) %<>% gsub("\\..*","",.)
 
 #====
-df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - revised.xlsx",
+df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - template.xlsx",
                                     sheet = "B - Cell numbers in each sample")
 colnames(df_number) = df_number[2,]
 df_number = df_number[-2,]
 df_number = df_number[!is.na(df_number$Symbol),]
 Symbol = df_number$Symbol = gsub(" .*","",df_number$Symbol)
-orig.ident = colnames(df_number)[-c(1:5)]
-setdiff(rownames(cell_number), Symbol)
-setdiff(Symbol,rownames(cell_number))
+wix_columns = colnames(df_number)[-c(1:5)]
+setdiff(rownames(cell_number), Symbol) #"TNK"   "BC-S"  "SM-Pr"
+setdiff(Symbol,rownames(cell_number)) #
 
+orig.ident =  colnames(cell_number)
 rownames(df_number) = Symbol
-table(colnames(df_number)[5:ncol(df_number)] == colnames(cell_number))
+table(colnames(df_number)[6:ncol(df_number)] == colnames(cell_number))
 
-write.xlsx(cell_number[Symbol,], file = paste0(path,"B_Cell_numbers.xlsx"),
+write.xlsx(cell_number[Symbol,], file = paste0("output/20211005/","B_Cell_numbers.xlsx"),
            colNames = TRUE, rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
-meta.data %<>% filter(Cell_subtype != "Un")
+meta.data %<>% dplyr::filter(Cell_subtype != "Un")
 total_cell_number = as.data.frame(table(meta.data$orig.ident))
 table(total_cell_number$Var1 == colnames(cell_number))
 colnames(total_cell_number) = c("patient","total")
 write.xlsx(total_cell_number, file = paste0(path,"0_patient_cell_number.xlsx"),
            colNames = TRUE, rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 #============ A - Cell proportions per group ============================
-df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - revised.xlsx",
+df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - template.xlsx",
                                 sheet = "A - Cell proportions per group")
 colnames(df_number) = df_number[2,]
 df_number = df_number[-2,]
 df_number = df_number[!is.na(df_number$Symbol),!is.na(colnames(df_number))]
 Symbol = df_number$Symbol = gsub(" .*","",df_number$Symbol)
 
-cell_number = readxl::read_excel(path = paste0("output/20210923/","B_Cell_numbers.xlsx"),)
+cell_number = readxl::read_excel(path = paste0("output/20211005/","B_Cell_numbers.xlsx"),)
 colnames(cell_number)[1] = "cell_types"
 cell_number %<>% pivot_longer(!cell_types,names_to = "orig.ident", values_to = "num")
 cell_number$regions = plyr::mapvalues(cell_number$orig.ident,
@@ -83,7 +89,8 @@ mean_res = cell_number %>%
     summarize(num = sum(num,na.rm = TRUE))
 mean_res_all1 <- mean_res
 
-mean_res_all2 = cell_number %>% filter(cell_types %in% superfamily) %>%
+(superfamily <- na.omit(unique(df_number$superfamily)))
+mean_res_all2 = cell_number %>% dplyr::filter(cell_types %in% superfamily) %>%
     group_by(regions) %>% 
     summarize(total = sum(num,na.rm = TRUE))
 mean_res_all1$total = plyr::mapvalues(mean_res_all1$regions,from = mean_res_all2$regions, 
@@ -93,9 +100,8 @@ mean_res_all = mean_res_all1 %>% pivot_wider(!c("num","total"), names_from = "re
 mean_res_all %<>% column_to_rownames(var="cell_types")
 
 # mean_res % within superfamily (per sample)
-(superfamily <- na.omit(unique(df_number$superfamily)))
 mean_res_super1 <- mean_res
-mean_res_super2 = mean_res_super1 %>% filter(cell_types %in% superfamily)
+mean_res_super2 = mean_res_super1 %>% dplyr::filter(cell_types %in% superfamily)
 mean_res_super1$total = 0
 for(region in regions){
     for(super in superfamily){
@@ -116,7 +122,7 @@ df_number = df_number[!is.na(df_number$Family),]
 
 (Family <- na.omit(unique(df_number$Family)))
 mean_res_Family1 <- mean_res
-mean_res_Family2 = mean_res_Family1 %>% filter(cell_types %in% Family)
+mean_res_Family2 = mean_res_Family1 %>% dplyr::filter(cell_types %in% Family)
 mean_res_Family1$total = 0
 for(region in regions){
     for(f in Family){
@@ -144,15 +150,15 @@ write.xlsx(mean_results, file = paste0(path,"A_Cell_proportions.xlsx"),
 
 #============ A - Cell proportions per group ============================
 #========= Differences between groups (2-tailed Mann-Whitney test) =====
-df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - revised.xlsx",
+df_number <- readxl::read_excel("doc/Table I. Cell ontology and distribution - template.xlsx",
                                 sheet = "A - Cell proportions per group")
 colnames(df_number) = df_number[2,]
 df_number = df_number[-2,]
 df_number = df_number[!is.na(df_number$Symbol),!is.na(colnames(df_number))]
 Symbol = df_number$Symbol = gsub(" .*","",df_number$Symbol)
-orig.ident = colnames(df_number)[-c(1:5)]
+#orig.ident = colnames(df_number)[-c(1:5)]
 
-cell_number = readxl::read_excel(path = paste0("output/20210923/","B_Cell_numbers.xlsx"),)
+cell_number = readxl::read_excel(path = paste0("output/20211005/","B_Cell_numbers.xlsx"),)
 colnames(cell_number)[1] = "cell_types"
 cell_number = cell_number[complete.cases(cell_number),]
 cell_number %<>% pivot_longer(!cell_types,names_to = "orig.ident", values_to = "num")
@@ -166,7 +172,7 @@ wilcox_res = cell_number %>% group_by(orig.ident,cell_types) %>%
               num = sum(num,na.rm = TRUE))
 wilcox_res_all1 <- wilcox_res
 
-wilcox_res_all2 = cell_number %>% filter(cell_types %in% superfamily) %>% 
+wilcox_res_all2 = cell_number %>% dplyr::filter(cell_types %in% superfamily) %>% 
     group_by(orig.ident) %>% 
     summarize(total = sum(num,na.rm = TRUE))
 wilcox_res_all1$total = plyr::mapvalues(wilcox_res_all1$orig.ident,from = wilcox_res_all2$orig.ident, 
@@ -186,11 +192,11 @@ single_wilcox.test <- function(df = wilcox_res_all1, group1 = compare_list[[3]][
                                group2 = compare_list[[3]][[2]]){
     
     df = df[df$regions %in% unique(c(group1,group2)),]
-    df1 = df %>% filter(regions %in% group1) %>% pivot_wider(!c("num","total","regions"), 
+    df1 = df %>% dplyr::filter(regions %in% group1) %>% pivot_wider(!c("num","total","regions"), 
                                                         names_from = "orig.ident", 
                                                         values_from = "mean") %>% 
         column_to_rownames(var="cell_types")
-    df2 = df %>% filter(regions %in% group2) %>% pivot_wider(!c("num","total","regions"), 
+    df2 = df %>% dplyr::filter(regions %in% group2) %>% pivot_wider(!c("num","total","regions"), 
                                                         names_from = "orig.ident", 
                                                         values_from = "mean") %>%
         column_to_rownames(var="cell_types")
@@ -220,10 +226,10 @@ write.xlsx(wilcox_res_all3[Symbol,orig.ident], file = paste0(path,"C_Cell_propor
 (superfamily <- na.omit(unique(df_number$superfamily)))
 wilcox_res_super1<- wilcox_res
 
-wilcox_res_super2 = wilcox_res_super1 %>% filter(cell_types %in% superfamily)
+wilcox_res_super2 = wilcox_res_super1 %>% dplyr::filter(cell_types %in% superfamily)
 wilcox_res_super1$total = 0
 for(region in regions){
-    Samples = df_samples %>% filter(regions %in% region) %>%.[,"sample"]
+    Samples = df_samples %>% dplyr::filter(regions %in% region) %>%.[,"sample"]
     for(Sample in Samples){
         for(super in superfamily){
             cells = pull(df_number[df_number$superfamily %in% super,"Symbol"])
@@ -254,12 +260,12 @@ df_number = df_number[!is.na(df_number$Family),]
 (Family <- na.omit(unique(df_number$Family)))
 
 wilcox_res_Family1<- wilcox_res
-wilcox_res_Family2 = wilcox_res_Family1 %>% filter(cell_types %in% Family)
+wilcox_res_Family2 = wilcox_res_Family1 %>% dplyr::filter(cell_types %in% Family)
 wilcox_res_Family1$total = 0
 
 #======
 for(region in regions){
-    Samples = df_samples %>% filter(regions %in% region) %>%.[,"sample"]
+    Samples = df_samples %>% dplyr::filter(regions %in% region) %>%.[,"sample"]
     for(Sample in Samples){
         for(f in Family){
             cells = pull(df_number[df_number$Family %in% f,"Symbol"])
@@ -285,8 +291,8 @@ write.xlsx(wilcox_res_Family3[Symbol,orig.ident], file = paste0(path,"E_Cell_pro
 
 table(rownames(wilcox_res_super) == rownames(wilcox_res_all))
 table(rownames(wilcox_res_Family) == rownames(wilcox_res_all))
-
-Symbol = Symbol[-which(Symbol %in% "RBC")]
+table(Symbol %in% rownames(wilcox_res_all))
+Symbol[!Symbol %in% rownames(wilcox_res_all)]
 wilcox_results = bind_cols(as.data.frame(wilcox_res_all[Symbol,names(compare_list)]),
                            as.data.frame(wilcox_res_super[Symbol,names(compare_list)]),
                            as.data.frame(wilcox_res_Family[Symbol,names(compare_list)]),
@@ -294,3 +300,4 @@ wilcox_results = bind_cols(as.data.frame(wilcox_res_all[Symbol,names(compare_lis
 dim(wilcox_results)
 write.xlsx(wilcox_results, file = paste0(path,"A_Cell_proportions_wilcox_res.xlsx"),
            colNames = TRUE, rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+

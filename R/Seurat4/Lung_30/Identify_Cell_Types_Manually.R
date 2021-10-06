@@ -13,10 +13,11 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 # load data
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 DefaultAssay(object) = "SCT"
-umap = object@reductions["umap"]
-meta.data_exp = FetchData(object, vars = c("SFTPC","SCGB1A1","SCGB3A2","SFTPB"))
-saveRDS(umap, "output/20210901/umap_dist.0.3_spread.1.rds")
-saveRDS(meta.data_exp, "output/20210901/meta.data_exp.rds")
+#meta.data = object@meta.data
+#umap = object[["umap"]]@cell.embeddings
+meta.data_exp = FetchData(object, vars = c("SFTPC","SCGB1A1","SCGB3A2","SFTPB","CCL19","SFRP2","GJA5","DKK2"))
+#saveRDS(umap, "output/20210901/umap_dist.0.3_spread.1.rds")
+#saveRDS(meta.data_exp, "output/20210901/meta.data_exp.rds")
 
 
 min.dist = 0.5
@@ -31,7 +32,6 @@ rownames(meta.data) = barcode
 umap = readRDS("output/20210901/umap_dist.0.3_spread.1_orig.rds")
 table(rownames(meta.data) == rownames(umap$umap@cell.embeddings))
 meta.data %<>% cbind(umap$umap@cell.embeddings)
-meta.data_exp = readRDS("output/20210901/meta.data_exp.rds")
 meta.data %<>% cbind(meta.data_exp)
 
 #======== rename ident =================
@@ -64,20 +64,35 @@ for(i in 1:length(resolutions[1:2])){
         cl = pull(df_annotation_UMAP[m,resolutions[i]])
         change_to = pull(df_annotation_UMAP[m,"label"])
         
-        select_id = meta.data %>% filter(!!as.name(resolutions[i]) %in% cl) %>% 
-                              filter(eval(parse(text = df_annotation_UMAP$condition[m])))
+        select_id = meta.data %>% dplyr::filter(!!as.name(resolutions[i]) %in% cl) %>% 
+                              dplyr::filter(eval(parse(text = df_annotation_UMAP$condition[m])))
         meta.data[rownames(select_id),"Cell_subtype"] = change_to
         print(paste (resolutions[i],"at",cl,df_annotation_UMAP$condition[m],"------->",change_to))
     }
 }
 
-df_annotation = df_annotation %>% filter(!is.na(Cell_subtype)) %>% filter(!duplicated(Cell_subtype))
+df_annotation = df_annotation %>% dplyr::filter(!is.na(Cell_subtype)) %>% dplyr::filter(!duplicated(Cell_subtype))
 
 Cell_types <- c("Cell_type","UMAP_land","Family","Superfamily")
 for(Cell_type in Cell_types){
     meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
                                             from = pull(df_annotation[,"Cell_subtype"]),
                                             to = pull(df_annotation[,Cell_type]))
+}
+
+#======== rename ident =================
+df_annotation <- readxl::read_excel("doc/Annotations/Annotation adjustments 10-4-21 RS.xlsx",
+                                    sheet = "Sheet1")
+colnames(df_annotation) %<>% gsub("modify_","",.)
+colnames(meta.data) %<>% gsub("SCT_snn_res.","X20UMAP_res_",.)
+for(i in 1:nrow(df_annotation)){
+    change_from = pull(df_annotation[i,"Cell_subtype"])
+    change_to = pull(df_annotation[i,"label"])
+    print(paste ("If",df_annotation$Cell_subtype[i],df_annotation$condition[i],"------->",change_to))
+    
+    select_id = meta.data %>% dplyr::filter(Cell_subtype == change_from) %>% 
+        dplyr::filter(eval(parse(text = df_annotation$condition[i])))
+    meta.data[rownames(select_id),"Cell_subtype"] = change_to
 }
 
 # add color
@@ -88,13 +103,12 @@ df_color = t(data.frame(
     c("BC","#70AD47"),
     c("C-s","#FFE699"),
     c("C1","#FFC000"),
-    c("CD4-T-ifn","#FD5A00"),
-    c("CD4-T1","#9EF971"),
-    c("CD8-T-NK","#A5A5A5"),
+    c("CD8-T-NK","#FF42A4"),
     c("CD8-T1","#5B9BD5"),
+    c("CD8-Trm","#f1c232"),#fc8e66
     c("cDC","#0070C0"),
     c("Cr","#B8C6DA"),
-    c("En-a","#5B9BD5"),
+    c("En-a","#00B0F0"),
     c("En-c1","#A7E5BC"),
     c("En-ca","#BDD7EE"),
     c("En-l","#7CAFDD"),
@@ -120,32 +134,41 @@ df_color = t(data.frame(
     c("Neu","#FF7C88"),
     c("NK","#FF8B6A"),
     c("p-C","#EB6C11"),
-    c("PC","#00B0F0"),
+    c("PC","#ED7D31"),
     c("pDC","#E31A1C"),
     c("Pr","#747474"),
     c("S-Muc","#B38600"),
     c("S1","#FFBAD1"),
     c("SM1","#C8D8E0"),
     c("SM2","#0087B6"),
-    c("SM3","#FDBF6F"),
+    c("SM3","#FFFF00"),
+    c("T-ifn","#FD5A00"),
     c("TASC","#FF3990"),
+    c("Tcn","#9EF971"),
+    c("T-un","#b1bcc5"),
     c("Un","#DEEBF7")))#
 df_color %<>% as.data.frame
 rownames(df_color) = NULL
-colnames(df_color) = c("cell_types","cell_types.colors")
-table(c(df_annotation$Cell_subtype,"TASC","S-Muc") %in% df_color$cell_types)
-df_annotation$Cell_subtype[!df_annotation$Cell_subtype %in% df_color$cell_types]
-df_color %<>% filter(cell_types %in% c(df_annotation$Cell_subtype,"TASC","S-Muc"))
-table(duplicated(df_color$cell_types.colors))
-df_color$cell_types.colors[duplicated(df_color$cell_types.colors)]
-meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
-                                                 from = df_color$cell_types,
-                                                 to = df_color$cell_types.colors)
-saveRDS(meta.data[,c("Cell_subtype","Cell_subtype.colors",Cell_types)], "output/20210901/meta.data_Cell_subtype.rds")
+colnames(df_color) = c("Cell_subtype","Cell_subtype.colors")
+table(duplicated(df_color$Cell_subtype.colors))
 
+meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
+                                                 from = df_color$Cell_subtype,
+                                                 to = df_color$Cell_subtype.colors)
+
+df_annotation <- readxl::read_excel("doc/Annotations/20210917_20UMAP res0.8 annotations.xlsx",
+                                    sheet = "Sheet1")
+Cell_types <- c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
+
+df_annotation = df_annotation[order(df_annotation$Cell_subtype),Cell_types]
+df_annotation = df_annotation[!duplicated(df_annotation$Cell_subtype),]
+for(Cell_type in Cell_types[2:5]){
+    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
+                                            from = pull(df_annotation[,"Cell_subtype"]),
+                                            to = pull(df_annotation[,Cell_type]))
+}
 
 #=========
-meta.data = readRDS(file = "output/20210901/meta.data_Cell_subtype.rds")
 table(rownames(object@meta.data) == rownames(meta.data))
 #colnames(object@meta.data) %<>% gsub("cell_types","old_cell_types",.)
 #object@meta.data %<>% cbind(meta.data)
@@ -155,8 +178,11 @@ object$Cell_type = meta.data$Cell_type
 object$UMAP_land = meta.data$UMAP_land
 object$Family = meta.data$Family
 object$Superfamily = meta.data$Superfamily
-
+meta.data = object@meta.data
+saveRDS(meta.data, "output/20211004/meta.data_Cell_subtype.rds")
+object@meta.data = meta.data
 saveRDS(object, file = "data/Lung_SCT_30_20210831.rds")
+
 
 # run Mann-Whitney test to test Differences in TASC% between D and COPD
 df_TASC <- readxl::read_excel("output/20210917/Region specific 30 normal lung TASC percentage.xlsx")
@@ -193,3 +219,25 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 DefaultAssay(object) = "SCT"
 object %<>% subset(subset = Doublets %in% "Singlet")
+
+
+
+SCG_exp = FetchData(object, vars = c("SCGB1A1","SCGB3A2"))
+SCG_exp$SCGB1A1 = plyr::mapvalues(as.character(SCG_exp$SCGB1A1 >= 2),
+                                  from = c("TRUE","FALSE"),
+                                  to = c("SCGB1A1-hi","SCGB1A1-lo"))
+SCG_exp$SCGB3A2 = plyr::mapvalues(as.character(SCG_exp$SCGB3A2 > 0),
+                                  from = c("TRUE","FALSE"),
+                                  to = c("SCGB3A2+","SCGB3A2-"))
+colnames(SCG_exp) %<>% paste0("_lvl")
+#object@meta.data %<>% cbind(SCG_exp)
+SCG_exp$SCGB1A1_lvl %<>% paste0(" ")
+SCG_exp$SCGB3A2_lvl %<>% paste0(" ")
+object$Cell_subtype.SCGB1A1 = object$Cell_subtype
+object$Cell_subtype.SCGB3A2 = object$Cell_subtype
+
+
+SCG_exp[object$Cell_subtype != "TASC","SCGB1A1_lvl"] = ""
+SCG_exp[object$Cell_subtype != "TASC","SCGB3A2_lvl"] = ""
+object$Cell_subtype.SCGB1A1 %<>% paste0(SCG_exp$SCGB1A1_lvl,.)
+object$Cell_subtype.SCGB3A2 %<>% paste0(SCG_exp$SCGB3A2_lvl,.)
