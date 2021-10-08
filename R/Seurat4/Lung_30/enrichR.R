@@ -15,8 +15,8 @@ set.seed(101)
 read.path = "Yang/Lung_30/hg19/DE_analysis/"
 
 # select pathway
-wb <- loadWorkbook("Yang/Lung_30/hg38/GSEA/Enrichr/Enrichr libraries.xlsx")
-df <- readxl::read_excel("Yang/Lung_30/hg38/GSEA/Enrichr/Enrichr libraries.xlsx")
+wb <- loadWorkbook("Yang/Lung_30/hg38/GSEA/Enrichr/Enrichr libraries 2021.xlsx")
+df <- readxl::read_excel("Yang/Lung_30/hg38/GSEA/Enrichr/Enrichr libraries 2021.xlsx")
 
 # filter by color
 df_color <- data.frame()
@@ -38,13 +38,15 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 deg = readxl::read_excel("Yang/Lung_30/hg38/DE_analysis/Lung_30_DEG_Cell.category.xlsx",
                    sheet = "Cell_subtype")
 deg[deg$p_val == 0,"p_val"] = min(deg[deg$p_val > 0,"p_val"], .Machine$double.xmin)
+deg = deg[deg$avg_log2FC >= 1,]
+table(deg$cluster)
 deg$log2FC_log10p = deg$avg_log2FC*(-log10(deg$p_val))
-cell.type_list <- list("Epi" = c("BC","IC","S1","TASC", "H", "p-C", "C1","C-s", "Ion", "NE","ME",
-                                 "G-Ser","G-Muc","S-Muc","AT1","AT2"),
-                       "Str" = c("Fb1","Fb2","Fb3","Fb4","Cr","Gli","SM1","SM2","SM3",
-                                 "Pr", "En-a","En-c1","En-ca","En-l","En-SM","En-v"),
-                       "Im" = c("MC", "Neu", "Mon", "M1", "M1-2","M2","cDC","pDC",
-                                "B","PC", "CD4-T1","CD4-T-ifn","CD8-T1", "CD8-T-NK","NK"))
+cell.type_list <- list("Epithelial" = c("BC","IC","S1","S-Muc","TASC","H","p-C","C1","C-s",
+                                 "Ion","NE","ME","G-Muc","G-Ser","AT1","AT2"),
+                       "Structural" = c("Cr","Fb1","Fb2","Fb3","Fb4","Gli","SM1","SM2","SM3",
+                                 "Pr","En-a","En-c1","En-ca","En-v","En-SM","En-l"),
+                       "Immune" = c("Neu","Mon","M1","M1-2","M2","cDC","pDC","MC","B",
+                                "PC","Tcn","T-ifn","Trm","CD8-T1","T-NK","NK"))
 
 cell.types = unlist(cell.type_list,use.names = F)
 deg_list <- split(deg,f = deg$cluster)
@@ -78,7 +80,7 @@ df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
 write.xlsx(df_enrichedRes, asTable = F,
            file = paste0(save.path,"enrichR_DEG_Cell.category.xlsx"),
            borders = "surrounding")
-df_enrichedRes <- readxl::read_excel(paste0(save.path,"enrichR_EVG_all.xlsx"))
+#df_enrichedRes <- readxl::read_excel(paste0(save.path,"enrichR_DEG_Cell.category.xlsx"))
 
 enrichedRes_list <- split(df_enrichedRes, f = df_enrichedRes$library)
 

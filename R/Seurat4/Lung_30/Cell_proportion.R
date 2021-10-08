@@ -58,7 +58,7 @@ orig.ident =  colnames(cell_number)
 rownames(df_number) = Symbol
 table(colnames(df_number)[6:ncol(df_number)] == colnames(cell_number))
 
-write.xlsx(cell_number[Symbol,], file = paste0("output/20211005/","B_Cell_numbers.xlsx"),
+write.xlsx(cell_number[Symbol,], file = paste0("output/20211007/","B_Cell_numbers.xlsx"),
            colNames = TRUE, rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 meta.data %<>% dplyr::filter(Cell_subtype != "Un")
@@ -75,7 +75,7 @@ df_number = df_number[-2,]
 df_number = df_number[!is.na(df_number$Symbol),!is.na(colnames(df_number))]
 Symbol = df_number$Symbol = gsub(" .*","",df_number$Symbol)
 
-cell_number = readxl::read_excel(path = paste0("output/20211005/","B_Cell_numbers.xlsx"),)
+cell_number = readxl::read_excel(path = paste0("output/20211007/","B_Cell_numbers.xlsx"),)
 colnames(cell_number)[1] = "cell_types"
 cell_number %<>% pivot_longer(!cell_types,names_to = "orig.ident", values_to = "num")
 cell_number$regions = plyr::mapvalues(cell_number$orig.ident,
@@ -158,7 +158,7 @@ df_number = df_number[!is.na(df_number$Symbol),!is.na(colnames(df_number))]
 Symbol = df_number$Symbol = gsub(" .*","",df_number$Symbol)
 #orig.ident = colnames(df_number)[-c(1:5)]
 
-cell_number = readxl::read_excel(path = paste0("output/20211005/","B_Cell_numbers.xlsx"),)
+cell_number = readxl::read_excel(path = paste0("output/20211007/","B_Cell_numbers.xlsx"),)
 colnames(cell_number)[1] = "cell_types"
 cell_number = cell_number[complete.cases(cell_number),]
 cell_number %<>% pivot_longer(!cell_types,names_to = "orig.ident", values_to = "num")

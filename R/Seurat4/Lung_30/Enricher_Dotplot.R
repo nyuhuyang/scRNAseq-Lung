@@ -13,12 +13,12 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 
 set.seed(101)
 # ========== define dotplot rownames and colnames =================
-cell.type_list <- list("Epi" = c("BC","IC","S1","S-Muc","TASC","H","p-C","C1","C-s",
-                                 "Ion","NE","ME","G-Muc","G-Ser","AT1","AT2"),
-                       "Str" = c("Cr","Fb1","Fb2","Fb3","Fb4","Gli","SM1","SM2","SM3",
-                                 "Pr","En-a","En-c1","En-ca","En-v","En-SM","En-l"),
-                       "Im" = c("Neu","Mon","M1","M1-2","M2","cDC","pDC","MC","B",
-                                "PC","CD4-T1","CD4-T-ifn","CD8-T1","CD8-T-NK","NK"))
+cell.type_list <- list("Epithelial" = c("BC","IC","S1","S-Muc","TASC","H","p-C","C1","C-s",
+                                        "Ion","NE","ME","G-Muc","G-Ser","AT1","AT2"),
+                       "Structural" = c("Cr","Fb1","Fb2","Fb3","Fb4","Gli","SM1","SM2","SM3",
+                                        "Pr","En-a","En-c1","En-ca","En-v","En-SM","En-l"),
+                       "Immune" = c("Neu","Mon","M1","M1-2","M2","cDC","pDC","MC","B",
+                                    "PC","Tcn","T-ifn","Trm","CD8-T1","T-NK","NK"))
 
 selected_tissues <- list("GTEx tissue" = c("Lung",
                                            "Esophagus",
@@ -46,7 +46,7 @@ selected_tissues <- list("GTEx tissue" = c("Lung",
 csv_list <- c("enrichR_GTEx_Tissue_Sample_Gene_Expression_Profiles_up.csv",
               "enrichR_Human_Gene_Atlas.csv")
 
-superfamily <- c("Epi","Str","Im")
+superfamily <- c("Epithelial","Structural","Immune")
 #======1.2 load  Seurat =========================
 # load files
 object <- readRDS(file = "data/Lung_SCT_30_20210831.rds") 
@@ -54,12 +54,16 @@ object <- readRDS(file = "data/Lung_SCT_30_20210831.rds")
 DefaultAssay(object) = "SCT"
 object %<>% subset(subset = Doublets == "Singlet" &
                        Superfamily != "Un")
-                   
+
+meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+table(object$barcode ==meta.data$barcode)
+object@meta.data = meta.data
 Idents(object) = "Cell_subtype"
 
 len <- 40
 
-dotplot_df <- readxl::read_excel("doc/20210929_40-gene for for dotplot revised.xlsx")
+dotplot_df <- readxl::read_excel("doc/20211006_40-gene for for dotplot revised.xlsx")
 dotplot_df <- dotplot_df[1:len,superfamily]
 dotplot_df = dotplot_df[complete.cases(dotplot_df),]
 genes = unique(unlist(df2list(dotplot_df),use.names = F))
@@ -106,7 +110,7 @@ Score_table_list <- list()
 save.path = path
 if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 
-for(k in seq_along(csv_list)){
+for(k in 1:length(csv_list)){
     csv = csv_list[k]
     Enrichr_res <- read.csv(paste0("Yang/Lung_30/hg38/GSEA/Enrichr/",csv),stringsAsFactors = F)
     Enrichr_res = Enrichr_res[Enrichr_res$Adjusted.P.value <= adj,]
@@ -162,7 +166,7 @@ bind_rows(Score_table_list) -> Score_table
 for(i in seq_along(superfamily)){
     group = superfamily[i]
     cell.types = cell.type_list[[i]]
-    #cell.types = cell.types[cell.types %in% colnames(prop_table)]
+    cell.types = cell.types[cell.types %in% colnames(prop_table)]
     empty = cell.types[!(cell.types %in% colnames(prop_table))]
     if(length(empty) >0){
         for(emp in empty) {
@@ -188,14 +192,6 @@ for(i in seq_along(superfamily)){
 
 
 # === generate figure =======
-layout <- c(
-    area(1, 1, 13, 10),
-    area(1, 11, 13, 18),
-    area(1, 19, 13, 27),
-    area(14, 1, 20, 10),
-    area(14, 11, 20, 18),
-    area(14, 19, 20, 27)
-)
 layout_largerFont <- c(
     area(1, 1, 14, 12),
     area(1, 13, 14, 24),
@@ -217,6 +213,66 @@ dotplot_res = list("Combined.Score" =Score_table[tissue,unlist(cell.type_list)],
                    "Percentage.Expressed" = prop_table[tissue,unlist(cell.type_list)]*100)
 openxlsx::write.xlsx(dotplot_res, file = paste0(save.path,"Dotplot_Enricher_data.xlsx"),
                      colNames = TRUE,rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+#================ Azimuth cell types ===============
+csv_list <- c("enrichR_Azimuth_Cell_Types_2021.csv")
+adj = 10^-4
+exp.max = 300
+
+
+Enrichr_list <- list()
+prop_table_list <- list()
+Score_table_list <- list()
+save.path = path
+if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+
+for(k in 1:length(csv_list)){
+    csv = csv_list[k]
+    Enrichr_res <- read.csv(paste0("Yang/Lung_30/hg38/GSEA/Enrichr/",csv),stringsAsFactors = F)
+    Enrichr_res = Enrichr_res[Enrichr_res$Adjusted.P.value <= adj,]
+    Enrichr_res$tissue = gsub(" CL.*| UBER.*","",Enrichr_res$Term)
+    Enrichr_res$Term_CL = gsub(".* CL","CL",Enrichr_res$Term)
+    Enrichr_res$Term_CL = gsub(".* UBERON","UBERON",Enrichr_res$Term_CL)
+    Enrichr_res = Enrichr_res[order(Enrichr_res$Combined.Score,decreasing = T),]
+    #Enrichr_res = Enrichr_res[!duplicated(Enrichr_res$cell.types),]
+    Enrichr_list[[k]] = Enrichr_res
+    
+    table(Enrichr_res$tissue,Enrichr_res$cell.types) %>% 
+        prop.table(2) %>% 
+        as.data.frame.matrix -> prop_table_list[[k]] -> df
+    Enrichr_res %>%
+        group_by(tissue, cell.types) %>%
+        summarise(mean_Combined.Score=(mean(Combined.Score))) %>%
+        spread(key = cell.types, value = mean_Combined.Score) %>% 
+        column_to_rownames(var = "tissue") -> Score_table_list[[k]]
+}
+
+bind_rows(prop_table_list) -> prop_table
+bind_rows(Score_table_list) -> Score_table
+
+cell.types = unlist(cell.type_list,use.names = F)
+cell.types = cell.types[cell.types %in% colnames(df)]
+df = df[,cell.types]
+for(c in rev(cell.types)){
+    df = df[order(df[,c],decreasing = T),]
+}
+
+selected_tissues = rownames(df)
+Score_table[is.na(Score_table)] = 0
+
+Score_table = sweep(Score_table, 2, colSums(Score_table),"/")*4000
+prop_table = prop_table*100
+g <- DotPlot.2(Score_table,prop_table, features = cell.types, 
+                          id = selected_tissues, scale = FALSE,log.data = NULL,
+                          scale.by = "size", scale.max  = 90,
+                          col.min = 0, exp.max = 300,dot.scale = 6)
+
+jpeg(paste0(save.path,"Dotplot_Azimuth.jpeg"), units="in", width=18, 
+     height= 20,res=900)
+print(g)
+dev.off()
+
+#================ 
 
 
 for(k in seq_along(csv_list)){

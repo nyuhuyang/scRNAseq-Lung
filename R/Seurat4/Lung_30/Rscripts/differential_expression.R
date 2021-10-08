@@ -15,17 +15,9 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
-meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
-table(rownames(object@meta.data) == rownames(meta.data))
-table(object$barcode ==meta.data$barcode)
-object@meta.data = meta.data
 
-DefaultAssay(object) = "SCT"
-object %<>% subset(subset = Cell_subtype != "Un"
-                   &  Doublets == "Singlet"
-)
 
-step = c("resolutions","cell_types","DEG analysis 3-option 1")[2]
+step = c("resolutions","cell_types","DEG analysis 3-option 1")[3]
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -78,6 +70,16 @@ if(step == "resolutions"){
 }
 
 if(step == "cell_types"){
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode ==meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       &  Doublets == "Singlet"
+    )
+    
     opts = data.frame(ident = c(rep("Cell_subtype",49),
                                 rep("Cell_type",31),
                                 rep("UMAP_land",20),
@@ -123,13 +125,22 @@ if(step == "cell_types"){
 
 
 if(step == "DEG analysis 3-option 1"){
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode ==meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       &  Doublets == "Singlet"
+    )
     Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
     categories = lapply(Cell_types, function(Cell_type){
         unique(object@meta.data[,Cell_type])
     })
     names(categories) = Cell_types
     category_df = data.frame("category" = c(rep(names(categories[1]),49),
-                                rep(names(categories[2]),31),
+                                rep(names(categories[2]),33),
                                 rep(names(categories[3]),7),
                                 rep(names(categories[4]),3)),
                       "type" = c(categories[[1]],
@@ -164,12 +175,12 @@ if(step == "DEG analysis 3-option 1"){
                                      "terminal",
                                      "distal",
                                      "COPD"))
-    i = ceiling((args/90) %% 12) # 90 cell types, 12 pairs
-    if(args == 1080) i = 12
+    i = ceiling((args/92) %% 12) # 92 cell types, 12 pairs
+    if(args == 1104) i = 12
     print(ident1 <- Idents_list$ident1[[i]])
     print(ident2 <- Idents_list$ident2[[i]])
     
-    k = ((args-1) %% 90)+1
+    k = ((args-1) %% 92)+1
     print(category <- category_df$category[k])
     print(type <- category_df$type[k])
     
@@ -183,6 +194,7 @@ if(step == "DEG analysis 3-option 1"){
                               ident.2 = ident2,
                               group.by = "Regions",
                               assay = "SCT",
+                              min.pct = 0,
                               logfc.threshold = 0.1,
                               only.pos = T,
                               test.use = "wilcox")

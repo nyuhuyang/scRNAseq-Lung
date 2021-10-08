@@ -12,8 +12,14 @@ set.seed(101)
 # load data
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 DefaultAssay(object) = "SCT"
+
+meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+table(object$barcode ==meta.data$barcode)
+object@meta.data = meta.data
+
 object %<>% subset(subset = Doublets %in% "Singlet")
-#object %<>% subset(subset = Cell_subtype != "Un")
+object %<>% subset(subset = Cell_subtype != "Un")
 
 Idents(object)= "Cell_subtype"
 object %<>% sortIdent()

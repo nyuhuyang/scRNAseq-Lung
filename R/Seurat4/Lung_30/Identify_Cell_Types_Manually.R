@@ -103,9 +103,7 @@ df_color = t(data.frame(
     c("BC","#70AD47"),
     c("C-s","#FFE699"),
     c("C1","#FFC000"),
-    c("CD8-T-NK","#FF42A4"),
     c("CD8-T1","#5B9BD5"),
-    c("CD8-Trm","#f1c232"),#fc8e66
     c("cDC","#0070C0"),
     c("Cr","#B8C6DA"),
     c("En-a","#00B0F0"),
@@ -145,6 +143,8 @@ df_color = t(data.frame(
     c("T-ifn","#FD5A00"),
     c("TASC","#FF3990"),
     c("Tcn","#9EF971"),
+    c("T-NK","#FF42A4"),
+    c("Trm","#f1c232"),#fc8e66
     c("T-un","#b1bcc5"),
     c("Un","#DEEBF7")))#
 df_color %<>% as.data.frame

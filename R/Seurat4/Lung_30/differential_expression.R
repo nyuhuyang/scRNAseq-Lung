@@ -46,12 +46,12 @@ write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_20UMAP.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 ############### step == "cell_types" ############### 
-opts = data.frame(ident = c(rep("Cell_subtype",47),
+opts = data.frame(ident = c(rep("Cell_subtype",49),
                             rep("Cell_type",31),
                             rep("UMAP_land",20),
                             rep("Family",7),
                             rep("Superfamily",3)),
-                  num = c(1:47,
+                  num = c(1:49,
                           1:31,
                           1:20,
                           1:7,
@@ -60,10 +60,11 @@ opts = data.frame(ident = c(rep("Cell_subtype",47),
 Cell_category = unique(opts$ident)
 deg_list <- list()
 for(i in seq_along(Cell_category)){
-        csv_names = list.files("output/20210919",pattern = Cell_category[i],full.names = T)
+        csv_names = list.files("output/20211006/cell_types",pattern = Cell_category[i],full.names = T)
         all_idx = which(opts$ident %in% Cell_category[i])
-        idx <- gsub("output/20210919/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
-        table(all_idx %in% idx)
+        idx <- gsub("output/20211006/cell_types/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
+        print(table(all_idx %in% idx))
+        #all_idx[!all_idx %in% idx]
         print(paste(Cell_category[i], "missing",all_idx[!(all_idx %in% idx)]))
         deg <- pbapply::pblapply(csv_names, function(csv){
                 tmp <- read.csv(csv,row.names = 1)
