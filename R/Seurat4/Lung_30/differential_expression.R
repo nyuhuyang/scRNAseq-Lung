@@ -108,17 +108,20 @@ write.xlsx(deg, file = paste0(path,"Lung_30_DEG_TASC_subset.xlsx"),
 #DEG analysis 3 - between sample groups
 #Option 1 – considering all cells in the group together
 Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
+meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+
 categories = lapply(Cell_types, function(Cell_type){
-        unique(object@meta.data[,Cell_type])
+        unique(meta.data[,Cell_type])
 })
 names(categories) = Cell_types
 all_cells = unique(unlist(categories,use.names = F))
 all_cells = all_cells[all_cells != "Un"]
 
-csv_names = list.files("output/20210928",pattern = ".csv",full.names = T)
-idx <- gsub("output/20210928/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
-all_idx = 1:828
+csv_names = list.files("output/20211008/DEG analysis 3-option 1",pattern = ".csv",full.names = T)
+idx <- gsub("output/20211008/DEG analysis 3-option 1/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
+all_idx = 1:1104
 table(all_idx %in% idx)
+all_idx[!all_idx %in% idx]
 print(paste("missing",sort(as.character(all_idx[!(all_idx %in% idx)]))))
 deg <- pbapply::pblapply(csv_names, function(csv){
         tmp <- read.csv(csv,row.names = 1)

@@ -69,7 +69,7 @@ if(step == "resolutions"){
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
 
-if(step == "cell_types"){
+if(step == "cell_types"){# 32~64GB
     meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
     table(rownames(object@meta.data) == rownames(meta.data))
     table(object$barcode ==meta.data$barcode)
@@ -134,19 +134,21 @@ if(step == "DEG analysis 3-option 1"){
     object %<>% subset(subset = Cell_subtype != "Un"
                        &  Doublets == "Singlet"
     )
-    Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
+    Cell_types <- c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
     categories = lapply(Cell_types, function(Cell_type){
         unique(object@meta.data[,Cell_type])
     })
     names(categories) = Cell_types
     category_df = data.frame("category" = c(rep(names(categories[1]),49),
                                 rep(names(categories[2]),33),
-                                rep(names(categories[3]),7),
-                                rep(names(categories[4]),3)),
+                                rep(names(categories[3]),20),
+                                rep(names(categories[4]),7),
+                                rep(names(categories[5]),3)),
                       "type" = c(categories[[1]],
                               categories[[2]],
                               categories[[3]],
-                              categories[[4]])
+                              categories[[4]],
+                              categories[[5]])
                       )
     category_df = category_df[!duplicated(category_df$type),]
     category_df = category_df[category_df$type != "Un",]
@@ -175,14 +177,14 @@ if(step == "DEG analysis 3-option 1"){
                                      "terminal",
                                      "distal",
                                      "COPD"))
-    i = ceiling((args/92) %% 12) # 92 cell types, 12 pairs
-    if(args == 1104) i = 12
+    i = ceiling((args/75) %% 12) # 75 cell types, 12 pairs
+    if(args == 900) i = 12
     print(ident1 <- Idents_list$ident1[[i]])
     print(ident2 <- Idents_list$ident2[[i]])
     
-    k = ((args-1) %% 92)+1
+    k = ((args-1) %% 75)+1
     print(category <- category_df$category[k])
-    print(type <- category_df$type[k])
+    print(type <- as.character(category_df$type[k]))
     
     #==========================
     Idents(object) = category
