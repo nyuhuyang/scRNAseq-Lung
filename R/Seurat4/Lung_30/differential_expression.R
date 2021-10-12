@@ -95,19 +95,19 @@ write.xlsx(deg, file = paste0(path,"DEG_analysis_1/Lung_30_DEG_TASC_related.xlsx
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # DEG analysis 2 – between different subsets of TASCs
-xlsx_names <- list.files("output/20210927", pattern = ".xlsx",)
+xlsx_names <- list.files("output/20211011", pattern = ".xlsx",)
 deg <- pbapply::pblapply(xlsx_names, function(xlsx){
-        tmp = readxl::read_excel(paste0("output/20210927/",xlsx))
+        tmp = readxl::read_excel(paste0("output/20211011/",xlsx))
         tmp[tmp$p_val_adj < 0.05,]
         return(tmp)
 })
-names(deg) = gsub("2021-09-28-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
+names(deg) = gsub("2021-10-11-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
 write.xlsx(deg, file = paste0(path,"Lung_30_DEG_TASC_subset.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 #DEG analysis 3 - between sample groups
 #Option 1 – considering all cells in the group together
-Cell_types <- c("Cell_subtype","Cell_type","Family","Superfamily")
+Cell_types <- c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
 meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
 
 categories = lapply(Cell_types, function(Cell_type){
@@ -117,9 +117,9 @@ names(categories) = Cell_types
 all_cells = unique(unlist(categories,use.names = F))
 all_cells = all_cells[all_cells != "Un"]
 
-csv_names = list.files("output/20211008/DEG analysis 3-option 1",pattern = ".csv",full.names = T)
-idx <- gsub("output/20211008/DEG analysis 3-option 1/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
-all_idx = 1:1104
+csv_names = list.files("output/20211009/DEG analysis 3-option 1",pattern = ".csv",full.names = T)
+idx <- gsub("output/20211009/DEG analysis 3-option 1/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
+all_idx = 1:900
 table(all_idx %in% idx)
 all_idx[!all_idx %in% idx]
 print(paste("missing",sort(as.character(all_idx[!(all_idx %in% idx)]))))
@@ -136,6 +136,11 @@ deg_list = split(deg,f = deg$type)
 
 write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_between_groups_option1.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+#DEG analysis 3 - between sample groups
+#Option 2 – considering using average expression
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
 
 
