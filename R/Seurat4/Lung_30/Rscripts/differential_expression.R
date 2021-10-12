@@ -303,6 +303,7 @@ if(step == "DEG analysis 3-option 2"){
     
     Idents(object) = "orig.ident"
     exp = AverageExpression(object,assays = "SCT",verbose = T) %>% .$SCT
+    exp = log1p(exp)
     exp %<>% as.data.frame()
     # fill up missing data with 0
     if(ncol(exp) < 30) {
