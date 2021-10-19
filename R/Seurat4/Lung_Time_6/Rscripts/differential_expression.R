@@ -1,5 +1,6 @@
 library(Seurat)
 library(magrittr)
+library(tidyr)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
@@ -13,20 +14,114 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-opts = paste0("SCT_snn_res.",c(0.01, 0.05, 0.09, 0.1, 0.5, 0.6, 0.7))
-opt = opts[args]
-print(opt)
 #==========================
 object = readRDS(file = "data/Lung_SCT_time6_20210908.rds")
 
-Idents(object) = opt
+step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[3]
 
-markers = FindAllMarkers_UMI(object,
-                          group.by = opt,
-                          assay = "SCT",
-                          logfc.threshold = 0.5,
-                             only.pos = T,
-                             test.use = "MAST",
-                             latent.vars = "nFeature_SCT")
+if(step == "resolutions"){
+    opts = paste0("SCT_snn_res.",c(0.01, 0.05, 0.09, 0.1, 0.5, 0.6, 0.7))
+    opt = opts[args]
+    print(opt)
+    
+    Idents(object) = opt
+    
+    markers = FindAllMarkers_UMI(object,
+                                 group.by = opt,
+                                 assay = "SCT",
+                                 logfc.threshold = 0.5,
+                                 only.pos = T,
+                                 test.use = "MAST",
+                                 latent.vars = "nFeature_SCT")
+    
+    write.csv(markers,paste0(path,args,"_",opt, ".csv"))
+}
 
-write.csv(markers,paste0(path,args,"_",opt, ".csv"))
+
+if(step == "Analysis 1a"){# 16~32GB
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       &  Doublets == "Singlet"
+    )
+    
+    opts = data.frame(ident = c(rep("Cell_subtype",13),
+                                rep("Cell_type",11)),
+                      type = c(sort(unique(object$Cell_subtype)),
+                              sort(unique(object$Cell_type)))
+    )
+    opts = opts[!duplicated(opts$type),]
+    opt = opts[args,]
+    
+    #==========================
+    Idents(object) = opt$ident
+    print(opt)
+
+    markers = FindMarkers_UMI(object, ident.1 = opt$type,
+                              group.by = opt$ident,
+                              assay = "SCT",
+                              logfc.threshold = 0.5,
+                              only.pos = T,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    markers$cluster = as.character(opt$type)
+    markers$Cell_category = opt$ident
+
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",opt$ident,".",opt$type, ".csv"))
+}
+
+
+if(step == "Analysis 2a"){# 16~32GB
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       &  Doublets == "Singlet"
+    )
+    object$day %<>% factor(levels = paste0("D",c(0,3,7,14,21,28)))
+    df <- as.data.frame.matrix(table(object$Cell_subtype, object$day))
+    df %<>% tibble::rownames_to_column(var = "type") %>% 
+        pivot_longer(cols = starts_with("D"),
+                         names_to = "day",
+                         values_to = "cell_number")
+    df$ident = "Cell_subtype"
+    df1 <- as.data.frame.matrix(table(object$Cell_type, object$day))
+    df1 %<>% tibble::rownames_to_column(var = "type") %>% 
+        pivot_longer(cols = starts_with("D"),
+                     names_to = "day",
+                     values_to = "cell_number")
+    df1$ident = "Cell_type"
+    opts = rbind(df, df1)
+    opts$type_day = paste0(opts$type,"_",opts$day)
+    opts %<>% filter(cell_number >=3) 
+    opts = opts[!duplicated(opts$type_day),]
+    opt = opts[args,]
+    
+    #==========================
+    object$type_day = paste0(object@meta.data[,opt$ident],"_",object$day)
+    object %<>% subset(day %in% opt$day)
+    
+    Idents(object) = "type_day"
+    print(opt)
+    
+    markers = FindMarkers_UMI(object, ident.1 = opt$type_day,
+                              group.by = "type_day",
+                              assay = "SCT",
+                              logfc.threshold = 0.1,
+                              only.pos = T,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    markers$cluster = as.character(opt$type)
+    markers$Cell_category = opt$ident
+    
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",opt$ident,".",opt$type, ".csv"))
+}
