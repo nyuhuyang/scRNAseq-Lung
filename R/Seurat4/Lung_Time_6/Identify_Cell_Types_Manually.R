@@ -21,17 +21,17 @@ colnames(df_annotation) %<>% gsub("res ","SCT_snn_res.",.)
 (resolutions <- grep("SCT_snn_res.",colnames(df_annotation),value = T))
 res = resolutions[1]
 keep = !is.na(pull(df_annotation[,res]))
-meta.data[,"Subtype"] = plyr::mapvalues(meta.data[,res],
+meta.data[,"Cell_subtype"] = plyr::mapvalues(meta.data[,res],
                                              from = pull(df_annotation[keep,res]),
                                              to = pull(df_annotation[keep,"Subtype"])
                                              )
-meta.data[,"Subtype"] %<>% as.character()
+meta.data[,"Cell_subtype"] %<>% as.character()
 for(i in 2:length(resolutions)){
     keep = which(!is.na(pull(df_annotation[,resolutions[i]])))
         for(m in keep){
             cl = pull(df_annotation[m,resolutions[i]])
             change_to = pull(df_annotation[m,"Subtype"])
-            meta.data[meta.data[,resolutions[i]] %in% cl,"Subtype"] = change_to
+            meta.data[meta.data[,resolutions[i]] %in% cl,"Cell_subtype"] = change_to
             print(paste (resolutions[i],"at",cl,"------->",change_to))
             }
 }
@@ -103,15 +103,14 @@ meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
                                             from = df_color$Cell_subtype,
                                             to = df_color$Cell_subtype.colors)
 
-df_annotation <- readxl::read_excel("doc/Annotations/20210917_20UMAP res0.8 annotations.xlsx",
-                                    sheet = "Sheet1")
-Cell_types <- c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
 
-df_annotation = df_annotation[order(df_annotation$Cell_subtype),Cell_types]
-df_annotation = df_annotation[!duplicated(df_annotation$Cell_subtype),]
-for(Cell_type in Cell_types[2:5]){
-    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Subtype,
-                                            from = pull(df_annotation[,"Cell_subtype"]),
+Cell_types <- c("Subtype","Cell_type","Major_Cell_type")
+
+df_annotation = df_annotation[order(df_annotation$Subtype),Cell_types]
+df_annotation = df_annotation[!duplicated(df_annotation$Subtype),]
+for(Cell_type in Cell_types[2:3]){
+    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
+                                            from = pull(df_annotation[,"Subtype"]),
                                             to = pull(df_annotation[,Cell_type]))
 }
 
@@ -122,10 +121,9 @@ table(rownames(object@meta.data) == rownames(meta.data))
 object$Cell_subtype = meta.data$Cell_subtype
 object$Cell_subtype.colors = meta.data$Cell_subtype.colors
 object$Cell_type = meta.data$Cell_type
-object$UMAP_land = meta.data$UMAP_land
-object$Family = meta.data$Family
-object$Superfamily = meta.data$Superfamily
+object$Major_Cell_type = meta.data$Major_Cell_type
+
 meta.data = object@meta.data
-saveRDS(meta.data, "output/20211016/meta.data_Cell_subtype_time6.rds")
+saveRDS(meta.data, "output/20211020/meta.data_Cell_subtype_time6.rds")
 object@meta.data = meta.data
 saveRDS(object, file = "data/Lung_SCT_time6_20210908.rds")
