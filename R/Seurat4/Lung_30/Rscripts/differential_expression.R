@@ -17,7 +17,7 @@ print(paste0("slurm_arrayid=",args))
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
 
-step = c("resolutions","cell_types","DEG analysis 3-option 1","DEG analysis 3-option 2")[4]
+step = c("resolutions","cell_types","DEG analysis 3-option 1","DEG analysis 3-option 2","ASE")[5]
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -348,4 +348,40 @@ if(step == "DEG analysis 3-option 2"){
     if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
     
     write.csv(markers,paste0(save_path,arg,"-",ident1,"-vs-",ident2,".",type, ".csv"))
+}
+
+
+if(step == "ASE"){
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode ==meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       & Family == "ASE"
+                       & Regions == "distal"
+                       &  Doublets == "Singlet"
+    )
+    Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
+    cell_type = Cell_types[args]
+    #==========================
+    Idents(object) = "Cell_subtype"
+
+    markers = FindMarkers_UMI(object, ident.1 = cell_type,
+                              group.by = "Cell_subtype",
+                              assay = "SCT",
+                              min.pct = 0.01,
+                              logfc.threshold = 0.1,
+                              only.pos = T,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE.csv"))
 }

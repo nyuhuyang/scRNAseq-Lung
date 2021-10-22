@@ -58,3 +58,24 @@ names(DEG_list) = c("Analysis 1a","Analysis 1b")
 write.xlsx(DEG_list, file = paste0(path,"Lung_time6_DEG_Analysis_1.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+
+#if(step == "Analysis 2") {# 16~32GB
+types = c("D0", "D3","D7","D14","D21", "D28")
+DEG <- pbapply::pblapply(types, function(type){
+        csv_names = list.files("output/20211021/Analysis 2",pattern = type,full.names = T)
+        deg <- pbapply::pblapply(csv_names, function(csv, type){
+                tmp <- read.csv(csv,row.names = 1) %>% arrange(desc(avg_log2FC))
+                tmp$gene = rownames(tmp)
+                tmp
+        }) %>% bind_rows()
+})%>% bind_rows()
+
+rownames(DEG) =NULL
+table(DEG$p_val_adj <0.05)
+table(abs(DEG$avg_log2FC) >1 )
+DEG = DEG[DEG$p_val_adj <0.05,]
+DEG = DEG[abs(DEG$avg_log2FC) >1,]
+
+DEG_list = split(DEG, f = DEG$type)
+write.xlsx(DEG_list, file = paste0(path,"Lung_time6_DEG_Analysis_2.xlsx~"),gridLines = TRUE,
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
