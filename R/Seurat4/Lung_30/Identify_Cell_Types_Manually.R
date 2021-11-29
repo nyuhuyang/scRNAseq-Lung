@@ -8,6 +8,8 @@ library(cowplot)
 library(stringr)
 library(openxlsx)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
+source("shinyApp/Lung_30_hg38/util_palette.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 # load data
@@ -241,3 +243,52 @@ SCG_exp[object$Cell_subtype != "TASC","SCGB1A1_lvl"] = ""
 SCG_exp[object$Cell_subtype != "TASC","SCGB3A2_lvl"] = ""
 object$Cell_subtype.SCGB1A1 %<>% paste0(SCG_exp$SCGB1A1_lvl,.)
 object$Cell_subtype.SCGB3A2 %<>% paste0(SCG_exp$SCGB3A2_lvl,.)
+
+TASC <- subset(object, subset = Cell_subtype %in% "TASC" & 
+                   Doublets %in% "Singlet" &
+                   Regions %in% c("distal","terminal"))
+TASC %<>% FindNeighbors(reduction = "umap",dims = 1:2)
+TASC %<>% FindClusters(resolution = 0.06)
+UMAPPlot.1(TASC,do.print = T)
+TASC_exp = FetchData(TASC, vars = c("SCGB1A1","SCGB3A2"))
+TASC_exp$SCGB1A1 = plyr::mapvalues(as.character(TASC_exp$SCGB1A1 >= 2),
+                                  from = c("TRUE","FALSE"),
+                                  to = c("SCGB1A1-hi","SCGB1A1-lo"))
+TASC_exp$SCGB3A2 = plyr::mapvalues(as.character(TASC_exp$SCGB3A2 > 0),
+                                  from = c("TRUE","FALSE"),
+                                  to = c("SCGB3A2+","SCGB3A2-"))
+table(TASC_exp$SCGB1A1 > 5, TASC_exp$SCGB3A2 > 2)
+
+FeaturePlot.1(TASC,features = "SCGB3A2",do.print = T)
+TASC_marker <- FindAllMarkers_UMI(TASC, assay = "SCT",
+                                  group.by = "SCT_snn_res.0.06",
+                                  logfc.threshold = 0.5,
+                                  only.pos = T,
+                                  test.use = "MAST",
+                                  latent.vars = "nFeature_SCT")
+openxlsx::write.xlsx(TASC_marker, file =  paste0(path,"20211124_TASC_4clusters.xlsx"),
+                     colNames = TRUE,row.names = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+Top_n = 25
+TASC_marker %<>% filter(!grepl("^RPL.*|^RPS.*|^MT-.*", gene))
+top = TASC_marker %>% group_by(cluster) %>% top_n(Top_n, avg_log2FC)
+table(top$cluster)
+TASC %<>% ScaleData(features=top$gene)
+featuresNum <- make.unique(top$gene, sep = ".")
+TASC %<>% MakeUniqueGenes(features = top$gene)
+
+TASC$SCT_snn_res.0.06 %<>% factor(levels = 0:3)
+Idents(TASC) = "SCT_snn_res.0.06"
+table(Idents(TASC))
+TASC$Regions %<>% droplevels()
+DoHeatmap.2(TASC, features = featuresNum, Top_n = Top_n,
+            do.print=T, angle = 0,
+            group.by = c("SCT_snn_res.0.06","Regions"),group.bar = T,
+            group1.colors = hue_pal()(4),
+            group2.colors = color_generator("NEJM",4)[4:3],
+            title.size = 16, no.legend = F,size=10,hjust = 0.5,
+            group.bar.height = 0.02, label=F, cex.row= 7,
+            width=10, height=13,
+            pal_gsea = FALSE,
+            file.name = "Heatmap_top25_X4clusters~.jpeg",
+            title = "Top 25 DE genes in 4 TASC clusters",
+            save.path = path)

@@ -7,7 +7,7 @@ invisible(lapply(c("Seurat","dplyr","magrittr","data.table","pbapply","reshape2"
                    "tibble","tidyr","patchwork","cowplot"), function(x) {
     suppressPackageStartupMessages(library(x,character.only = T))
 }))
-source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path))dir.create(path, recursive = T)
 
@@ -220,6 +220,7 @@ adj = 10^-4
 exp.max = 300
 
 
+
 Enrichr_list <- list()
 prop_table_list <- list()
 Score_table_list <- list()
@@ -251,7 +252,7 @@ bind_rows(prop_table_list) -> prop_table
 bind_rows(Score_table_list) -> Score_table
 
 cell.types = unlist(cell.type_list,use.names = F)
-cell.types = cell.types[cell.types %in% colnames(df)]
+cell.types = cell.types[!cell.types %in% colnames(df)]
 df = df[,cell.types]
 for(c in rev(cell.types)){
     df = df[order(df[,c],decreasing = T),]
@@ -268,7 +269,7 @@ g <- DotPlot.2(Score_table,prop_table, features = cell.types,
                           col.min = 0, exp.max = 300,dot.scale = 6)
 
 jpeg(paste0(save.path,"Dotplot_Azimuth.jpeg"), units="in", width=18, 
-     height= 20,res=900)
+     height= 20,res=600)
 print(g)
 dev.off()
 

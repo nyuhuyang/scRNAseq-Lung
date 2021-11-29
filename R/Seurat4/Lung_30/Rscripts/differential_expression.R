@@ -16,8 +16,8 @@ print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
-
-step = c("resolutions","cell_types","DEG analysis 3-option 1","DEG analysis 3-option 2","ASE")[5]
+step = c("resolutions","cell_types","DEG analysis 3-option 1","DEG analysis 3-option 2","ASE",
+         "TASCs")[6]
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -384,4 +384,45 @@ if(step == "ASE"){
     if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
     
     write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE.csv"))
+}
+
+
+if(step == "TASCs"){
+    opts = data.frame(gene = c(rep("SCGB1A1",2),
+                                rep("SCGB3A2",3)),
+                      lvl = c(5,0,
+                              2,1,0)
+    )
+    opt = opts[args,]
+    
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode ==meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    TASC <- subset(object, subset = Cell_subtype %in% "TASC" & 
+                       Doublets %in% "Singlet" &
+                       Regions %in% c("distal","terminal"))
+    
+    TASC_exp = FetchData(TASC, vars = opt$gene)
+    TASC_exp[,opt$gene] = plyr::mapvalues(as.character(TASC_exp[,opt$gene] > opt$lvl),
+                                       from = c("TRUE","FALSE"),
+                                       to = paste(opt$gene,paste(c("high","low"),opt$lvl)))
+    print(table(TASC_exp[,opt$gene] ))
+    TASC@meta.data %<>% cbind(TASC_exp)
+    #==========================
+    Idents(TASC) = opt$gene
+    
+    markers = FindMarkers_UMI(TASC, ident.1 = paste(opt$gene,"high",opt$lvl),
+                              group.by = opt$gene,
+                              assay = "SCT",
+                              min.pct = 0.01,
+                              logfc.threshold = 0.05,
+                              only.pos = F,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    markers$cluster = paste(opt$gene,"high vs low at lvl",opt$lvl)
+    markers$gene = rownames(markers)
+    write.csv(markers,paste0(path,args,"-",paste(opt$gene,"high vs low at",opt$lvl),"_TACS.csv"))
 }

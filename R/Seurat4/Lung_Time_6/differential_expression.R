@@ -79,3 +79,33 @@ DEG = DEG[abs(DEG$avg_log2FC) >1,]
 DEG_list = split(DEG, f = DEG$type)
 write.xlsx(DEG_list, file = paste0(path,"Lung_time6_DEG_Analysis_2.xlsx~"),gridLines = TRUE,
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+
+# if(step == "Analysis 2"){# 16~32GB
+csv_names = list.files("output/20211022/ASE",pattern = "csv",full.names = T)
+DEG <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1) %>% arrange(desc(avg_log2FC))
+        tmp$gene = rownames(tmp)
+        type = sub(".*[0-9+]-","",csv) %>% sub("_vs_.*","",.)
+        tmp$cluster = type
+        tmp
+}) %>% bind_rows()
+write.xlsx(DEG, file = paste0(path,"Lung_SAE_DEG.xlsx"),gridLines = TRUE,
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+
+xlsx_list <- list.files(path = "output/20211028",
+                        pattern = "2021-10-28-.*xlsx",full.names = T)
+deg_list <- pbapply::pblapply(xlsx_list, function(xlsx){
+        tmp <- readxl::read_excel(xlsx)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T), ]
+        tmp %<>% filter(p_val_adj < 0.05)
+        tmp = tmp[abs(tmp$avg_log2FC) > 0.25, ]
+        tmp
+})
+xlsx_list %<>% gsub(".*2021-10-28-","",.) %>% gsub("\\.xlsx","",.)
+names(deg_list) = xlsx_list
+write.xlsx(deg_list, file = paste0(path,"Lung_d28_DEG.xlsx"),gridLines = TRUE,
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))

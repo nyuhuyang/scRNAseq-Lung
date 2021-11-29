@@ -12,7 +12,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat3_functions.R")
 
 set.seed(101)
-read.path = "Yang/Lung_30/hg19/DE_analysis/"
+
 
 # select pathway
 wb <- loadWorkbook("Yang/Lung_30/hg38/GSEA/Enrichr/Enrichr libraries 2021.xlsx")
@@ -38,7 +38,7 @@ if(!dir.exists(save.path))dir.create(save.path, recursive = T)
 deg = readxl::read_excel("Yang/Lung_30/hg38/DE_analysis/Lung_30_DEG_Cell.category.xlsx",
                    sheet = "Cell_subtype")
 deg[deg$p_val == 0,"p_val"] = min(deg[deg$p_val > 0,"p_val"], .Machine$double.xmin)
-deg = deg[deg$avg_log2FC >= 1,]
+deg = deg[deg$avg_log2FC >= 0.5,]
 table(deg$cluster)
 deg$log2FC_log10p = deg$avg_log2FC*(-log10(deg$p_val))
 cell.type_list <- list("Epithelial" = c("BC","IC","S1","S-Muc","TASC","H","p-C","C1","C-s",
@@ -78,7 +78,7 @@ for(i in 1:length(cell.types)){
 df_enrichedRes =  bind_rows(enrichedRes)
 df_enrichedRes = df_enrichedRes[df_enrichedRes$Adjusted.P.value < 0.05, ]
 write.xlsx(df_enrichedRes, asTable = F,
-           file = paste0(save.path,"enrichR_DEG_Cell.category.xlsx"),
+           file = paste0(save.path,"enrichR_DEG_Cell.category_FC0.5.xlsx"),
            borders = "surrounding")
 #df_enrichedRes <- readxl::read_excel(paste0(save.path,"enrichR_DEG_Cell.category.xlsx"))
 
@@ -93,7 +93,7 @@ for(i in seq_along(enrichedRes_list)){
 }
 names(enrichedRes_list) %<>% substr(1, 30)   
 write.xlsx(enrichedRes_list, asTable = F,
-           file = paste0(save.path,"enrichR_celltypes.xlsx"),
+           file = paste0(save.path,"enrichR_celltypes_FC0.5.xlsx"),
            borders = "surrounding")
 #how many samples (and how many different tissues) were used in this HGA data set? 
 library(data.table)
