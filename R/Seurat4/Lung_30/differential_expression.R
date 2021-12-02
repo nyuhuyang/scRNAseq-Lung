@@ -177,6 +177,41 @@ write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_between_groups_option2.xlsx
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 
+#=========step == "TASCs"============================
+csv_names <- list.files("output/20211129",pattern = "_TACS.csv",full.names = T)
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        return(tmp)
+}) %>% bind_rows
+deg = deg[deg$p_val < 0.05,]
+rownames(deg) = NULL
+deg_list = split(deg,f = deg$cluster)
+
+write.xlsx(deg_list, file = paste0(path,"TACS_DEG_SCGB1A1_SCGB3A2.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+
+csv_names <- list.files("output/20211129",pattern = "SCGB1A1 high vs low at.*_TACS.csv",full.names = T)
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        return(tmp)
+}) %>% bind_rows
+deg = deg[deg$p_val < 0.05,]
+deg[grep("SFTPA2",deg$gene),c("avg_log2FC","cluster")]
+deg[grep("SFTPA1",deg$gene),c("avg_log2FC","cluster")]
+deg[grep("HOPX",deg$gene),c("avg_log2FC","cluster")]
+
+rownames(deg) = NULL
+deg_list = split(deg,f = deg$cluster)
+
+write.xlsx(deg_list, file = paste0(path,"TACS_DEG_SCGB1A1.xlsx"),
+           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+
+
+
 
 
 # Color points by dataset

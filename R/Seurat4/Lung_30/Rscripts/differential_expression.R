@@ -388,9 +388,9 @@ if(step == "ASE"){
 
 
 if(step == "TASCs"){
-    opts = data.frame(gene = c(rep("SCGB1A1",2),
+    opts = data.frame(gene = c(rep("SCGB1A1",8),
                                 rep("SCGB3A2",3)),
-                      lvl = c(5,0,
+                      lvl = c(0:7,
                               2,1,0)
     )
     opt = opts[args,]
