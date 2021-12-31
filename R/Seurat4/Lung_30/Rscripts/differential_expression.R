@@ -20,7 +20,7 @@ step = c("resolutions","cell_types",
          "DEG analysis 1","DEG analysis 2",
          "DEG analysis 3-option 1",
          "DEG analysis 3-option 2","ASE",
-         "TASCs lvl")[6]
+         "TASCs lvl")[4]
 
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
@@ -128,7 +128,6 @@ if(step == "cell_types"){# 32~64GB
 
 if(step == "DEG analysis 1"){
     # DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
-    # DEG analysis 2 – between different subsets of TASCs
     meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
     table(rownames(object@meta.data) == rownames(meta.data))
     table(object$barcode == meta.data$barcode)
@@ -192,6 +191,75 @@ if(step == "DEG analysis 1"){
     file.name = paste0(paste(ident1,collapse = "_"),
                       "-vs-",
                       paste(ident2,collapse = "_"))
+    write.csv(markers,paste0(save_path,arg,"-",file.name, ".csv"))
+}
+
+
+if(step == "DEG analysis 2"){
+    # DEG analysis 2 – between different subsets of TASCs
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode == meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    
+    
+    Idents_list = list(ident1 = list("SCGB1A1-lo TASC",
+                                     "SCGB3A2+ TASC",
+                                     "SCGB1A1-hi TASC",
+                                     "SCGB1A1-hi TASC",
+                                     "SCGB1A1-lo TASC",
+                                     "SCGB1A1-lo TASC",
+                                     "SCGB3A2- TASC",
+                                     "SCGB3A2- TASC",
+                                     "SCGB3A2+ TASC",
+                                     "SCGB3A2+ TASC"),
+                       ident2 = list("SCGB1A1-hi TASC",
+                                     "SCGB3A2- TASC",
+                                     "S1",
+                                     c("S1", "S-Muc"),
+                                     "AT2",
+                                     c("AT1","AT2"),
+                                     "S1",
+                                     c("S1","S-Muc"),
+                                     "AT2",
+                                     c("AT1","AT2")))
+    group.by.list = c("Cell_subtype.SCGB1A1",
+                      "Cell_subtype.SCGB3A2",
+                      rep("Cell_subtype.SCGB1A1",4),
+                      rep("Cell_subtype.SCGB3A2",4))
+    (ident1 <- Idents_list$ident1[[args]])
+    (ident2 <- Idents_list$ident2[[args]])
+    c(group.by <- group.by.list[args])
+    
+    object %<>% subset(subset = Doublets == "Singlet")
+
+    #==========================
+    Idents(object) = group.by
+    markers = FindMarkers_UMI(object, ident.1 = ident1,
+                              ident.2 = ident2,
+                              group.by = group.by,
+                              assay = "SCT",
+                              logfc.threshold = 0.1,
+                              min.pct = 0.01,
+                              only.pos = F,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    markers$cluster = paste(ident1,
+                            "vs.",
+                            paste(ident2,collapse = "+"))
+    markers$gene = rownames(markers)
+    
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    file.name = paste0(paste(ident1,collapse = "_"),
+                       "-vs-",
+                       paste(ident2,collapse = "_"))
     write.csv(markers,paste0(save_path,arg,"-",file.name, ".csv"))
 }
 

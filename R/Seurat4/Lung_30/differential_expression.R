@@ -84,14 +84,14 @@ write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_Cell.category.xlsx"),
 # On Sep 24, 2021, at 13:28, Renat Shaykhiev <res2003@med.cornell.edu> wrote:
 # DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
 save.path = "/Yang/Lung_30/hg38/DE_analysis/"
-xlsx_names <- list.files("output/20210924", pattern = "2021-09-24-")
-deg <- pbapply::pblapply(xlsx_names, function(xlsx){
-        tmp = readxl::read_excel(paste0("output/20210924/",xlsx))
-        tmp[tmp$p_val_adj < 0.05,]
+csv_names <- list.files("output/20211230/DEG analysis 1")
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(paste0("output/20211230/DEG analysis 1/", csv),row.names = 1)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
         return(tmp)
-})
-names(deg) = gsub("2021-09-24-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
-write.xlsx(deg, file = paste0(path,"DEG_analysis_1/Lung_30_DEG_TASC_related.xlsx"),
+}) %>% bind_rows()
+
+write.xlsx(deg, file = "output/20211230/DEG analysis 1/Lung_30_DEG_TASC_related.xlsx",
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # DEG analysis 2 – between different subsets of TASCs
