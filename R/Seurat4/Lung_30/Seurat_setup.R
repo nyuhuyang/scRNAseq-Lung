@@ -146,13 +146,28 @@ object[["harmony.tsne"]] <- CreateDimReducObject(embeddings = object@reductions[
 npcs = 100
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 system.time(object %<>% RunTSNE(reduction = "pca", dims = 1:npcs))
+
+# test with serial resolution 
 object %<>% FindNeighbors(reduction = "umap",dims = 1:2)
-object %<>% FindClusters(resolution = 0.8)
-resolutions = c(seq(0.01,0.09, by = 0.01),seq(0.1,0.9, by = 0.1),seq(1,5, by = 0.1))
+resolutions = c(seq(0.0001,0.0009, by = 0.0001),seq(0.001,0.009, by = 0.001),seq(0.01,0.09, by = 0.01),
+                seq(0.1,0.9, by = 0.1),seq(1,5, by = 1))
 for(i in 1:length(resolutions)){
-    object %<>% FindClusters(resolution = resolutions[i], algorithm = 1)
-    Progress(i,length(resolutions))
+    object %<>% FindClusters(resolution = resolutions[i], algorithm = 1,verbose = F)
+    Progress(i, length(resolutions))
 }
+for(i in 1:9) colnames(object@meta.data) %<>% gsub(paste0(i,"e.04"),paste0("0.000",i),.)
+colnames(object@meta.data) %<>% gsub("SCT_snn_res.","UMAP_res=",.)
+
+object %<>% FindNeighbors(reduction = "pca",dims = 1:100)
+resolutions = c(seq(0.001,0.009, by = 0.001),seq(0.01,0.09, by = 0.01),
+                seq(0.1,1.5, by = 0.1),seq(2,5, by = 1))
+for(i in 1:length(resolutions)){
+    object %<>% FindClusters(resolution = resolutions[i], algorithm = 1,verbose = F)
+    Progress(i, length(resolutions))
+}
+for(i in 1:9) colnames(object@meta.data) %<>% gsub(paste0(i,"e.04"),paste0("0.000",i),.)
+colnames(object@meta.data) %<>% gsub("SCT_snn_res.","PCA_res=",.)
+saveRDS(object@meta.data ,"output/20211222/meta.data_SCINA_Lung30_Azimuth_Cell_Types_2021.rds")
 
 saveRDS(object, file = "data/Lung_30_20210831.rds")
 
@@ -167,3 +182,4 @@ object[['integrated']] <- NULL
 object[["SCT"]]@scale.data = matrix(0,0,0)
 format(object.size(object),unit = "GB")
 saveRDS(object, file = "data/Lung_SCT_30_20210831.rds")
+

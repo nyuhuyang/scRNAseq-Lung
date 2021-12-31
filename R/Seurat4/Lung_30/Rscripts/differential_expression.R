@@ -16,8 +16,12 @@ print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
-step = c("resolutions","cell_types","DEG analysis 3-option 1","DEG analysis 3-option 2","ASE",
-         "TASCs")[6]
+step = c("resolutions","cell_types",
+         "DEG analysis 1","DEG analysis 2",
+         "DEG analysis 3-option 1",
+         "DEG analysis 3-option 2","ASE",
+         "TASCs lvl")[6]
+
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
                                 rep("UMAP_res=1",93),
@@ -120,6 +124,75 @@ if(step == "cell_types"){# 32~64GB
     if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
     
     write.csv(markers,paste0(save_path,arg,"-",opt$ident,"-",num,".",opt$type, ".csv"))
+}
+
+if(step == "DEG analysis 1"){
+    # DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
+    # DEG analysis 2 – between different subsets of TASCs
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode == meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    
+
+    Idents_list = list(ident1 = list("TASC",
+                                     "TASC",
+                                     "TASC",
+                                     "TASC",
+                                     "TASC",
+                                     "TASC",
+                                     "S-Muc",
+                                     "S-Muc",
+                                     "S-Muc",
+                                     "S-Muc",
+                                     c("S1", "S-Muc","TASC")),
+                       ident2 = list("S1",
+                                     c("S1", "S-Muc"),
+                                     "G-Ser",
+                                     c("G-Ser","G-Muc"),
+                                     "AT2",
+                                     c("AT1","AT2"),
+                                     "S1",
+                                     c("TASC","S1"),
+                                     "G-Muc",
+                                     c("G-Muc","G-Ser"),
+                                     c("G-Muc","G-Ser")))
+    
+    (ident1 <- Idents_list$ident1[[args]])
+    (ident2 <- Idents_list$ident2[[args]])
+    
+    object %<>% subset(subset = Cell_subtype %in% c(ident1,ident2)
+                       &  Doublets == "Singlet"
+    )
+    
+    #==========================
+    Idents(object) = "Cell_subtype"
+    markers = FindMarkers_UMI(object, ident.1 = ident1,
+                              ident.2 = ident2,
+                              group.by = "Cell_subtype",
+                              assay = "SCT",
+                              logfc.threshold = 0.1,
+                              min.pct = 0.01,
+                              only.pos = F,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    markers$cluster = paste(paste(ident1,collapse = "+"),
+                            "vs.",
+                            paste(ident2,collapse = "+"))
+    markers$gene = rownames(markers)
+
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    file.name = paste0(paste(ident1,collapse = "_"),
+                      "-vs-",
+                      paste(ident2,collapse = "_"))
+    write.csv(markers,paste0(save_path,arg,"-",file.name, ".csv"))
 }
 
 
@@ -387,7 +460,7 @@ if(step == "ASE"){
 }
 
 
-if(step == "TASCs"){
+if(step == "TASCs lvl"){
     opts = data.frame(gene = c(rep("SCGB1A1",8),
                                 rep("SCGB3A2",3)),
                       lvl = c(0:7,

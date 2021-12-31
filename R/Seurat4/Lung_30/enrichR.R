@@ -89,9 +89,8 @@ for(i in seq_along(enrichedRes_list)){
                                                    names(enrichedRes_list)[i],".csv"),
               row.names = FALSE)
     Progress(i, length(enrichedRes_list))
-    
 }
-names(enrichedRes_list) %<>% substr(1, 30)   
+names(enrichedRes_list) %<>% substr(1, 30)
 write.xlsx(enrichedRes_list, asTable = F,
            file = paste0(save.path,"enrichR_celltypes_FC0.5.xlsx"),
            borders = "surrounding")

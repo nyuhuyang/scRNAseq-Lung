@@ -49,20 +49,22 @@ csv_list <- c("enrichR_GTEx_Tissue_Sample_Gene_Expression_Profiles_up.csv",
 superfamily <- c("Epithelial","Structural","Immune")
 #======1.2 load  Seurat =========================
 # load files
-object <- readRDS(file = "data/Lung_SCT_30_20210831.rds") 
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
 DefaultAssay(object) = "SCT"
+meta.data = readRDS("output/20211222/meta.data_SCINA_Lung30_Azimuth_Cell_Types_2021.rds")
+table(rownames(object@meta.data) == rownames(meta.data))
+object@meta.data = meta.data
+object$Cell_subtype %<>% factor(levels = c(unlist(cell.type_list,use.names = FALSE),"T-un","Un"))
+table(object$Cell_subtype)
+
+#object@meta.data = meta.data
 object %<>% subset(subset = Doublets == "Singlet" &
                        Superfamily != "Un")
-
-meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
-table(rownames(object@meta.data) == rownames(meta.data))
-table(object$barcode ==meta.data$barcode)
-object@meta.data = meta.data
 Idents(object) = "Cell_subtype"
 
 len <- 40
-
+#==================================
 dotplot_df <- readxl::read_excel("doc/20211006_40-gene for for dotplot revised.xlsx")
 dotplot_df <- dotplot_df[1:len,superfamily]
 dotplot_df = dotplot_df[complete.cases(dotplot_df),]
@@ -215,63 +217,99 @@ openxlsx::write.xlsx(dotplot_res, file = paste0(save.path,"Dotplot_Enricher_data
                      colNames = TRUE,rowNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 #================ Azimuth cell types ===============
-csv_list <- c("enrichR_Azimuth_Cell_Types_2021.csv")
-adj = 10^-4
-exp.max = 300
 
+adj = 2.5*10^-4
+exp.max = c(300,5000)[2]
+Odds.ratio = 100
 
+Enrichr_res <- readxl::read_excel(paste0("Yang/Lung_30/hg38/GSEA/Enrichr/",
+                                         "enrichR_celltypes_FC1_Azimuth_HuBMAP.xlsx"),
+                                  sheet = "Azimuth_Cell_Types_2021")
+#Enrichr_res = Enrichr_res[Enrichr_res$Adjusted.P.value <= adj,]
+Enrichr_res = Enrichr_res[Enrichr_res$Odds.Ratio > Odds.ratio,]
 
-Enrichr_list <- list()
-prop_table_list <- list()
-Score_table_list <- list()
-save.path = path
-if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+Enrichr_res$tissue = gsub(" CL.*| UBER.*","",Enrichr_res$Term)
+Enrichr_res$Term_CL = gsub(".* CL","CL",Enrichr_res$Term)
+Enrichr_res$Term_CL = gsub(".* UBERON","UBERON",Enrichr_res$Term_CL)
+Enrichr_res = Enrichr_res[order(Enrichr_res$Combined.Score,decreasing = T),]
+#Enrichr_res = Enrichr_res[!duplicated(Enrichr_res$cell.types),]
 
-for(k in 1:length(csv_list)){
-    csv = csv_list[k]
-    Enrichr_res <- read.csv(paste0("Yang/Lung_30/hg38/GSEA/Enrichr/",csv),stringsAsFactors = F)
-    Enrichr_res = Enrichr_res[Enrichr_res$Adjusted.P.value <= adj,]
-    Enrichr_res$tissue = gsub(" CL.*| UBER.*","",Enrichr_res$Term)
-    Enrichr_res$Term_CL = gsub(".* CL","CL",Enrichr_res$Term)
-    Enrichr_res$Term_CL = gsub(".* UBERON","UBERON",Enrichr_res$Term_CL)
-    Enrichr_res = Enrichr_res[order(Enrichr_res$Combined.Score,decreasing = T),]
-    #Enrichr_res = Enrichr_res[!duplicated(Enrichr_res$cell.types),]
-    Enrichr_list[[k]] = Enrichr_res
-    
-    table(Enrichr_res$tissue,Enrichr_res$cell.types) %>% 
-        prop.table(2) %>% 
-        as.data.frame.matrix -> prop_table_list[[k]] -> df
-    Enrichr_res %>%
-        group_by(tissue, cell.types) %>%
-        summarise(mean_Combined.Score=(mean(Combined.Score))) %>%
-        spread(key = cell.types, value = mean_Combined.Score) %>% 
-        column_to_rownames(var = "tissue") -> Score_table_list[[k]]
-}
+table(Enrichr_res$tissue,Enrichr_res$cell.types) %>% 
+    prop.table(2) %>% 
+    as.data.frame.matrix -> prop_table -> df
+Enrichr_res %>%
+    group_by(tissue, cell.types) %>%
+    summarise(mean_Combined.Score = mean(Combined.Score)) %>%
+    spread(key = cell.types, value = mean_Combined.Score) %>% 
+    column_to_rownames(var = "tissue") -> Score_table
+Enrichr_res %>%
+    mutate(log.adj.p = -log10(Adjusted.P.value)) %>%
+    group_by(tissue, cell.types) %>%
+    summarise(mean.log.adj.p = mean(log.adj.p)) %>%
+    spread(key = cell.types, value = mean.log.adj.p) %>% 
+    column_to_rownames(var = "tissue") -> logp_table
 
-bind_rows(prop_table_list) -> prop_table
-bind_rows(Score_table_list) -> Score_table
-
-cell.types = unlist(cell.type_list,use.names = F)
-cell.types = cell.types[!cell.types %in% colnames(df)]
-df = df[,cell.types]
-for(c in rev(cell.types)){
-    df = df[order(df[,c],decreasing = T),]
-}
-
-selected_tissues = rownames(df)
+superfamily <- c("Epithelial","Structural","Immune")
 Score_table[is.na(Score_table)] = 0
+logp_table[is.na(logp_table)] = 0
 
-Score_table = sweep(Score_table, 2, colSums(Score_table),"/")*4000
+#Score_table = sweep(Score_table, 2, colSums(Score_table),"/")
+#logp_table = sweep(logp_table, 2, colSums(logp_table),"/")*100
+
 prop_table = prop_table*100
-g <- DotPlot.2(Score_table,prop_table, features = cell.types, 
-                          id = selected_tissues, scale = FALSE,log.data = NULL,
-                          scale.by = "size", scale.max  = 90,
-                          col.min = 0, exp.max = 300,dot.scale = 6)
+pct.titles = c("Percent Expressed"," -log(FDR)")
+for(pct.title in pct.titles){
+    save.path = paste0(path,pct.title,"/")
+    if(!dir.exists(save.path))dir.create(save.path, recursive = T)
+    
+    for(family in superfamily){
+        cell.types = unlist(cell.type_list[family],use.names = F)
+        table(cell.types %in% colnames(df))
+        cell.types = cell.types[cell.types %in% colnames(df)]
+        df1 = df[,cell.types]
+        for(c in rev(cell.types)){
+            df1 = df1[order(df1[,c],decreasing = T),]
+        }
+        
+        selected_tissues = rownames(df1)[rowSums(df1) > 0]
+        
+        g <- DotPlot.2(Score_table,
+                       prop_df = switch(pct.title,
+                                        "Percent Expressed" = prop_table,
+                                        " -log(FDR)" = logp_table),
+                       features = cell.types, 
+                       pct.title = switch(pct.title,
+                                          "Percent Expressed" = "Percent Expressed",
+                                          " -log(FDR)" = expression(-log[10](FDR))),
+                       id = selected_tissues, scale = FALSE,log.data = NULL,
+                       scale.by = "size", 
+                       scale.max  = switch(pct.title,
+                                           "Percent Expressed" = 90,
+                                           " -log(FDR)" = 30),
+                       col.min = 0, exp.max = exp.max,dot.scale = 6)
+        
+        if(family == "Epithelial"){
+            jpeg(paste0(save.path,"Dotplot_Azimuth_",family,".jpeg"), units="in", 
+                 width=10,height= 6,res=600)
+            print(g)
+            dev.off()
+        }
+        if(family == "Structural"){
+            jpeg(paste0(save.path,"Dotplot_Azimuth_",family,".jpeg"), units="in", 
+                 width=12, height= 7,res=600)
+            print(g)
+            dev.off()
+        }
+        if(family == "Immune"){
+            jpeg(paste0(save.path,"Dotplot_Azimuth_",family,".jpeg"), units="in", 
+                 width=10, height= 18,res=600)
+            print(g)
+            dev.off()
+        }
+    }
+}
 
-jpeg(paste0(save.path,"Dotplot_Azimuth.jpeg"), units="in", width=18, 
-     height= 20,res=600)
-print(g)
-dev.off()
+
 
 #================ 
 
@@ -312,19 +350,24 @@ hist(s2,breaks = 30,xlab = "Combine.score",
      main = "Histogram of HGA Combine.score with p > 1")
 
 
+#' @param log.data = log2, 
 #' @param Score_df score or expression matrix, demonstrated in color
 #' @param prop_df score or expression matrix, demonstrated in dot size
 #' @param features colnames of Score_df and prop_df
 #' @param id rownames of Score_df and prop_df
-DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue, 
-          log.data = NULL,
-          cols = c("blue","green","yellow","orange","chocolate1","red"),
-          col.min = 0,
-          col.max = 1000,
-          dot.min = 0,
-          dot.scale = 4,
-          scale = FALSE, scale.by = 'radius', split.by = NULL,split.colors = FALSE,
-          scale.min = NA,scale.max = NA,exp.min = NA,exp.max = NA,n.breaks = NULL){
+DotPlot.2 <- function(Score_df,prop_df, features = NULL,id = NULL,
+                      log.data = NULL,
+                      score_title = "Combined Score", pct.title = "Percent Expressed",
+                      cols = c("blue","green","yellow","orange","chocolate1","red"),
+                      col.min = 0,
+                      col.max = 1000,
+                      dot.min = 0,
+                      dot.scale = 4,
+                      scale = FALSE, scale.by = 'radius', split.by = NULL,split.colors = FALSE,
+                      scale.min = NA,scale.max = NA,exp.min = NA,exp.max = NA,n.breaks = NULL){
+    if(is.null(features)) features = colnames(Score_df)
+    if(is.null(id)) id = rownames(Score_df)
+    
     prop_df %<>% rownames_to_column(var = "id") %>%
         gather("features.plot","pct.exp",-id)
     Score_df %<>% rownames_to_column(var = "id") %>%
@@ -333,9 +376,11 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
         data.plot = cbind(prop_df, "avg.exp" = Score_df$avg.exp)
     } else stop("prop_df and Score_df have different rows or columns")
     if(all(id %in% data.plot$id)){
+        if(!all(data.plot$id %in% id)) data.plot = data.plot[data.plot$id %in% id,]
         data.plot$id %<>% factor(levels = rev(id))
     } else stop("some id don't exsit in rows of prop_df and Score_df")
     if(all(features %in% data.plot$features.plot)){
+        if(!all(data.plot$features.plot %in% features)) data.plot = data.plot[data.plot$features.plot %in% features,]
         data.plot$features.plot %<>% factor(levels = features)
     } else stop("some id don't exsit in columns of prop_df and Score_df")
     avg.exp.scaled <- sapply(
@@ -379,7 +424,7 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
                    color = "black", pch=21) +
         scale.func(range = c(0, dot.scale), limits = c(scale.min, scale.max)) +
         theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-        guides(size = guide_legend(title = 'Percent Expressed')) +
+        guides(size = guide_legend(title = pct.title)) +
         labs(
             x = 'Features',
             y = ifelse(test = is.null(x = split.by), yes = 'Identity', no = 'Split Identity')
@@ -397,8 +442,8 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
             colours=cols,
             n.breaks = n.breaks,
             name = ifelse(test = is.function(log.data),
-                          yes = expression(atop("Mean enrichR's\n Combined.Score",log[2](Combined.Score+1))),
-                          no = expression(atop(Combined.Score))), 
+                          yes = paste("log",score_title),
+                          no = score_title), 
             space = "Lab",
             na.value = "grey50",
             guide = "colourbar",
@@ -407,19 +452,19 @@ DotPlot.2 <- function(Score_df,prop_df, features = cell.types, id = tissue,
     }
     
     if (!split.colors) {
-        plot <- plot + guides(color = guide_colorbar(title = 'Average Expression'))
+        plot <- plot + guides(color = guide_colorbar(title = pct.title))
     }
     plot = plot + theme(axis.line=element_blank(),
-                  text = element_text(size=16),
-                  panel.grid.major = element_blank(),
-                  axis.text.x = element_text(size=16,
-                                             angle = 90, 
-                                             hjust = 1,
-                                             vjust= 0.5),
-                  axis.text.y = element_text(size=14),
-                  axis.title.x = element_blank(),
-                  axis.title.y = element_blank(),
-                  plot.title = element_text(face = "plain"))
+                        text = element_text(size=16),
+                        panel.grid.major = element_blank(),
+                        axis.text.x = element_text(size=16,
+                                                   angle = 90, 
+                                                   hjust = 1,
+                                                   vjust= 0.5),
+                        axis.text.y = element_text(size=14),
+                        axis.title.x = element_blank(),
+                        axis.title.y = element_blank(),
+                        plot.title = element_text(face = "plain"))
     return(plot)
 }
 

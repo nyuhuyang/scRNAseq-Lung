@@ -16,14 +16,15 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 # ====== load single cell =============
+path = "../seurat_resources/azimuth/human_lung/"
+
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 sce <- SingleCellExperiment(list(logcounts=object[["SCT"]]@data),
                                 colData=DataFrame(object@meta.data))
 rm(object);GC()
 
 options = c("sc","bulk")[args]
-# ======= load azimuth PBMC data ==============================
-path = "../../seurat_resources/azimuth/human_lung/"
+# ======= load azimuth Lung data ==============================
 meta.data = fread(paste0(path,"krasnow_hlca_10x_metadata.csv.gz")) %>% 
     as.data.frame() %>% tibble::column_to_rownames("V1")
 counts = fread(paste0(path,"krasnow_hlca_10x_UMIs.csv.gz")) %>% 
