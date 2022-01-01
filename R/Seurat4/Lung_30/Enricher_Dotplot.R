@@ -234,32 +234,39 @@ Enrichr_res$Term_CL = gsub(".* UBERON","UBERON",Enrichr_res$Term_CL)
 Enrichr_res = Enrichr_res[order(Enrichr_res$Combined.Score,decreasing = T),]
 #Enrichr_res = Enrichr_res[!duplicated(Enrichr_res$cell.types),]
 
-table(Enrichr_res$tissue,Enrichr_res$cell.types) %>% 
+table(Enrichr_res$Term,Enrichr_res$cell.types) %>% 
     prop.table(2) %>% 
     as.data.frame.matrix -> prop_table -> df
 Enrichr_res %>%
-    group_by(tissue, cell.types) %>%
+    group_by(Term, cell.types) %>%
     summarise(mean_Combined.Score = mean(Combined.Score)) %>%
     spread(key = cell.types, value = mean_Combined.Score) %>% 
-    column_to_rownames(var = "tissue") -> Score_table
+    column_to_rownames(var = "Term") -> Score_table
+Enrichr_res %>%
+    group_by(Term, cell.types) %>%
+    summarise(mean_Odds.Ratio = mean(Odds.Ratio)) %>%
+    spread(key = cell.types, value = mean_Odds.Ratio) %>% 
+    column_to_rownames(var = "Term") -> OR_table
 Enrichr_res %>%
     mutate(log.adj.p = -log10(Adjusted.P.value)) %>%
-    group_by(tissue, cell.types) %>%
+    group_by(Term, cell.types) %>%
     summarise(mean.log.adj.p = mean(log.adj.p)) %>%
     spread(key = cell.types, value = mean.log.adj.p) %>% 
-    column_to_rownames(var = "tissue") -> logp_table
+    column_to_rownames(var = "Term") -> logp_table
 
 superfamily <- c("Epithelial","Structural","Immune")
 Score_table[is.na(Score_table)] = 0
 logp_table[is.na(logp_table)] = 0
+OR_table[is.na(OR_table)] = 0
+prop_table = prop_table*100
 
 #Score_table = sweep(Score_table, 2, colSums(Score_table),"/")
 #logp_table = sweep(logp_table, 2, colSums(logp_table),"/")*100
 
-prop_table = prop_table*100
 pct.titles = c("Percent Expressed"," -log(FDR)")
-for(pct.title in pct.titles){
-    save.path = paste0(path,pct.title,"/")
+score_titles = c("Combined Score", "Odds Ratio")
+for(score_title in score_titles){
+    save.path = paste0(path,score_title,"/")
     if(!dir.exists(save.path))dir.create(save.path, recursive = T)
     
     for(family in superfamily){
@@ -273,20 +280,20 @@ for(pct.title in pct.titles){
         
         selected_tissues = rownames(df1)[rowSums(df1) > 0]
         
-        g <- DotPlot.2(Score_table,
-                       prop_df = switch(pct.title,
-                                        "Percent Expressed" = prop_table,
-                                        " -log(FDR)" = logp_table),
+        g <- DotPlot.2(Score_df = switch(score_title,
+                                         "Combined Score" = Score_table,
+                                         "Odds Ratio" = OR_table),
+                       prop_df = logp_table,
                        features = cell.types, 
-                       pct.title = switch(pct.title,
-                                          "Percent Expressed" = "Percent Expressed",
-                                          " -log(FDR)" = expression(-log[10](FDR))),
+                       score_title = score_title,
+                       pct.title = expression(-log[10](FDR)),
                        id = selected_tissues, scale = FALSE,log.data = NULL,
                        scale.by = "size", 
-                       scale.max  = switch(pct.title,
-                                           "Percent Expressed" = 90,
-                                           " -log(FDR)" = 30),
-                       col.min = 0, exp.max = exp.max,dot.scale = 6)
+                       scale.max  = 20,
+                       col.min = 0, exp.max = switch(score_title,
+                                                     "Combined Score" = 5000,
+                                                     "Odds Ratio" = 1000),
+                       dot.scale = 6)
         
         if(family == "Epithelial"){
             jpeg(paste0(save.path,"Dotplot_Azimuth_",family,".jpeg"), units="in", 

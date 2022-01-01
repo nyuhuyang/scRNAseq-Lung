@@ -89,20 +89,21 @@ deg <- pbapply::pblapply(csv_names, function(csv){
         tmp <- read.csv(paste0("output/20211230/DEG analysis 1/", csv),row.names = 1)
         tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
         return(tmp)
-}) %>% bind_rows()
+}) %>% bind_rows() %>% filter(p_val_adj < 0.05)
 
 write.xlsx(deg, file = "output/20211230/DEG analysis 1/Lung_30_DEG_TASC_related.xlsx",
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 # DEG analysis 2 – between different subsets of TASCs
-xlsx_names <- list.files("output/20211011", pattern = ".xlsx",)
-deg <- pbapply::pblapply(xlsx_names, function(xlsx){
-        tmp = readxl::read_excel(paste0("output/20211011/",xlsx))
-        tmp[tmp$p_val_adj < 0.05,]
+csv_names <- list.files("output/20211230/DEG analysis 2")
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(paste0("output/20211230/DEG analysis 2/", csv),row.names = 1)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
         return(tmp)
-})
-names(deg) = gsub("2021-10-11-","",xlsx_names) %>% gsub("\\.xlsx$","",.)
-write.xlsx(deg, file = paste0(path,"Lung_30_DEG_TASC_subset.xlsx"),
+}) %>% bind_rows() %>% filter(p_val_adj < 0.05)
+
+
+write.xlsx(deg, file = "output/20211230/DEG analysis 2/Lung_30_DEG_TASC_subset.xlsx",
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 #DEG analysis 3 - between sample groups
