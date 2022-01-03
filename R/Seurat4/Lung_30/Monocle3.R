@@ -28,7 +28,7 @@ for(i in 1:10){
     meta.data1 = meta.data1[!duplicated(meta.data1$Cell_subtype),
                             c("Cell_subtype","Cell_subtype.colors")]
     meta.data1 = meta.data1[order(meta.data1$Cell_subtype),]
-    D.cds %<>% reduce_dimension(umap.fast_sgd = TRUE)
+    D.cds %<>% reduce_dimension(umap.fast_sgd = FALSE)
     D.cds <- cluster_cells(cds = D.cds, reduction_method = "UMAP")
     D.cds <- learn_graph(D.cds, use_partition = FALSE)
     D.cds <- order_cells(D.cds)
@@ -38,7 +38,7 @@ for(i in 1:10){
     meta.data2 = meta.data2[!duplicated(meta.data2$Cell_subtype),
                             c("Cell_subtype","Cell_subtype.colors")]
     meta.data2 = meta.data2[order(meta.data1$Cell_subtype),]
-    COPD.cds %<>% reduce_dimension(umap.fast_sgd = TRUE)
+    COPD.cds %<>% reduce_dimension(umap.fast_sgd = FALSE)
     COPD.cds <- cluster_cells(cds = COPD.cds, reduction_method = "UMAP")
     COPD.cds <- learn_graph(COPD.cds, use_partition = FALSE)
     COPD.cds <- order_cells(COPD.cds)
