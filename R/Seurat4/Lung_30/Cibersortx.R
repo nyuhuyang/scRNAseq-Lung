@@ -24,8 +24,8 @@ object %<>% subset(subset =  Doublets %in% "Singlet" &
                            Cell_subtype != "Un")
 
 
-tpm = data.table::fread(file = "data/RNA-seq/GTEx-Lung-tpm.txt",header = T)
-genes = tpm[["GeneSymbol"]]
+tpm = data.table::fread(file = "data/RNA-seq/GTEx-Lung-tpm~.csv",header = T)
+genes = tpm[["V1"]]
 
 table(rownames(object) %in% genes)
 table(genes %in% rownames(object))
@@ -34,7 +34,38 @@ tpm %<>% filter(GeneSymbol %in% share_genes)
 fwrite(tpm, file=paste0(save_path,"GTEx-Lung-tpm_hg38.txt"),quote = FALSE,
        row.names = FALSE,sep = "\t")
 
-# generate reference
+# generate raw single-cell reference
+# read DE genes
+csv_list <- list.files("output/20211022/ASE/",pattern = "_ASE.csv",full.names = T)
+deg <- pbapply::pblapply(csv_list,function(csv){
+        tmp = read.csv(csv,row.names = 1)
+        tmp$gene = rownames(tmp)
+        tmp$cluster = sub("_vs_ASE.csv","",csv) %>% sub(".*[0-9]+-","",.)
+        tmp
+}) %>% bind_rows()
+#deg %<>%  group_by(cluster) %>% top_n(400, avg_log2FC)
+length(unique(deg$gene))
+table(deg$cluster)
+fwrite(deg, file="output/20211022/ASE/ASE_DEGs.txt",quote = FALSE,
+       row.names = FALSE,sep = "\t")
+table(deg[deg$gene %in% deg[deg$cluster == "TASC","gene"],"cluster"])
+table(deg[!deg$gene %in% deg[deg$cluster != "TASC","gene"],"cluster"])
+
+Idents(object) = "Cell_subtype"
+ASE = subset(object, idents = c("BC", "IC", "S1", "S-Muc", "TASC", "H", "p-C", "C1", "C-s", "Ion", "NE"))
+mt = as.matrix(ASE[["SCT"]]@counts[unique(deg$gene),])
+#keep_genes = rowSums(ASE[["SCT"]]@counts) ;table(keep_genes)
+#keep_genes = keep_genes > 100
+#mt = as.matrix(ASE[["SCT"]]@counts[keep_genes,])
+dt = as.data.table(mt)
+colnames(dt) = make.unique(ASE$Cell_subtype)
+GeneSymbol = data.frame("GeneSymbol" =  rownames(mt))
+dt = cbind(GeneSymbol,dt)
+
+fwrite(dt, file=paste0(save_path,"ASE_scRNA_reference_hg38_full.txt"),quote = FALSE,
+       row.names = FALSE,sep = "\t")
+
+# generate psedo bulk reference
 groups = c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
 for(g in groups){
         print(g)
@@ -42,30 +73,25 @@ for(g in groups){
         expression = AggregateExpression(object,assay = "SCT",group.by = g)
         expression = expression$SCT
         tpm.mat = t(t(expression)*1e6 /colSums(expression) )
-        write.table(tpm.mat[share_genes,],file = paste0(save_path,"psudobulk_tpm_Lung30_hg38_",g,"_reference.txt"),sep = "\t",quote = FALSE)
-}
-
-
-# add "gene" to the first line
-
-# generate single-cell reference
-counts = object[["SCT"]]@counts
-cell_types <- sort(unique(object$cell_types))
-meta.data = object@meta.data
-select_barcode  <- pbapply::pbsapply(cell_types, function(cell_type){
-        sub_meta.data = meta.data %>% filter(cell_types %in% cell_type)
-        sample(rownames(sub_meta.data), size = min(nrow(sub_meta.data),100))
+        GeneSymbol = data.frame("GeneSymbol" =  rownames(tpm.mat))
+        tpm.mat = cbind(GeneSymbol,tpm.mat)
+        rownames(tpm.mat) = rownames(tpm.mat)
         
-})
-select_barcode %<>% unlist()
-sub_object = subset(object,cells = select_barcode)
-
-counts = as.matrix(sub_object[["SCT"]]@counts)
-sub_meta.data =sub_object@meta.data
-colnames(counts) = sub_object$cell_types
-write.table(counts,file = paste0(path,"single.cell_Lung30_cell.type_reference.txt"),sep = "\t",quote = FALSE)
-
+        deg <- readxl::read_excel("Yang/Lung_30/hg38/DE_analysis/Lung_30_DEG_Cell.category.xlsx",sheet = g)
+        keep_genes = unique(deg$gene)
+        print(length(keep_genes))
+        
+        fwrite(tpm.mat[keep_genes,],file = paste0(save_path,"psudobulk_tpm_Lung30_hg38_",g,"_reference.txt"),quote = FALSE,
+               row.names = FALSE,sep = "\t")
+}
 # add "GeneSymbol" to the first line.
+
+
+
+
+
+
+
 
 # combine CIBERSORT with meta.data
 GTE_meta.data = read.csv("data/RNA-seq/GTEx Portal - lung sample info.csv",

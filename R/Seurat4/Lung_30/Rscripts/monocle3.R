@@ -19,7 +19,7 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 set.seed(args*1234)
 
-step = c("monocle3","figures")[2]
+step = c("monocle3","figures")[1]
 
 if(step == "monocle3"){
     object = readRDS(file = "data/Lung_SCT_30_20210831.rds")

@@ -14,7 +14,7 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 #====== 3.2 SingleR specifications ==========================================
 
 ##############################
-# create singleR data frame
+# create singleR data frame for Lung 30
 ###############################
 pred = readRDS("output/Lung_SCT_20211201_singleR_bulk_krasnowLung.rds")
 pred = readRDS("output/Lung_SCT_20211201_singleR_sc_krasnowLung.rds")

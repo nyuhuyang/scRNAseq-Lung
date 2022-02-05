@@ -51,3 +51,22 @@ UMAPPlot.1(object = object, label = T, label.repel = T,group.by = "Cell_subtype"
 
 saveRDS(meta.data, "output/20211016/meta.data_Cell_subtype_time6.rds")
 
+
+
+##############################
+# create singleR data frame for Lung time 6
+###############################
+meta.data = readRDS("output/20211016/meta.data_Cell_subtype_time6.rds")
+pred1 = readRDS("output/Lung_SCT_time6_20220107_singleR_krasnowLung.rds")
+pred2 = readRDS("output/Lung_SCT_time6_20220107_singleR_Lung30.rds")
+pred3 = readRDS("output/SCINA_Lung_time6_Azimuth_Cell_Types_2021.rds")
+singlerDF = data.frame("Travaglini_Lung" = pred1$pruned.labels,
+                       #"Lung30_Cell_subtype" = pred2$pruned.labels,
+                       "SCINA_Azimuth" = pred3$cell_labels,
+                       row.names = rownames(pred1))
+singlerDF$SCINA_Azimuth_subtype = gsub(" CL.*| UBERON.*","",singlerDF$SCINA_Azimuth)
+singlerDF$SCINA_Azimuth_term = gsub(".* CL"," CL",singlerDF$SCINA_Azimuth)
+singlerDF$SCINA_Azimuth_term = gsub(".* UBERON"," UBERON",singlerDF$SCINA_Azimuth_term)
+meta.data %<>% cbind(singlerDF)
+
+saveRDS(meta.data,"output/20220108/meta.data_Cell_subtype_time6.rds")

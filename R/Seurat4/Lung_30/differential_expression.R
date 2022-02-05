@@ -1,5 +1,5 @@
 invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAST","future",
-                   "gplots"), function(x) {
+                   "gplots","kableExtra"), function(x) {
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 
@@ -177,6 +177,19 @@ deg_list = split(deg,f = deg$type)
 write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_between_groups_option2.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+csv_names = csv_names[grep("COPD",csv_names)]
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1)
+        tmp$gene = rownames(tmp)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        if(tmp$type == TRUE) tmp$type = "T"
+        return(tmp)
+}) %>% bind_rows
+deg = deg[deg$p_val < 0.05,]
+table(deg$type,deg$DE_pairs) %>% kable %>% kable_styling()
+deg = deg[deg$avg_log2FC > 0.5,]
+
+deg_list = split(deg,f = deg$type)
 
 #=========step == "TASCs"============================
 csv_names <- list.files("output/20211129",pattern = "_TACS.csv",full.names = T)
