@@ -177,7 +177,7 @@ if(step == "DEG analysis 1"){
     object@meta.data = meta.data
     
     DefaultAssay(object) = "SCT"
-    Regions = switch(as.character(args <= 11),
+    Region = switch(as.character(args <= 11),
                      "TRUE" ="distal",
                      "FALSE"= c("distal","terminal"))
     Regions_name = ifelse(args <= 11, "_D", "_DT")
@@ -210,7 +210,7 @@ if(step == "DEG analysis 1"){
     
     object %<>% subset(subset = Cell_subtype %in% c(ident1,ident2)
                        &  Doublets == "Singlet"
-                       & Regions %in% Regions
+                       & Regions %in% Region
     )
     
     #==========================
@@ -545,18 +545,18 @@ if(step == "ASE"){
     table(object$barcode ==meta.data$barcode)
     object@meta.data = meta.data
     
-    Regions = switch(as.character(args <= 11),
+    Region = switch(as.character(args < 11),
                      "TRUE" ="distal",
                      "FALSE"= c("distal","terminal"))
-    Regions_name = ifelse(args <= 11, "D", "DT")
+    Regions_name = ifelse(args < 11, "D", "DT")
     DefaultAssay(object) = "SCT"
     object %<>% subset(subset = Cell_subtype != "Un"
                        & Family == "ASE"
-                       & Regions %in% Regions
+                       & Regions %in% Region
                        &  Doublets == "Singlet"
     )
     Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
-    cell_type = Cell_types[args %% 11 +1] # 0:21
+    (cell_type = Cell_types[args %% 11 +1]) # 0:21
     #==========================
     Idents(object) = "Cell_subtype"
 
