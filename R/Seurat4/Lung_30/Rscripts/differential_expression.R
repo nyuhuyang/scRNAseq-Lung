@@ -20,7 +20,7 @@ object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
          "DEG analysis 1","DEG analysis 2",
          "DEG analysis 3-option 1",
          "DEG analysis 3-option 2","ASE",
-         "TASCs lvl","ASE_D_DT")[9])
+         "TASCs lvl","ASE_D_DT")[2])
 
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
@@ -147,8 +147,9 @@ if(step == "cell_types"){# 32~64GB
     markers = FindMarkers_UMI(object, ident.1 = opt$type,
                               group.by = opt$ident,
                               assay = "SCT",
-                              logfc.threshold = 0.1,
-                                 only.pos = T,
+                              min.pct = 0.01,
+                              logfc.threshold = 1,
+                                 only.pos = F,
                                  test.use = "MAST",
                                  latent.vars = "nFeature_SCT")
     markers$cluster = as.character(opt$type)
@@ -166,6 +167,7 @@ if(step == "cell_types"){# 32~64GB
     
     write.csv(markers,paste0(save_path,arg,"-",opt$ident,"-",num,".",opt$type, ".csv"))
 }
+
 
 if(step == "DEG analysis 1"){
     # DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
@@ -539,10 +541,14 @@ if(step == "ASE"){
     table(object$barcode ==meta.data$barcode)
     object@meta.data = meta.data
     
+    Regions = switch(as.character(args <= 11),
+                     "TRUE" ="distal",
+                     "FALSE"= c("distal","terminal"))
+    Regions_name = ifelse(args <= 11, "D", "DT")
     DefaultAssay(object) = "SCT"
     object %<>% subset(subset = Cell_subtype != "Un"
                        & Family == "ASE"
-                       & Regions == "distal"
+                       & Regions == Regions
                        &  Doublets == "Singlet"
     )
     Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
@@ -555,7 +561,7 @@ if(step == "ASE"){
                               assay = "SCT",
                               min.pct = 0.01,
                               logfc.threshold = 0.1,
-                              only.pos = T,
+                              only.pos = F,
                               test.use = "MAST",
                               latent.vars = "nFeature_SCT")
 
@@ -565,7 +571,7 @@ if(step == "ASE"){
     save_path <- paste0(path,step,"/")
     if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
     
-    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE.csv"))
+    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE_",Regions_name, ".csv"))
 }
 
 
@@ -609,17 +615,17 @@ if(step == "TASCs lvl"){
     write.csv(markers,paste0(path,args,"-",paste(opt$gene,"high vs low at",opt$lvl),"_TACS.csv"))
 }
 
-if(step == "ASE_D_DT"){
+if(step == "ASE_DT"){
     meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
     table(rownames(object@meta.data) == rownames(meta.data))
-    table(object$barcode ==meta.data$barcode)
+    table(object$barcode == meta.data$barcode)
     object@meta.data = meta.data
     
     DefaultAssay(object) = "SCT"
     object %<>% subset(subset = Cell_subtype != "Un"
                        & Family == "ASE"
-                       & Regions == "distal"
-                       &  Doublets == "Singlet"
+                       & Regions == c("distal","terminal")
+                       & Doublets == "Singlet"
     )
     Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
     cell_type = Cell_types[args]
@@ -631,7 +637,7 @@ if(step == "ASE_D_DT"){
                               assay = "SCT",
                               min.pct = 0.01,
                               logfc.threshold = 0.1,
-                              only.pos = T,
+                              only.pos = F,
                               test.use = "MAST",
                               latent.vars = "nFeature_SCT")
     
@@ -641,5 +647,5 @@ if(step == "ASE_D_DT"){
     save_path <- paste0(path,step,"/")
     if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
     
-    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE.csv"))
+    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE_DT.csv"))
 }
