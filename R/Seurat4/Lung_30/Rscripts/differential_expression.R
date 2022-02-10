@@ -20,7 +20,7 @@ object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
          "DEG analysis 1","DEG analysis 2",
          "DEG analysis 3-option 1",
          "DEG analysis 3-option 2","ASE",
-         "TASCs lvl","ASE_D_DT")[2])
+         "TASCs lvl")[7])
 
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
@@ -177,7 +177,10 @@ if(step == "DEG analysis 1"){
     object@meta.data = meta.data
     
     DefaultAssay(object) = "SCT"
-    
+    Regions = switch(as.character(args <= 11),
+                     "TRUE" ="distal",
+                     "FALSE"= c("distal","terminal"))
+    Regions_name = ifelse(args <= 11, "_D", "_DT")
 
     Idents_list = list(ident1 = list("TASC",
                                      "TASC",
@@ -207,6 +210,7 @@ if(step == "DEG analysis 1"){
     
     object %<>% subset(subset = Cell_subtype %in% c(ident1,ident2)
                        &  Doublets == "Singlet"
+                       & Regions %in% Regions
     )
     
     #==========================
@@ -234,7 +238,7 @@ if(step == "DEG analysis 1"){
     file.name = paste0(paste(ident1,collapse = "_"),
                       "-vs-",
                       paste(ident2,collapse = "_"))
-    write.csv(markers,paste0(save_path,arg,"-",file.name, ".csv"))
+    write.csv(markers,paste0(save_path,arg,"-",file.name,Regions_name, ".csv"))
 }
 
 
@@ -548,7 +552,7 @@ if(step == "ASE"){
     DefaultAssay(object) = "SCT"
     object %<>% subset(subset = Cell_subtype != "Un"
                        & Family == "ASE"
-                       & Regions == Regions
+                       & Regions %in% Regions
                        &  Doublets == "Singlet"
     )
     Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
@@ -613,39 +617,4 @@ if(step == "TASCs lvl"){
     markers$cluster = paste(opt$gene,"high vs low at lvl",opt$lvl)
     markers$gene = rownames(markers)
     write.csv(markers,paste0(path,args,"-",paste(opt$gene,"high vs low at",opt$lvl),"_TACS.csv"))
-}
-
-if(step == "ASE_DT"){
-    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
-    table(rownames(object@meta.data) == rownames(meta.data))
-    table(object$barcode == meta.data$barcode)
-    object@meta.data = meta.data
-    
-    DefaultAssay(object) = "SCT"
-    object %<>% subset(subset = Cell_subtype != "Un"
-                       & Family == "ASE"
-                       & Regions == c("distal","terminal")
-                       & Doublets == "Singlet"
-    )
-    Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
-    cell_type = Cell_types[args]
-    #==========================
-    Idents(object) = "Cell_subtype"
-    
-    markers = FindMarkers_UMI(object, ident.1 = cell_type,
-                              group.by = "Cell_subtype",
-                              assay = "SCT",
-                              min.pct = 0.01,
-                              logfc.threshold = 0.1,
-                              only.pos = F,
-                              test.use = "MAST",
-                              latent.vars = "nFeature_SCT")
-    
-    arg = args
-    if(args < 10) arg = paste0("0",arg)
-    
-    save_path <- paste0(path,step,"/")
-    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
-    
-    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE_DT.csv"))
 }
