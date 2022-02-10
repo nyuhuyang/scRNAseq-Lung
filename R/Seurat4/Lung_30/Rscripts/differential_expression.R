@@ -205,8 +205,8 @@ if(step == "DEG analysis 1"){
                                      c("G-Muc","G-Ser"),
                                      c("G-Muc","G-Ser")))
     
-    (ident1 <- Idents_list$ident1[[args]])
-    (ident2 <- Idents_list$ident2[[args]])
+    (ident1 <- Idents_list$ident1[[ args %% 11 +1]])# 0:21
+    (ident2 <- Idents_list$ident2[[args %% 11 +1]])# 0:21
     
     object %<>% subset(subset = Cell_subtype %in% c(ident1,ident2)
                        &  Doublets == "Singlet"
@@ -383,7 +383,7 @@ if(step == "DEG analysis 3-option 1"){
                               ident.2 = ident2,
                               group.by = "Regions",
                               assay = "SCT",
-                              min.pct = 0,
+                              min.pct = 0.01,
                               logfc.threshold = 0.1,
                               only.pos = T,
                               test.use = "wilcox")
@@ -556,7 +556,7 @@ if(step == "ASE"){
                        &  Doublets == "Singlet"
     )
     Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
-    cell_type = Cell_types[args]
+    cell_type = Cell_types[args %% 11 +1] # 0:21
     #==========================
     Idents(object) = "Cell_subtype"
 
