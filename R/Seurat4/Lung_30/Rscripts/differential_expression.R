@@ -16,11 +16,11 @@ print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
 
-step = c("resolutions","cell_types",
+(step = c("resolutions","cell_types",
          "DEG analysis 1","DEG analysis 2",
          "DEG analysis 3-option 1",
          "DEG analysis 3-option 2","ASE",
-         "TASCs lvl")[4]
+         "TASCs lvl","ASE_D_DT")[9])
 
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
@@ -79,18 +79,59 @@ if(step == "cell_types"){# 32~64GB
     table(object$barcode ==meta.data$barcode)
     object@meta.data = meta.data
     
+    df = matrix(c('AT1', 'AT',
+                  'AT2', 'AT',
+                  'B',   'B',
+                  'BC-IC','BC-IC',
+                  'C',    'C',
+                  'CD4-T','T',
+                  'CD8-T','T',
+                  'Cr',   'Cr',
+                  'DC',   'MPS',
+                  'En-a', 'En-a',
+                  'En-c', 'En-c',
+                  'En-l', 'En-l',
+                  'En-SM', 'En-SM',
+                  'En-v', 'En-v',
+                  'Fb',   'Fb',
+                  'G-Muc','G-Muc',
+                  'G-Ser','G-Ser',
+                  'Gli', 'Gli', 
+                  'Ion','Ion',
+                  'M', 'MPS',
+                  'MC','MC',
+                  'ME', 'ME',
+                  'Mon','MPS',
+                  'NE','NE',
+                  'Neu','Neu',
+                  'NK','NK',
+                  'PC','PC',
+                  'Pr','SM+Pr',
+                  'S','S',
+                  'SCI','SCI',
+                  'SM','SM+Pr',
+                  'T-NK','T',
+                  'T-un','T'),
+                ncol = 2, byrow = TRUE,
+                dimnames = list(1:33,
+                                c("Cell_type", "Cell_group"))) %>%
+        as.data.frame()
     DefaultAssay(object) = "SCT"
     object %<>% subset(subset = Cell_subtype != "Un"
                        &  Doublets == "Singlet"
     )
-    
+    object$Cell_group = plyr::mapvalues(object$Cell_type,
+                                        from = df$Cell_type,
+                                        to = df$Cell_group)
     opts = data.frame(ident = c(rep("Cell_subtype",49),
                                 rep("Cell_type",31),
+                                rep("Cell_group",26), #81~106
                                 rep("UMAP_land",20),
                                 rep("Family",7),
                                 rep("Superfamily",3)),
                       num = c(1:49,
                               1:31,
+                              1:26,
                               1:20,
                               1:7,
                               1:3)
@@ -106,7 +147,7 @@ if(step == "cell_types"){# 32~64GB
     markers = FindMarkers_UMI(object, ident.1 = opt$type,
                               group.by = opt$ident,
                               assay = "SCT",
-                              logfc.threshold = 0.5,
+                              logfc.threshold = 0.1,
                                  only.pos = T,
                                  test.use = "MAST",
                                  latent.vars = "nFeature_SCT")
@@ -566,4 +607,39 @@ if(step == "TASCs lvl"){
     markers$cluster = paste(opt$gene,"high vs low at lvl",opt$lvl)
     markers$gene = rownames(markers)
     write.csv(markers,paste0(path,args,"-",paste(opt$gene,"high vs low at",opt$lvl),"_TACS.csv"))
+}
+
+if(step == "ASE_D_DT"){
+    meta.data = readRDS("output/20211004/meta.data_Cell_subtype.rds")
+    table(rownames(object@meta.data) == rownames(meta.data))
+    table(object$barcode ==meta.data$barcode)
+    object@meta.data = meta.data
+    
+    DefaultAssay(object) = "SCT"
+    object %<>% subset(subset = Cell_subtype != "Un"
+                       & Family == "ASE"
+                       & Regions == "distal"
+                       &  Doublets == "Singlet"
+    )
+    Cell_types <- c("BC","C-s","C1","H","IC","Ion","NE","p-C","S-Muc","S1","TASC")
+    cell_type = Cell_types[args]
+    #==========================
+    Idents(object) = "Cell_subtype"
+    
+    markers = FindMarkers_UMI(object, ident.1 = cell_type,
+                              group.by = "Cell_subtype",
+                              assay = "SCT",
+                              min.pct = 0.01,
+                              logfc.threshold = 0.1,
+                              only.pos = T,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT")
+    
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    save_path <- paste0(path,step,"/")
+    if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
+    
+    write.csv(markers,paste0(save_path,arg,"-",cell_type,"_vs_ASE.csv"))
 }

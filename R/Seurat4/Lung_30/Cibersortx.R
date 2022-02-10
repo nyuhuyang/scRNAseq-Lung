@@ -43,6 +43,7 @@ deg <- pbapply::pblapply(csv_list,function(csv){
         tmp$cluster = sub("_vs_ASE.csv","",csv) %>% sub(".*[0-9]+-","",.)
         tmp
 }) %>% bind_rows()
+
 #deg %<>%  group_by(cluster) %>% top_n(400, avg_log2FC)
 length(unique(deg$gene))
 table(deg$cluster)
@@ -61,9 +62,29 @@ dt = as.data.table(mt)
 colnames(dt) = make.unique(ASE$Cell_subtype)
 GeneSymbol = data.frame("GeneSymbol" =  rownames(mt))
 dt = cbind(GeneSymbol,dt)
+rownames(dt) = rownames(mt)
 
 fwrite(dt, file=paste0(save_path,"ASE_scRNA_reference_hg38_full.txt"),quote = FALSE,
        row.names = FALSE,sep = "\t")
+for(fc in c(0.1,0.5,1,1.25,1.5,1.75,2)){
+        deg %<>% filter(p_val < 0.05) %>% filter(avg_log2FC > fc)
+        print(table(deg$cluster))
+        #fwrite(dt[unique(deg$gene),], file=paste0(save_path,"ASE_scRNA_reference_hg38_FC",fc,".txt"),quote = FALSE,
+        #       row.names = FALSE,sep = "\t")
+        fwrite(deg, file=paste0(save_path,"ASE_DEGs_FC",fc,".txt"),quote = FALSE,
+               row.names = FALSE,sep = "\t")
+}
+
+for(fc in c(0.1,0.5,1,1.25,1.5,1.75)){
+        mt = read.delim(file = paste0("Yang/Lung_30/hg38/Deconvolution/CIBERSORTx_Bulk-RNA-seq_Results/Step2-Signature_matrix/ASE_scRNA_reference_hg38_FC",
+                                      fc,"_inferred_refsample.txt"),row.names = 1)
+        deg1 = deg[deg$gene %in% rownames(mt),]
+        print(table(deg1$cluster))
+        #fwrite(dt[unique(deg$gene),], file=paste0(save_path,"ASE_scRNA_reference_hg38_FC",fc,".txt"),quote = FALSE,
+        #       row.names = FALSE,sep = "\t")
+        fwrite(deg1, file=paste0(save_path,"ASE_DEGs_FC",fc,".txt"),quote = FALSE,
+               row.names = FALSE,sep = "\t")
+}
 
 # generate psedo bulk reference
 groups = c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
