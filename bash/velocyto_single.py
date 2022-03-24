@@ -1,5 +1,5 @@
 import argparse
-parser = argparse.ArgumentParser(description='select a group name, for example:"UNC-44-Proximal"')
+parser = argparse.ArgumentParser(description='select a sample name, for example:"UNC-44-Proximal"')
 parser.add_argument("ID", help="merge a group of loom files according to the group name")
 args = parser.parse_args()
 print(args.ID)

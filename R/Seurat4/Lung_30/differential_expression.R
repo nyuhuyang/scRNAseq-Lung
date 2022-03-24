@@ -3,6 +3,7 @@ invisible(lapply(c("Seurat","dplyr","magrittr","tidyr","openxlsx",#"Seurat","MAS
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 
+source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
 
 path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
@@ -48,11 +49,13 @@ write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_20UMAP.xlsx"),
 ############### step == "cell_types" ############### 
 opts = data.frame(ident = c(rep("Cell_subtype",49),
                             rep("Cell_type",31),
+                            rep("Cell_group",26), #81~106
                             rep("UMAP_land",20),
                             rep("Family",7),
                             rep("Superfamily",3)),
                   num = c(1:49,
                           1:31,
+                          1:26,
                           1:20,
                           1:7,
                           1:3)
@@ -60,11 +63,11 @@ opts = data.frame(ident = c(rep("Cell_subtype",49),
 Cell_category = unique(opts$ident)
 deg_list <- list()
 for(i in seq_along(Cell_category)){
-        csv_names = list.files("output/20211006/cell_types",pattern = Cell_category[i],full.names = T)
+        csv_names = list.files("output/20220216/cell_types",pattern = Cell_category[i],full.names = T)
         all_idx = which(opts$ident %in% Cell_category[i])
-        idx <- gsub("output/20211006/cell_types/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
+        idx <- gsub("output/20220216/cell_types/","",csv_names) %>% gsub("-.*","",.) %>% as.integer()
         print(table(all_idx %in% idx))
-        #all_idx[!all_idx %in% idx]
+        all_idx[!all_idx %in% idx]
         print(paste(Cell_category[i], "missing",all_idx[!(all_idx %in% idx)]))
         deg <- pbapply::pblapply(csv_names, function(csv){
                 tmp <- read.csv(csv,row.names = 1)
@@ -79,20 +82,26 @@ for(i in seq_along(Cell_category)){
 names(deg_list) =Cell_category
 
 write.xlsx(deg_list, file = paste0(path,"Lung_30_DEG_Cell.category.xlsx"),
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+           colNames = TRUE, borders = "surrounding")
 
 # On Sep 24, 2021, at 13:28, Renat Shaykhiev <res2003@med.cornell.edu> wrote:
 # DEG analysis 1 - between TASC and related cell populations (with volcanos; cells in the same group from different samples mixed):
-save.path = "/Yang/Lung_30/hg38/DE_analysis/"
+save.path = "Yang/Lung_30/hg38/DE_analysis/"
 csv_names <- list.files("output/20211230/DEG analysis 1")
 deg <- pbapply::pblapply(csv_names, function(csv){
         tmp <- read.csv(paste0("output/20211230/DEG analysis 1/", csv),row.names = 1)
         tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        region = sub(".*_","",csv) %>% sub(".csv","",.)
+        tmp$gene = rownames(tmp)
+        tmp$region = switch(region,
+                            "D" = "distal",
+                            "DT" = "distal+terminal")
         return(tmp)
 }) %>% bind_rows() %>% filter(p_val_adj < 0.05)
 
-write.xlsx(deg, file = "output/20211230/DEG analysis 1/Lung_30_DEG_TASC_related.xlsx",
-           colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+deg_list = split(deg, f = deg$region)
+write.xlsx(deg_list, file = paste0(save.path,"Lung_30_DEG_TASC_related.xlsx"),
+           colNames = TRUE, borders = "surrounding")
 
 # DEG analysis 2 – between different subsets of TASCs
 csv_names <- list.files("output/20211230/DEG analysis 2")
@@ -224,34 +233,56 @@ deg_list = split(deg,f = deg$cluster)
 write.xlsx(deg_list, file = paste0(path,"TACS_DEG_SCGB1A1.xlsx"),
            colNames = TRUE, borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+#=========step == "ASE"============================
+save.path = "Yang/Lung_30/hg38/DE_analysis/"
+csv_names <- list.files("output/20220210/ASE",full.names = T)
+deg <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(csv,row.names = 1)
+        tmp = tmp[order(tmp$avg_log2FC,decreasing = T),]
+        cell_type = sub("_vs_.*","",csv) %>% sub(".*[0-9+]-","",.)
+        region = sub(".*_","",csv) %>% sub(".csv","",.)
+        tmp$gene = rownames(tmp)
+        tmp$cell_type = cell_type
+        tmp$region = switch(region,
+                            "D" = "distal",
+                            "DT" = "distal+terminal")
+        return(tmp)
+}) %>% bind_rows() %>% filter(p_val_adj < 0.05) %>% filter(avg_log2FC > 0)
 
+deg_list = split(deg, f = deg$region)
+write.xlsx(deg_list, file = paste0(save.path,"Lung_30_DEG_ASE.xlsx"),
+           colNames = TRUE, borders = "surrounding",overwrite = T)
 
+#========="deconvolution"============================
+#Level 3 ASE: BC+IC, S (S1+S-Muc+TASC), C (C1+C-s), p-C, Ion, NE
+#Level 3 ASE+AT: all ASE above + AT
+#Level 3 Structural: Cr, Fb (Fb1+2+3+4), SM+Pr (SM1+2+3+Pr), En-v, En-c (En-c1+En-ca)
+#Level 3 Immune: B, PC, T, MC, Neu, MPS (Mon+M1+M1-2+M2+c-DC)  
+#Level 3 combined: all above combined
+names_list <- list("Level 3 ASE" = c("BC-IC","S","C","Ion","NE"),
+                   "Level 3 ASE+AT" = c("BC-IC","S","C","Ion","NE","AT"),
+                   "Level 3 Structural" = c("Cr","Fb","SM+Pr","En-v","En-c"),
+                   "Level 3 Immune" = c("B", "PC", "T", "MC", "Neu", "MPS"))
+names_list[["Level 3 combined"]] = unlist(names_list,use.names = FALSE)
+save.path = "Yang/Lung_30/hg38/DE_analysis/"
+categories = c("Cell_subtype","Cell_type","Cell_group","UMAP_land","Family","Superfamily")
 
+deg_list  = pbapply::pblapply(categories, function(category) {
+        readxl::read_excel(paste0("output/20220216/","Lung_30_DEG_Cell.category_FC1.xlsx"),sheet = category)
+})
+names(deg_list) = categories
+deg = deg_list[["Cell_group"]]
+deg1 = deg_list[["Cell_subtype"]]
+deg %<>% rbind(deg1[deg1$cluster %in% "p-C",])
+deg_list1  = pbapply::pblapply(names_list, function(clusters) {
+        deg %>% filter(cluster %in% clusters) %>%  filter(abs(avg_log2FC) > 1)
+        })
+deg_list %<>% c(deg_list1)
+openxlsx::write.xlsx(deg_list, file =  paste0("output/20220216/","Lung_30_DEG_Cell.category_neg_posLog2FC1.xlsx"),
+                     colNames = TRUE,row.names = F,borders = "surrounding",overwrite = T)
 
-# Color points by dataset
-# Add correlation coefficient by dataset
-expr = FetchData(TASC, vars = c("SCGB1A1", "SCGB3A2","Regions"))
-# Main plot
-pmain <- ggplot(expr, aes_string(x = "SCGB1A1", y = "SCGB3A2",color = "Regions"))+
-        geom_point()+
-        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000")) + theme_classic()
-#stat_cor(aes(color = Regions), method = "spearman")
-
-# Marginal densities along x axis
-xdens <- axis_canvas(pmain, axis = "x")+
-        geom_density(data = expr, aes_string(x = "SCGB1A1", fill = "Regions"),
-                     alpha = 0.5, size = 0.2)+
-        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000"))
-# Marginal densities along y axis
-# Need to set coord_flip = TRUE, if you plan to use coord_flip()
-ydens <- axis_canvas(pmain, axis = "y", coord_flip = TRUE)+
-        geom_density(data = expr, aes_string(x = "SCGB3A2", fill = "Regions"),
-                     alpha = 0.5, size = 0.2)+
-        coord_flip()+
-        scale_color_manual(values=c("#4ca64c","#E6AB02","#FF0000"))
-p1 <- insert_xaxis_grob(pmain, xdens, grid::unit(.2, "null"), position = "top")
-p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
-
-jpeg(paste0(path,"TASCs.jpeg"), units="in", width=7, height=7,res=600)
-print(ggdraw(p2))
-dev.off()
+deg_list  = pbapply::pblapply(deg_list, function(deg) {
+        deg %>% filter(avg_log2FC > 1)
+})
+openxlsx::write.xlsx(deg_list, file =  paste0(path,"Lung_30_DEG_Cell.category_posLog2FC1.xlsx"),
+                     colNames = TRUE,row.names = F,borders = "surrounding",overwrite = T)

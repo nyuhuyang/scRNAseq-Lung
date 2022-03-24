@@ -85,11 +85,82 @@ for(fc in c(0.1,0.5,1,1.25,1.5,1.75)){
         fwrite(deg1, file=paste0(save_path,"ASE_DEGs_FC",fc,".txt"),quote = FALSE,
                row.names = FALSE,sep = "\t")
 }
+#==========================================
+save.path = "output/20220214/"
+df = matrix(c('AT1', 'AT',
+              'AT2', 'AT',
+              'B',   'B',
+              'BC-IC','BC-IC',
+              'C',    'C',
+              'CD4-T','T',
+              'CD8-T','T',
+              'Cr',   'Cr',
+              'DC',   'MPS',
+              'En-a', 'En-a',
+              'En-c', 'En-c',
+              'En-l', 'En-l',
+              'En-SM', 'En-SM',
+              'En-v', 'En-v',
+              'Fb',   'Fb',
+              'G-Muc','G-Muc',
+              'G-Ser','G-Ser',
+              'Gli', 'Gli', 
+              'Ion','Ion',
+              'M', 'MPS',
+              'MC','MC',
+              'ME', 'ME',
+              'Mon','MPS',
+              'NE','NE',
+              'Neu','Neu',
+              'NK','NK',
+              'PC','PC',
+              'Pr','SM+Pr',
+              'S','S',
+              'SCI','SCI',
+              'SM','SM+Pr',
+              'T-NK','T',
+              'T-un','T'),
+            ncol = 2, byrow = TRUE,
+            dimnames = list(1:33,
+                            c("Cell_type", "Cell_group"))) %>%
+        as.data.frame()
+object$Cell_group = plyr::mapvalues(object$Cell_type,
+                                    from = df$Cell_type,
+                                    to = df$Cell_group)
+
+categories = c("Level 3 ASE","Level 3 ASE+AT","Level 3 Structural","Level 3 Immune")
+deg_list  = pbapply::pblapply(categories, function(category) {
+        readxl::read_excel(paste0(save.path,"Lung_30_DEG_Cell.category_neg_posLog2FC1.xlsx"),sheet = category)
+})
+names(deg_list) = categories
+for(i in seq_along(deg_list)){
+        deg = deg_list[[categories[i]]]
+        print(categories[i])
+        Idents(object) = unique(deg$Cell_category)
+        sub_object = subset(object, idents = unique(deg$cluster))
+        mt = as.matrix(sub_object[["SCT"]]@counts[unique(deg$gene),])
+        dt = as.data.table(mt)
+        colnames(dt) = make.unique(sub_object@meta.data[,unique(deg$Cell_category)])
+        GeneSymbol = data.frame("GeneSymbol" =  rownames(mt))
+        dt = cbind(GeneSymbol,dt)
+        rownames(dt) = rownames(mt)
+        fwrite(dt, file=paste0(save.path,"scRNA_reference_hg38_", categories[i],".txt"),quote = FALSE,
+               row.names = FALSE,sep = "\t")
+}
+
+
+
+
+
 
 # generate psedo bulk reference
-groups = c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
+save.path = "output/20220216/"
+groups = c("Level 3 combined","Cell_group","Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
+
 for(g in groups){
-        print(g)
+        g1 = g
+        if(g == "Level 3 combined") g = "Cell_group"
+        print(g1)
         Idents(object) = g
         expression = AggregateExpression(object,assay = "SCT",group.by = g)
         expression = expression$SCT
@@ -98,20 +169,13 @@ for(g in groups){
         tpm.mat = cbind(GeneSymbol,tpm.mat)
         rownames(tpm.mat) = rownames(tpm.mat)
         
-        deg <- readxl::read_excel("Yang/Lung_30/hg38/DE_analysis/Lung_30_DEG_Cell.category.xlsx",sheet = g)
+        deg <- readxl::read_excel(paste0(save.path,"Lung_30_DEG_Cell.category_neg_posLog2FC1.xlsx"),sheet = g1)
         keep_genes = unique(deg$gene)
         print(length(keep_genes))
-        
-        fwrite(tpm.mat[keep_genes,],file = paste0(save_path,"psudobulk_tpm_Lung30_hg38_",g,"_reference.txt"),quote = FALSE,
+        print(range(deg$avg_log2FC))
+        fwrite(tpm.mat[keep_genes,],file = paste0(save.path,"psudobulk_tpm_Lung30_hg38_",g1,"_reference.txt"),quote = FALSE,
                row.names = FALSE,sep = "\t")
 }
-# add "GeneSymbol" to the first line.
-
-
-
-
-
-
 
 
 # combine CIBERSORT with meta.data

@@ -62,6 +62,7 @@ rownames(df_samples) = df_samples$sample
 openxlsx::write.xlsx(df_samples, file =  paste0(path,"20210831_scRNAseq_info.xlsx"),
                      colNames = TRUE,row.names = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
+
 ## Load the GEX dataset
 message("Loading the datasets")
 Seurat_list <- pblapply(df_samples$sample.id, function(s){

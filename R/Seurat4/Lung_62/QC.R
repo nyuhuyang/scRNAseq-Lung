@@ -24,6 +24,7 @@ df_samples = as.data.frame(df_samples)
 colnames(df_samples) %<>% tolower()
 
 df_samples = df_samples[!grepl("Invitro", df_samples$condition),]
+
 # check missing data
 read.path = "data/scRNA-seq/counts"
 current <- list.files(read.path)
@@ -57,8 +58,8 @@ QC["Estimated.Number.of.Cells",] %>% gsub(",","",.) %>% as.numeric %>% sum
 write.csv(QC,paste0(path,"metrics_summary.csv"))
 df_samples %<>% cbind(t(QC))
 rownames(df_samples) = df_samples$sample
-openxlsx::write.xlsx(df_samples, file =  paste0(path,"20210831_scRNAseq_info.xlsx"),
-                     colNames = TRUE,row.names = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+openxlsx::write.xlsx(df_samples, file =  paste0(path,"20220322_scRNAseq_info.xlsx"),
+                     colNames = TRUE,row.names = T,borders = "surrounding")
 
 ## Load the GEX dataset
 message("Loading the datasets")
@@ -69,6 +70,7 @@ Seurat_list <- pblapply(df_samples$sample.id, function(s){
         colnames(tmp) = paste0(s,"-", colnames(tmp))
         CreateSeuratObject(tmp,min.cells = 0,names.delim = "-",min.features = 0)
 })
+names(Seurat_list) = df_samples$sample
 #========1.1.3 g1 QC plots before filteration=================================
 object <- Reduce(function(x, y) merge(x, y, do.normalize = F), Seurat_list)
 #remove(Seurat_list);GC()
@@ -82,7 +84,7 @@ object$orig.ident %<>% factor(levels = df_samples$`sample`)
 Idents(object) = "orig.ident"
 g1 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
         VlnPlot(object = object, features = features, ncol = 1, pt.size = 0.01)+
-                theme(axis.text.x = element_text(size=4,angle = 90,hjust = 1,vjust = 0.5),
+                theme(axis.text.x = element_text(size=5,angle = 90,hjust = 1,vjust = 0.5),
                       legend.position="none",plot.title = element_text(hjust = 0.5))
 })
 save(g1,file= paste0(path,"g1","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
@@ -104,7 +106,7 @@ object@meta.data = meta_data
 table(object$orig.ident, object$discard)
 
 object %<>% subset(subset = discard == FALSE
-                   &  nFeature_RNA > 200
+                   &  nFeature_RNA > 300
                    & nCount_RNA > 500
                    & percent.mt < 25
                    )
@@ -120,7 +122,7 @@ g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
 save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
 #load(paste0(save.path,"g2_58_20201009.Rda"))
 
-jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=14, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
                         scale_y_log10(limits = c(100,10000))+
                         theme(plot.title = element_text(hjust = 0.5)),
@@ -128,7 +130,7 @@ print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
                         scale_y_log10(limits = c(100,10000))+
                         theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
-jpeg(paste0(path,"S1_nUMI.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"S1_nUMI.jpeg"), units="in", width=14, height=7,res=600)
 print(plot_grid(g1[[2]]+ggtitle("nCount_RNA before filteration")+
                         scale_y_log10(limits = c(500,100000))+
                         theme(plot.title = element_text(hjust = 0.5)),
@@ -136,7 +138,7 @@ print(plot_grid(g1[[2]]+ggtitle("nCount_RNA before filteration")+
                         scale_y_log10(limits = c(500,100000))+
                         theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
-jpeg(paste0(path,"S1_mito.jpeg"), units="in", width=10, height=7,res=600)
+jpeg(paste0(path,"S1_mito.jpeg"), units="in", width=14, height=7,res=600)
 print(plot_grid(g1[[3]]+ggtitle("mito % before filteration")+
                         ylim(c(0,50))+
                         theme(plot.title = element_text(hjust = 0.5)),
@@ -147,4 +149,4 @@ dev.off()
 
 #====
 format(object.size(object),unit = "GB")
-saveRDS(object, file = "data/Lung_62_20210831.rds")
+saveRDS(object, file = "data/Lung_62_20220322.rds")

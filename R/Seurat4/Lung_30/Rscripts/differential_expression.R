@@ -20,7 +20,7 @@ object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
          "DEG analysis 1","DEG analysis 2",
          "DEG analysis 3-option 1",
          "DEG analysis 3-option 2","ASE",
-         "TASCs lvl")[7])
+         "TASCs lvl")[3])
 
 if(step == "resolutions"){
     opts = data.frame(ident = c(rep("UMAP_res=0.8",84),
@@ -148,7 +148,7 @@ if(step == "cell_types"){# 32~64GB
                               group.by = opt$ident,
                               assay = "SCT",
                               min.pct = 0.01,
-                              logfc.threshold = 1,
+                              logfc.threshold = 0.1,
                                  only.pos = F,
                                  test.use = "MAST",
                                  latent.vars = "nFeature_SCT")
@@ -177,10 +177,10 @@ if(step == "DEG analysis 1"){
     object@meta.data = meta.data
     
     DefaultAssay(object) = "SCT"
-    Region = switch(as.character(args <= 11),
+    Region = switch(as.character(args < 11),
                      "TRUE" ="distal",
                      "FALSE"= c("distal","terminal"))
-    Regions_name = ifelse(args <= 11, "_D", "_DT")
+    Regions_name = ifelse(args < 11, "_D", "_DT")
 
     Idents_list = list(ident1 = list("TASC",
                                      "TASC",
