@@ -3,7 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 #
 # ######################################################################
-# conda activate r4.0.3
+# conda activate r4.1.1
 #devtools::install_github("immunogenomics/harmony", ref= "ee0877a",force = T)
 invisible(lapply(c("Seurat","dplyr","ggplot2","cowplot","pbapply","sctransform","harmony","magrittr"), function(x) {
     suppressPackageStartupMessages(library(x,character.only = T))
@@ -20,7 +20,7 @@ if(!dir.exists(path)) dir.create(path, recursive = T)
 # ######################################################################
 #======1.1 Setup the Seurat objects =========================
 # read sample summary list
-df_samples <- readxl::read_excel(paste0(path,"20220322_scRNAseq_info.xlsx"))
+df_samples <- readxl::read_excel("output/20220322/20220322_scRNAseq_info.xlsx")
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) %<>% tolower()
 
@@ -81,7 +81,7 @@ jpeg(paste0(path,"S1_ElbowPlot_SCT.jpeg"), units="in", width=10, height=7,res=60
 ElbowPlot(object, ndims = 100)
 dev.off()
 
-saveRDS(object, file = "data/Lung_62_20210831.rds")
+saveRDS(object, file = "data/Lung_62_20220322.rds")
 
 #======1.8 UMAP from harmony =========================
 DefaultAssay(object) = "SCT"
@@ -111,6 +111,48 @@ for(i in 1:length(resolutions)){
     Progress(i,length(resolutions))
 }
 
+saveRDS(object, file = "data/Lung_62_20220322.rds")
+
+
+# ======1.8.5 Unimodal UMAP Projection =========================
+object = readRDS("data/Lung_62_20220322.rds")
+DefaultAssay(object) = "SCT"
+object[["raw.umap"]] <- CreateDimReducObject(embeddings = object@reductions[["umap"]]@cell.embeddings,
+                                             key = "rawUMAP_", assay = DefaultAssay(object))
+
+
+object.reference = readRDS("data/Lung_SCT_30_20210831.rds")
+object.reference[["orig.umap"]] <- CreateDimReducObject(embeddings = object.reference@reductions[["umap"]]@cell.embeddings,
+                                                 key = "origUMAP_", assay = DefaultAssay(object.reference))
+object.reference %<>% RunUMAP(reduction = "pca", dims = 1:100,return.model = TRUE)
+
+embedding = object.reference[["orig.umap"]]@cell.embeddings
+colnames(embedding) = c("UMAP_1","UMAP_2")
+object.reference[["umap"]]@cell.embeddings = embedding
+colnames(embedding) =NULL
+object.reference[["umap"]]@misc$model$embedding = embedding
+#length(setdiff(colnames(object),colnames(object_reference)))
+#newCells <- setdiff(colnames(object),colnames(object.reference))
+#object.query = object[,newCells]
+
+anchors <- FindTransferAnchors(reference = object.reference, query = object,
+                               dims = 1:30, reference.reduction = "pca")
+object <- MapQuery(anchorset = anchors,
+                     reference = object.reference, query = object,
+                     refdata = list(Cell_subtype = "Cell_subtype"),
+                     reference.reduction = "pca", reduction.model = "umap")
+colnames(object@meta.data) %<>% gsub("predicted.","",.)
+
+length(intersect(colnames(object),colnames(object.reference)))
+oldCells <- intersect(colnames(object),colnames(object.reference))
+object@meta.data[oldCells,"Cell_subtype"] = object.reference@meta.data[oldCells,"Cell_subtype"]
+#object.query = object[,newCells]
+
+meta.data = object.reference@meta.data
+meta.data = meta.data[!duplicated(meta.data$Cell_subtype),]
+object$Cell_subtype.colors = plyr::mapvalues(object$Cell_subtype,
+                                             from = meta.data$Cell_subtype,
+                                             to = meta.data$Cell_subtype.colors)
 saveRDS(object, file = "data/Lung_62_20220322.rds")
 
 
