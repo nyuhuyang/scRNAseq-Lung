@@ -29,3 +29,20 @@ deg_list = split(deg, f = deg$resolution)
 write.xlsx(deg_list, file = paste0(path,"Lung_62_DEG.xlsx"),
            colNames = TRUE, borders = "surrounding")
 
+#===========================================================
+csv_names = list.files("output/20220327/Cell_subtype",pattern = ".csv")
+deg_list <- pbapply::pblapply(csv_names, function(csv){
+        tmp <- read.csv(paste0("output/20220327/Cell_subtype/",csv),row.names = 1)
+        #tmp = tmp[tmp$p_val_adj < 0.05,]
+        tmp %<>% arrange(desc(avg_log2FC))
+        tmp$gene = rownames(tmp)
+        tmp
+})
+
+deg = bind_rows(deg_list)
+deg1 = filter(deg, avg_log2FC > 0) %>% group_by(cluster) %>% top_n(50, avg_log2FC)
+deg2 = filter(deg) %>% group_by(cluster) %>% top_n(100, abs(avg_log2FC))
+deg_list = list(deg1,deg2)
+names(deg_list) = c("postive","positve_negative")
+write.xlsx(deg_list, file = "output/20220327/WC_30_T_Adj_Dex_vs_Count.xlsx",
+           colNames = TRUE, borders = "surrounding")

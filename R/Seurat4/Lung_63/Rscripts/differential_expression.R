@@ -14,21 +14,21 @@ if (length(slurm_arrayid)!=1)  stop("Exact one argument must be supplied!")
 args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
-object = readRDS(file ="data/Lung_62_20220322.rds")
+object = readRDS(file ="data/Lung_SCT_63_20220408.rds")
 
-(step = c("resolutions","Cell_subtype")[2])
+(step = c("resolutions","Cell_subtype")[1])
 
 if(step == "resolutions"){# 32GB
-    opts = data.frame(ident = c(rep("SCT_snn_res.0.01",33),
-                                rep("SCT_snn_res.0.1",55),
-                                rep("SCT_snn_res.0.2",67),
-                                rep("SCT_snn_res.0.5",99),
-                                rep("SCT_snn_res.0.8",122)),
-                      num = c(0:32,
-                              0:54,
-                              0:66,
-                              0:98,
-                              0:121)
+    opts = data.frame(ident = c(rep("SCT_snn_res.0.01",26),
+                                rep("SCT_snn_res.0.1",51),
+                                rep("SCT_snn_res.0.2",62),
+                                rep("SCT_snn_res.0.5",91),
+                                rep("SCT_snn_res.0.8",117)),
+                      num = c(0:25,
+                              0:50,
+                              0:61,
+                              0:90,
+                              0:116)
                       )
 
     opt = opts[args,]

@@ -19,21 +19,19 @@ if(!dir.exists("doc")) dir.create("doc")
 # ######################################################################
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
-df_samples <- readxl::read_excel("doc/202108014_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20220406-samples metadata RS.xlsx", sheet = "RS in vivo metadata")
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) %<>% tolower()
-
-df_samples = df_samples[!grepl("Invitro", df_samples$condition),]
-
+nrow(df_samples)
 # check missing data
 read.path = "data/scRNA-seq/counts"
 current <- list.files(read.path)
-(missing_data <- df_samples$sample.id[!(df_samples$sample.id %in% current)])
+(missing_data <- df_samples$sample[!(df_samples$sample %in% current)])
 
 #======1.1.2 record data quality before removing low quanlity cells =========================
 # if args 2 is passed
 message("read metrics_summary")
-QC_list <- lapply(df_samples$sample.id, function(x){
+QC_list <- lapply(df_samples$sample, function(x){
         tmp = read.csv(file = paste0(read.path,"/",x,
                                "/outs/metrics_summary.csv"))
         t(tmp)
@@ -58,15 +56,15 @@ QC["Estimated.Number.of.Cells",] %>% gsub(",","",.) %>% as.numeric %>% sum
 write.csv(QC,paste0(path,"metrics_summary.csv"))
 df_samples %<>% cbind(t(QC))
 rownames(df_samples) = df_samples$sample
-openxlsx::write.xlsx(df_samples, file =  paste0(path,"20220322_scRNAseq_info.xlsx"),
+openxlsx::write.xlsx(df_samples, file =  paste0(path,"20220406_scRNAseq_info.xlsx"),
                      colNames = TRUE,row.names = T,borders = "surrounding")
 
 ## Load the GEX dataset
 message("Loading the datasets")
-Seurat_list <- pblapply(df_samples$sample.id, function(s){
+Seurat_list <- pblapply(df_samples$sample, function(s){
         tmp <- Read10X(data.dir = paste0(read.path,"/",as.character(s),"/outs/filtered_feature_bc_matrix"))
         colnames(tmp) %<>% gsub("-[0-9+]","",.)
-        s = df_samples[df_samples$sample.id == s,"sample"]
+        s = df_samples[df_samples$sample == s,"sample"]
         colnames(tmp) = paste0(s,"-", colnames(tmp))
         CreateSeuratObject(tmp,min.cells = 0,names.delim = "-",min.features = 0)
 })
@@ -124,10 +122,10 @@ save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys
 
 jpeg(paste0(path,"S1_nGene.jpeg"), units="in", width=14, height=7,res=600)
 print(plot_grid(g1[[1]]+ggtitle("nFeature_RNA before filteration")+
-                        scale_y_log10(limits = c(100,10000))+
+                        scale_y_log10(limits = c(100,15000))+
                         theme(plot.title = element_text(hjust = 0.5)),
                 g2[[1]]+ggtitle("nFeature_RNA after filteration")+
-                        scale_y_log10(limits = c(100,10000))+
+                        scale_y_log10(limits = c(100,15000))+
                         theme(plot.title = element_text(hjust = 0.5))))
 dev.off()
 jpeg(paste0(path,"S1_nUMI.jpeg"), units="in", width=14, height=7,res=600)
@@ -149,4 +147,4 @@ dev.off()
 
 #====
 format(object.size(object),unit = "GB")
-saveRDS(object, file = "data/Lung_62_20220322.rds")
+saveRDS(object, file = "data/Lung_63_20220408.rds")
