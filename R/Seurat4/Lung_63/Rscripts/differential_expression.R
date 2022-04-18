@@ -15,7 +15,7 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file ="data/Lung_SCT_63_20220408.rds")
-
+object@meta.data = readRDS(file = "data/Lung_63_20220408_meta.data.rds")
 (step = c("resolutions","Cell_subtype")[1])
 
 if(step == "resolutions"){# 32GB
@@ -23,12 +23,24 @@ if(step == "resolutions"){# 32GB
                                 rep("SCT_snn_res.0.1",51),
                                 rep("SCT_snn_res.0.2",62),
                                 rep("SCT_snn_res.0.5",91),
-                                rep("SCT_snn_res.0.8",117)),
+                                rep("SCT_snn_res.0.8",117),#
+                                rep("SCT_snn_res.0.9",121),
+                                rep("SCT_snn_res.1",134),
+                                rep("SCT_snn_res.2",191),
+                                rep("SCT_snn_res.3",249),
+                                rep("SCT_snn_res.4",289),
+                                rep("SCT_snn_res.5",330)),
                       num = c(0:25,
                               0:50,
                               0:61,
                               0:90,
-                              0:116)
+                              0:116,
+                              0:120,
+                              0:133,
+                              0:190,
+                              0:248,
+                              0:288,
+                              0:329)
                       )
 
     opt = opts[args,]
@@ -40,7 +52,7 @@ if(step == "resolutions"){# 32GB
                               group.by = opt$ident,
                               assay = "SCT",
                               #min.pct = 0.01,
-                              logfc.threshold = 0.5,
+                              logfc.threshold = 0.25,
                                  only.pos = T#,
                                  #test.use = "MAST",
                                  #latent.vars = "nFeature_SCT"
@@ -49,11 +61,13 @@ if(step == "resolutions"){# 32GB
     num = opt$num
     if(args < 10) num = paste0("0",num)
     if(args < 100) num = paste0("0",num)
-
+    if(args < 1000) num = paste0("0",num)
+    
     arg = args
     if(args < 10) arg = paste0("0",arg)
     if(args < 100) arg = paste0("0",arg)
-
+    if(args < 1000) arg = paste0("0",arg)
+    
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
 
