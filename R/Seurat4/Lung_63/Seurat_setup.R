@@ -60,13 +60,12 @@ object$age %<>% as.integer()
 object$age.bracket = cut(object$age, c(0,20,30,40,50,600,70,80))
 object$age.bracket %<>% droplevels()
 
-s.genes <- cc.genes$s.genes
-s.genes %<>% gsub("MLF1IP","CENPU",.)
-g2m.genes <- cc.genes$g2m.genes
-g2m.genes %<>% plyr::mapvalues(from = c("FAM64A", "HN1"),
-                               to = c("PIMREG","JPT1"))
-object <- CellCycleScoring(object, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-colnames(object@meta.data)[grep("Phase",colnames(object@meta.data))]="cell.cycle.phase"
+DefaultAssay(object) = "SCT"
+s.genes <- cc.genes$s.genes %>% gsub("MLF1IP","CENPU",.)
+g2m.genes <- cc.genes$g2m.genes %>% plyr::mapvalues(from = c("FAM64A", "HN1"),
+                                                    to = c("PIMREG","JPT1"))
+object %<>% CellCycleScoring(s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+colnames(object@meta.data) %<>% sub("Phase","cell.cycle.phase",.)
 
 
 # Determine the ‘dimensionality’ of the dataset  =========
@@ -134,20 +133,15 @@ object[["harmony.umap"]] <- CreateDimReducObject(embeddings = object@reductions[
 npcs = 100
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs)
 #system.time(object %<>% RunTSNE(reduction = "pca", dims = 1:npcs))
-object %<>% FindNeighbors(reduction = "umap",dims = 1:2)
-resolutions = c( 0.01, 0.1, 0.2, 0.5,0.8)
-for(i in 1:length(resolutions)){
-    object %<>% FindClusters(resolution = resolutions[i], algorithm = 1)
-    Progress(i,length(resolutions))
-}
-resolutions = c( 0.9, 1, 2, 3,4,5)
+object %<>% FindNeighbors(reduction = "pca",dims = 1:100)
+resolutions = c( 0.01, 0.1, 0.2, 0.5,0.8, 0.9, 1, 2, 3,4,5)
 for(i in 1:length(resolutions)){
     #object %<>% FindClusters(resolution = resolutions[i], algorithm = 1)
     print(table(object@meta.data[,paste0("SCT_snn_res.",resolutions[i])]))
-    Progress(i,length(resolutions))
+    #Progress(i,length(resolutions))
 }
 saveRDS(object, file = "data/Lung_63_20220408.rds")
-saveRDS(object@meta.data, file = "data/Lung_63_20220408_meta.data.rds")
+saveRDS(object@meta.data, file = "data/Lung_63_20220408_meta.data_v2.rds")
 
 # ======1.8.5 Unimodal UMAP Projection =========================
 #object = readRDS("data/Lung_63_20220408.rds")

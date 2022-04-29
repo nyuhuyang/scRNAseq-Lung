@@ -15,32 +15,32 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 object = readRDS(file ="data/Lung_SCT_63_20220408.rds")
-object@meta.data = readRDS(file = "data/Lung_63_20220408_meta.data.rds")
+object@meta.data = readRDS(file = "data/Lung_63_20220408_meta.data_v2.rds")
 (step = c("resolutions","Cell_subtype")[1])
 
 if(step == "resolutions"){# 32GB
-    opts = data.frame(ident = c(rep("SCT_snn_res.0.01",26),
-                                rep("SCT_snn_res.0.1",51),
-                                rep("SCT_snn_res.0.2",62),
-                                rep("SCT_snn_res.0.5",91),
-                                rep("SCT_snn_res.0.8",117),#
-                                rep("SCT_snn_res.0.9",121),
-                                rep("SCT_snn_res.1",134),
-                                rep("SCT_snn_res.2",191),
-                                rep("SCT_snn_res.3",249),
-                                rep("SCT_snn_res.4",289),
-                                rep("SCT_snn_res.5",330)),
-                      num = c(0:25,
-                              0:50,
-                              0:61,
-                              0:90,
-                              0:116,
-                              0:120,
-                              0:133,
-                              0:190,
-                              0:248,
-                              0:288,
-                              0:329)
+    opts = data.frame(ident = c(rep("SCT_snn_res.0.01",6),
+                                rep("SCT_snn_res.0.1",22),
+                                rep("SCT_snn_res.0.2",30),
+                                rep("SCT_snn_res.0.5",48),
+                                rep("SCT_snn_res.0.8",66),#
+                                rep("SCT_snn_res.0.9",68),
+                                rep("SCT_snn_res.1",72),
+                                rep("SCT_snn_res.2",107),
+                                rep("SCT_snn_res.3",129),
+                                rep("SCT_snn_res.4",151),
+                                rep("SCT_snn_res.5",180)),
+                      num = c(0:5,
+                              0:21,
+                              0:29,
+                              0:47,
+                              0:65,
+                              0:67,
+                              0:71,
+                              0:106,
+                              0:128,
+                              0:150,
+                              0:179)
                       )
 
     opt = opts[args,]
@@ -70,6 +70,7 @@ if(step == "resolutions"){# 32GB
     
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
+
 
 if(step == "Cell_subtype"){# 32~64GB
    DefaultAssay(object) = "SCT"

@@ -25,7 +25,7 @@ print(spread <- test_df[args,"spread"])
 print(min.dist <- test_df[args,"min_dist"])
 print(npcs <- test_df[args,"npcs"])
 
-file.name = paste0("cs",npcs,"_dist.",min.dist,"_spread.",spread)
+file.name = paste0("npcs",npcs,"_dist.",min.dist,"_spread.",spread)
 
 save.path <- paste0("output/",gsub("-","",Sys.Date()),"/",nfeatures)
 if(!dir.exists(save.path)) dir.create(save.path, recursive = T)
@@ -44,7 +44,7 @@ object %<>% RunPCA(verbose = T,npcs = npcs)
 object %<>% RunUMAP(reduction = "pca", dims = 1:npcs,min.dist = min.dist,spread = spread,
                     return.model = TRUE)
 
-UMAPPlot.1(object, group.by = "cell.types",do.print = T,raster=FALSE,no.legend = T,
+UMAPPlot.1(object, group.by = "Cell_subtype",do.print = T,raster=FALSE,no.legend = T,
            title = file.name,file.name = paste0(file.name,".jpeg"),
            save.path = save.path)
 
