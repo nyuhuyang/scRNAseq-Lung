@@ -2,7 +2,7 @@ library(Seurat)
 library(magrittr)
 library(tidyr)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/EXP12_30/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
 # Need 64GB ?
@@ -15,26 +15,46 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 #==========================
-object = readRDS(file = "data/Lung_SCT_time6_20210908.rds")
+object = readRDS(file = "data/Lung_time15_20220523.rds")
+object@meta.data = readRDS(file = "output/Lung_time15_metadata_20220523.rds")
 
-step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[4]
+step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[1]
 
 if(step == "resolutions"){
-    opts = paste0("SCT_snn_res.",c(0.01, 0.05, 0.09, 0.1, 0.5, 0.6, 0.7))
-    opt = opts[args]
+    opts = data.frame(ident = c(rep("SCT_snn_res.0.5",26),
+                                rep("SCT_snn_res.1",35),
+                                rep("SCT_snn_res.2",49),
+                                rep("SCT_snn_res.5",92)),
+                      num = c(0:25,
+                              0:34,
+                              0:48,
+                              0:91)
+                      )
+
+    opt = opts[args,] #1-202
     print(opt)
+    #==========================
+    Idents(object) = opt$ident
+
+    markers = FindMarkers_UMI(object, ident.1 = opt$num,
+                              group.by = opt$ident,
+                              assay = "SCT",
+                              min.pct = 0.1,
+                              logfc.threshold = 0.25,
+                                 only.pos = T#,
+                                 #test.use = "MAST",
+                                 #latent.vars = "nFeature_SCT"
+                              )
+    markers$cluster = opt$num
+    num = opt$num
+    if(args < 10) num = paste0("0",num)
+    if(args < 100) num = paste0("0",num)
     
-    Idents(object) = opt
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    if(args < 100) arg = paste0("0",arg)
     
-    markers = FindAllMarkers_UMI(object,
-                                 group.by = opt,
-                                 assay = "SCT",
-                                 logfc.threshold = 0.5,
-                                 only.pos = T,
-                                 test.use = "MAST",
-                                 latent.vars = "nFeature_SCT")
-    
-    write.csv(markers,paste0(path,args,"_",opt, ".csv"))
+    write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
 
 

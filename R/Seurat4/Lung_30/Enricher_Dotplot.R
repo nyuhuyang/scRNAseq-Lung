@@ -63,9 +63,10 @@ object %<>% subset(subset = Doublets == "Singlet" &
                        Superfamily != "Un")
 Idents(object) = "Cell_subtype"
 
-len <- 40
+len <- 30
 #==================================
-dotplot_df <- readxl::read_excel("doc/20211006_40-gene for for dotplot revised.xlsx")
+#dotplot_df <- readxl::read_excel("doc/20211006_40-gene for for dotplot revised.xlsx")
+dotplot_df <- readxl::read_excel("doc/20220508_30-gene dot plot.xlsx")
 dotplot_df <- dotplot_df[1:len,superfamily]
 dotplot_df = dotplot_df[complete.cases(dotplot_df),]
 genes = unique(unlist(df2list(dotplot_df),use.names = F))
@@ -101,6 +102,18 @@ for(i in seq_along(superfamily)){
     Progress(i, length(superfamily))
 }
 
+# === generate figure =======
+layout_largerFont <- c(
+    area(1, 1, 14, 12),
+    area(1, 13, 14, 24),
+    area(1, 25, 14, 36)
+)
+#plot(layout_largerFont)
+
+jpeg(paste0(path,"Dotplot_v3.jpeg"), units="in", width=19, 
+     height= 8.5,res=900)
+print(wrap_plots(g, nrow = 14, ncol = 36,design = layout_largerFont))
+dev.off()
 # for bottom 3 sub figures combine ==========
 adj = 10^-4
 exp.max = 300

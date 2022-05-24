@@ -8,7 +8,7 @@ invisible(lapply(c("Seurat","dplyr","ggplot2","scater","magrittr","pbapply",
                            suppressPackageStartupMessages(library(x,character.only = T))
                    }))
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_functions.R")
-path <- paste0("output/",gsub("-","",Sys.Date()),"/")
+path <- paste0("output/",gsub("-","",Sys.Date()),"/EXP12_30/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 if(!dir.exists("data")) dir.create("data")
 if(!dir.exists("doc")) dir.create("doc")
@@ -19,14 +19,11 @@ if(!dir.exists("doc")) dir.create("doc")
 # ######################################################################
 #======1.1 Load the data files and Set up Seurat object =========================
 # read sample summary list
-df_samples <- readxl::read_excel("doc/202108014_scRNAseq_info.xlsx")
+df_samples <- readxl::read_excel("doc/20220406-samples metadata RS.xlsx", sheet = "invitro")
 df_samples = as.data.frame(df_samples)
 colnames(df_samples) %<>% tolower()
 
-df_samples %<>% filter(condition %in% "Invitro") %>%
-        filter(patient %in% "EXP_12") %>%
-        filter(regions %in% paste0("D",c(0,3,7,14,21,28)))
-        
+nrow(df_samples)
 # check missing data
 read.path = "data/scRNA-seq/counts"
 current <- list.files(read.path)
@@ -60,7 +57,7 @@ QC["Estimated.Number.of.Cells",] %>% gsub(",","",.) %>% as.numeric %>% sum
 write.csv(QC,paste0(path,"metrics_summary.csv"))
 df_samples %<>% cbind(t(QC))
 rownames(df_samples) = df_samples$sample
-openxlsx::write.xlsx(df_samples, file =  paste0(path,"202108014_scRNAseq_info.xlsx"),
+openxlsx::write.xlsx(df_samples, file =  paste0(path,"20220523_scRNAseq_info.xlsx"),
                      colNames = TRUE,row.names = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 ## Load the GEX dataset
@@ -85,7 +82,7 @@ object$orig.ident %<>% factor(levels = df_samples$`sample`)
 Idents(object) = "orig.ident"
 g1 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
         VlnPlot(object = object, features = features, ncol = 1, pt.size = 0.01)+
-                theme(axis.text.x = element_text(size=15,angle = 90,hjust = 1,vjust = 0.5),
+                theme(axis.text.x = element_text(size=10,angle = 90,hjust = 1,vjust = 0.5),
                       legend.position="none",plot.title = element_text(hjust = 0.5))
 })
 save(g1,file= paste0(path,"g1","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
@@ -117,7 +114,7 @@ Idents(object) %<>% factor(levels = df_samples$`sample`)
 
 g2 <- lapply(c("nFeature_RNA", "nCount_RNA", "percent.mt"), function(features){
         VlnPlot(object = object, features = features, ncol = 1, pt.size = 0.01)+
-                theme(axis.text.x = element_text(size=15,angle = 90,hjust = 1,vjust = 0.5),
+                theme(axis.text.x = element_text(size=10,angle = 90,hjust = 1,vjust = 0.5),
                       legend.position="none",plot.title = element_text(hjust = 0.5))
 })
 save(g2,file= paste0(path,"g2","_",length(df_samples$sample),"_",gsub("-","",Sys.Date()),".Rda"))
@@ -150,4 +147,4 @@ dev.off()
 
 #====
 format(object.size(object),unit = "GB")
-saveRDS(object, file = "data/Lung_time6_20210908.rds")
+saveRDS(object, file = "data/Lung_time15_20220523.rds")
