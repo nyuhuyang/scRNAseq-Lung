@@ -37,21 +37,21 @@ meta.data %<>% cbind(umap$umap@cell.embeddings)
 meta.data %<>% cbind(meta.data_exp)
 
 #======== rename ident =================
-df_annotation <- readxl::read_excel("doc/Annotations/20210917_20UMAP res0.8 annotations.xlsx",
+df_annotation <- readxl::read_excel("doc/Annotations-3000-100-01-1.5-RS-5-22-22 RS.xlsx",
                                     sheet = "Sheet1")
-resolutions = paste0("SCT_snn_res.",c(0.8,2,4,5))
+resolutions = "SCT_snn_res.5"
 res = resolutions[1]
 keep = !is.na(pull(df_annotation[,res]))
-meta.data[,"Cell_subtype"] = plyr::mapvalues(meta.data[,res],
-                                             from = pull(df_annotation[keep,res]),
-                                             to = pull(df_annotation[keep,"Cell_subtype"])
-                                             )
+meta.data[,"label"] = plyr::mapvalues(meta.data[,res],
+                                     from = pull(df_annotation[keep,res]),
+                                     to = pull(df_annotation[keep,"label"])
+                                     )
 for(i in 1:length(resolutions)){
     keep = which(!is.na(pull(df_annotation[,resolutions[i]])))
         for(m in keep){
             cl = pull(df_annotation[m,resolutions[i]])
-            change_to = pull(df_annotation[m,"Cell_subtype"])
-            meta.data[meta.data[,resolutions[i]] %in% cl,"Cell_subtype"] = change_to
+            change_to = pull(df_annotation[m,"label"])
+            meta.data[meta.data[,resolutions[i]] %in% cl,"label"] = change_to
             print(paste (resolutions[i],"at",cl,"------->",change_to))
             }
 }
@@ -68,17 +68,17 @@ for(i in 1:length(resolutions[1:2])){
         
         select_id = meta.data %>% dplyr::filter(!!as.name(resolutions[i]) %in% cl) %>% 
                               dplyr::filter(eval(parse(text = df_annotation_UMAP$condition[m])))
-        meta.data[rownames(select_id),"Cell_subtype"] = change_to
+        meta.data[rownames(select_id),"label"] = change_to
         print(paste (resolutions[i],"at",cl,df_annotation_UMAP$condition[m],"------->",change_to))
     }
 }
 
-df_annotation = df_annotation %>% dplyr::filter(!is.na(Cell_subtype)) %>% dplyr::filter(!duplicated(Cell_subtype))
+df_annotation = df_annotation %>% dplyr::filter(!is.na(label)) %>% dplyr::filter(!duplicated(label))
 
 Cell_types <- c("Cell_type","UMAP_land","Family","Superfamily")
 for(Cell_type in Cell_types){
-    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
-                                            from = pull(df_annotation[,"Cell_subtype"]),
+    meta.data[,Cell_type] = plyr::mapvalues(meta.data$label,
+                                            from = pull(df_annotation[,"label"]),
                                             to = pull(df_annotation[,Cell_type]))
 }
 
@@ -88,13 +88,13 @@ df_annotation <- readxl::read_excel("doc/Annotations/Annotation adjustments 10-4
 colnames(df_annotation) %<>% gsub("modify_","",.)
 colnames(meta.data) %<>% gsub("SCT_snn_res.","X20UMAP_res_",.)
 for(i in 1:nrow(df_annotation)){
-    change_from = pull(df_annotation[i,"Cell_subtype"])
+    change_from = pull(df_annotation[i,"label"])
     change_to = pull(df_annotation[i,"label"])
-    print(paste ("If",df_annotation$Cell_subtype[i],df_annotation$condition[i],"------->",change_to))
+    print(paste ("If",df_annotation$label[i],df_annotation$condition[i],"------->",change_to))
     
-    select_id = meta.data %>% dplyr::filter(Cell_subtype == change_from) %>% 
+    select_id = meta.data %>% dplyr::filter(label == change_from) %>% 
         dplyr::filter(eval(parse(text = df_annotation$condition[i])))
-    meta.data[rownames(select_id),"Cell_subtype"] = change_to
+    meta.data[rownames(select_id),"label"] = change_to
 }
 
 # add color
@@ -151,22 +151,22 @@ df_color = t(data.frame(
     c("Un","#DEEBF7")))#
 df_color %<>% as.data.frame
 rownames(df_color) = NULL
-colnames(df_color) = c("Cell_subtype","Cell_subtype.colors")
-table(duplicated(df_color$Cell_subtype.colors))
+colnames(df_color) = c("label","label.colors")
+table(duplicated(df_color$label.colors))
 
-meta.data$Cell_subtype.colors =  plyr::mapvalues(meta.data$Cell_subtype,
-                                                 from = df_color$Cell_subtype,
-                                                 to = df_color$Cell_subtype.colors)
+meta.data$label.colors =  plyr::mapvalues(meta.data$label,
+                                                 from = df_color$label,
+                                                 to = df_color$label.colors)
 
 df_annotation <- readxl::read_excel("doc/Annotations/20210917_20UMAP res0.8 annotations.xlsx",
                                     sheet = "Sheet1")
-Cell_types <- c("Cell_subtype","Cell_type","UMAP_land","Family","Superfamily")
+Cell_types <- c("label","Cell_type","UMAP_land","Family","Superfamily")
 
-df_annotation = df_annotation[order(df_annotation$Cell_subtype),Cell_types]
-df_annotation = df_annotation[!duplicated(df_annotation$Cell_subtype),]
+df_annotation = df_annotation[order(df_annotation$label),Cell_types]
+df_annotation = df_annotation[!duplicated(df_annotation$label),]
 for(Cell_type in Cell_types[2:5]){
-    meta.data[,Cell_type] = plyr::mapvalues(meta.data$Cell_subtype,
-                                            from = pull(df_annotation[,"Cell_subtype"]),
+    meta.data[,Cell_type] = plyr::mapvalues(meta.data$label,
+                                            from = pull(df_annotation[,"label"]),
                                             to = pull(df_annotation[,Cell_type]))
 }
 
@@ -174,14 +174,14 @@ for(Cell_type in Cell_types[2:5]){
 table(rownames(object@meta.data) == rownames(meta.data))
 #colnames(object@meta.data) %<>% gsub("cell_types","old_cell_types",.)
 #object@meta.data %<>% cbind(meta.data)
-object$Cell_subtype = meta.data$Cell_subtype
-object$Cell_subtype.colors = meta.data$Cell_subtype.colors
+object$label = meta.data$label
+object$label.colors = meta.data$label.colors
 object$Cell_type = meta.data$Cell_type
 object$UMAP_land = meta.data$UMAP_land
 object$Family = meta.data$Family
 object$Superfamily = meta.data$Superfamily
 meta.data = object@meta.data
-saveRDS(meta.data, "output/20211004/meta.data_Cell_subtype.rds")
+saveRDS(meta.data, "output/20211004/meta.data_label.rds")
 object@meta.data = meta.data
 saveRDS(object, file = "data/Lung_SCT_30_20210831.rds")
 
@@ -235,16 +235,16 @@ colnames(SCG_exp) %<>% paste0("_lvl")
 #object@meta.data %<>% cbind(SCG_exp)
 SCG_exp$SCGB1A1_lvl %<>% paste0(" ")
 SCG_exp$SCGB3A2_lvl %<>% paste0(" ")
-object$Cell_subtype.SCGB1A1 = object$Cell_subtype
-object$Cell_subtype.SCGB3A2 = object$Cell_subtype
+object$label.SCGB1A1 = object$label
+object$label.SCGB3A2 = object$label
 
 
-SCG_exp[object$Cell_subtype != "TASC","SCGB1A1_lvl"] = ""
-SCG_exp[object$Cell_subtype != "TASC","SCGB3A2_lvl"] = ""
-object$Cell_subtype.SCGB1A1 %<>% paste0(SCG_exp$SCGB1A1_lvl,.)
-object$Cell_subtype.SCGB3A2 %<>% paste0(SCG_exp$SCGB3A2_lvl,.)
+SCG_exp[object$label != "TASC","SCGB1A1_lvl"] = ""
+SCG_exp[object$label != "TASC","SCGB3A2_lvl"] = ""
+object$label.SCGB1A1 %<>% paste0(SCG_exp$SCGB1A1_lvl,.)
+object$label.SCGB3A2 %<>% paste0(SCG_exp$SCGB3A2_lvl,.)
 
-TASC <- subset(object, subset = Cell_subtype %in% "TASC" & 
+TASC <- subset(object, subset = label %in% "TASC" & 
                    Doublets %in% "Singlet" &
                    Regions %in% c("distal","terminal"))
 TASC %<>% FindNeighbors(reduction = "umap",dims = 1:2)
