@@ -497,5 +497,3 @@ object$cell_group %<>% plyr::mapvalues(from = cell.type_list[["Stromal"]],
 object$cell_group %<>% plyr::mapvalues(from = cell.type_list[["Immune"]],
                                     to = rep("Immune",length(cell.type_list[["Immune"]])))
 table(object$cell_group)
-
-FindAllMarkers.UMI  

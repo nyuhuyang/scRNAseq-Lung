@@ -1,7 +1,7 @@
 library(Seurat)
 library(dplyr)
 library(tidyr)
-library(kableExtra)
+#library(kableExtra)
 library(magrittr)
 library(readxl)
 library(cowplot)
@@ -292,3 +292,47 @@ DoHeatmap.2(TASC, features = featuresNum, Top_n = Top_n,
             file.name = "Heatmap_top25_X4clusters~.jpeg",
             title = "Top 25 DE genes in 4 TASC clusters",
             save.path = path)
+#=========== sample 30 ==================
+object = readRDS(file = "data/Lung_SCT_30_20210831.rds")
+
+meta.data1 = readRDS("output/20211209/meta.data_azimuth_subtype.rds")
+meta.data2 = readRDS("output/20211222/meta.data_SCINA_Lung30_Azimuth_Cell_Types_2021.rds")
+remove = intersect(colnames(meta.data1),colnames(meta.data2))
+meta.data2 = meta.data2[,-which(colnames(meta.data2) %in% remove)]
+
+
+meta.data = cbind(meta.data1, meta.data2)
+meta.data = meta.data[,-grep("SCT_snn_res.*",colnames(meta.data))]
+cell.type_list <- list("Epithelial" = c("BC","IC","S1","S-Muc","TASC","H","p-C","C1","C-s",
+                                        "Ion","NE","ME","G-Muc","G-Ser","AT1","AT2"),
+                       "Structural" = c("Cr","Fb1","Fb2","Fb3","Fb4","Gli","SM1","SM2","SM3",
+                                        "Pr","En-a","En-c1","En-ca","En-v","En-SM","En-l"),
+                       "Immune" = c("Neu","Mon","M1","M1-2","M2","cDC","pDC","MC","B",
+                                    "PC","Tcn","T-ifn","Trm","CD8-T1","T-NK","NK")) %>%
+    unlist(use.names = FALSE)
+
+meta.data$Cell_subtype %<>% factor(levels = c(cell.type_list,"T-un","Un"))
+meta.data$Regions %<>% gsub("distal","pre-T",.)
+
+################
+df_samples <- readxl::read_excel("doc/20220825-samples metadata RS.xlsx",sheet = "invivo")
+df_samples %<>% filter(Sample %in% meta.data$orig.ident)
+
+table(meta.data$Patient %in% df_samples$Subject)
+meta.data$patient = plyr::mapvalues(meta.data$Patient,from = df_samples$Subject,
+                                    to = df_samples$`Subject ID`)
+meta.data$regions = plyr::mapvalues(meta.data$Regions,from = c("pre-T","terminal","proximal","COPD"),
+                                    to = c("pre-T","T","P","COPD"))
+meta.data$samples = paste0(meta.data$patient,"_",meta.data$regions)
+
+df_samples$orig.ident = paste0(df_samples$'Subject ID',"_",df_samples$group3)
+meta.data$samples %<>% factor(levels = unique(df_samples$orig.ident))
+table(rownames(object@meta.data) == rownames(meta.data))
+
+colnames(meta.data) %<>% gsub("azimuth_annotation","Azimuth_Lung",.)
+colnames(meta.data) %<>% gsub("20UMAP_res","UMAP_res",.)
+
+
+df_compartment <- readxl::read_excel("doc/Chord diagram cell order - updated abbreviations 12-14-20.xlsx")
+
+saveRDS(meta.data, file = "output/Lung_30_20210831_metadata_v2.rds")

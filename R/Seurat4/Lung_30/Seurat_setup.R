@@ -116,7 +116,7 @@ object %<>% SCTransform(method = "glmGamPoi", vars.to.regress = "percent.mt", ve
 object <- FindVariableFeatures(object = object, selection.method = "vst",
                                num.bin = 20, nfeatures = 2000,
                                mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
-object %<>% ScaleData(verbose = FALSE)
+#object %<>% ScaleData(verbose = FALSE)
 object %<>% RunPCA(verbose = T,npcs = 100)
 
 jpeg(paste0(path,"S1_ElbowPlot_SCT.jpeg"), units="in", width=10, height=7,res=600)

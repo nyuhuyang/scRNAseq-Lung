@@ -171,8 +171,8 @@ wilcox_res = cell_number %>% group_by(orig.ident,cell_types) %>%
     summarize(regions = regions,
               num = sum(num,na.rm = TRUE))
 wilcox_res_all1 <- wilcox_res
-
-wilcox_res_all2 = cell_number %>% dplyr::filter(cell_types %in% superfamily) %>% 
+(superfamily <- na.omit(unique(df_number$superfamily)))
+wilcox_res_all2 = cell_number %>% #dplyr::filter(cell_types %in% superfamily) %>% 
     group_by(orig.ident) %>% 
     summarize(total = sum(num,na.rm = TRUE))
 wilcox_res_all1$total = plyr::mapvalues(wilcox_res_all1$orig.ident,from = wilcox_res_all2$orig.ident, 
