@@ -47,6 +47,34 @@ object[["umap"]]@cell.embeddings[,"UMAP_1"] = object$umap_1
 object[["umap"]]@cell.embeddings[,"UMAP_2"] = object$umap_2
 UMAPPlot(object, group.by = "cell_type")
 saveRDS(object, file = paste0("data/GSE141259_",datasets,".rds"))
+#===============================
+object <- readRDS(paste0("data/GSE141259_",datasets,".rds"))
+pred <- readRDS(paste0("output/GSE141259_",datasets,"_singelR_bulkRNA-Lung30.rds"))
+
+singlerDF = data.frame("Cell_subtype" = pred$pruned.labels,
+                       row.names = rownames(pred))
+table(is.na(singlerDF$Cell_subtype))
+singlerDF$Cell_subtype[is.na(singlerDF$Cell_subtype)]= "unknown"
+table(singlerDF$Cell_subtype)
+if(all(colnames(object) == rownames(singlerDF))){
+    print("all cellID match!")
+    object$Cell_subtype = singlerDF$Cell_subtype
+}
+
+#Within the mouse CELL TYPE categories club cells and goblet cells:
+#identify those labeled as TASC CELL SUBTYPE (group A) using your method
+if(datasets =="WholeLung"){
+    TASC <- object$metacelltype %in% c("club_cells","goblet_cells") & object$Cell_subtype %in% "TASC"
+    print(table(TASC))
+    object$metacelltype[TASC] <-"TASC"
+    object$cell.type[TASC] <-"TASC"
+}
+if(datasets == "HighResolution"){
+    TASC <- object$meta_celltype %in% c("club cells","goblet cells") & object$Cell_subtype %in% "TASC"
+    print(table(TASC))
+    object$meta_celltype[TASC] <-"TASC"
+    object$cell_type[TASC] <-"TASC"
+}
 #-------
 library(Seurat)
 library(ShinyCell)
@@ -55,14 +83,15 @@ library(SeuratData)
 library(SeuratDisk)
 library(dplyr)
 object$mouse <- object$orig.ident
+meta.data <- object@meta.data
 
 if(datasets =="WholeLung"){
-    meta.to.include =c("cell.type","spline_cluster","metacelltype","grouping",
+    meta.to.include =c("Cell_subtype","cell.type","spline_cluster","metacelltype","grouping",
                        "orig.ident","nCount_RNA","nFeature_RNA","nGene","nUMI",
                        "identifier","res.2","RNA_snn_res.0.8","mouse")
 }
 if(datasets == "HighResolution"){
-    meta.to.include = c("cell_type","meta_celltype","orig.ident","nCount_RNA","nFeature_RNA", 
+    meta.to.include = c("Cell_subtype","cell_type","meta_celltype","orig.ident","nCount_RNA","nFeature_RNA", 
                         "identifier","sample_id","time_point",
                         "louvain_cluster","percent_mito","n_counts","n_genes",
                         "RNA_snn_res.0.8" ,"mouse")
@@ -85,8 +114,14 @@ max_exp_df = data.frame("val"= as.vector(max_exp),row.names = rownames(object))
 saveRDS(max_exp_df,paste0(shiny.dir,"sc1maxlvl.rds"))
 
 sc1def = readRDS(paste0(shiny.dir,"sc1def.rds"))
-sc1def$grp1 = "cell.type"
-sc1def$grp2 = "orig.ident"
+if(datasets =="WholeLung"){
+    sc1def$grp1 = "cell.type"
+    sc1def$grp2 = "metacelltype"
+}
+if(datasets == "HighResolution"){
+    sc1def$grp1 = "cell_type"
+    sc1def$grp2 = "meta_celltype"
+}
 saveRDS(sc1def,paste0(shiny.dir,"sc1def.rds"))
 
 
@@ -108,5 +143,5 @@ format(object.size(object),unit = "GB")
 
 file.remove(paste0(shiny.dir,"sc1csr_gexpr.h5ad"))
 SaveH5Seurat(object, filename = paste0(shiny.dir,"sc1csr_gexpr.h5Seurat"))
-Convert(paste0(shiny.dir,"sc1csr_gexpr.h5Seurat", dest = "h5ad"))
+Convert(paste0(shiny.dir,"sc1csr_gexpr.h5Seurat"), dest = "h5ad")
 file.remove(paste0(shiny.dir,"sc1csr_gexpr.h5Seurat"))

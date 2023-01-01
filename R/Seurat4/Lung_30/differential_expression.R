@@ -286,3 +286,34 @@ deg_list  = pbapply::pblapply(deg_list, function(deg) {
 })
 openxlsx::write.xlsx(deg_list, file =  paste0(path,"Lung_30_DEG_Cell.category_posLog2FC1.xlsx"),
                      colNames = TRUE,row.names = F,borders = "surrounding",overwrite = T)
+
+#=========TASCs vs Club+Goblet cells============================
+deg_names <- list.files("output/20221118/TASCs vs Club+Goblet cells",full.names = TRUE)
+deg_list  = pbapply::pblapply(deg_names, function(xlsx) {
+    tmp <- readxl::read_excel(xlsx)
+    tmp$datasets <- sub(".xlsx","",xlsx) %>% sub(".*in ","",.)
+    tmp
+})
+
+names(deg_list) = gsub("2022-11-18-|.xlsx","",list.files("output/20221118/TASCs vs Club+Goblet cells"))
+colnames(deg_list[["Lung_30_DEG_Cell.category in Lung30"]]) = c("p_val","avg_log2FC","pts","pts_rest","p_val_adj",
+                                                      "scores","avg_UMI.2","group","Cell_category","genes","datasets")
+deg_list[["Lung_30_DEG_Cell.category in Lung30"]] = deg_list[["Lung_30_DEG_Cell.category in Lung30"]][,colnames(deg_list[[1]])]
+deg <- bind_rows(deg_list) %>% filter()
+deg$group %<>% gsub("club cells|club_cells|Club_cells|goblet cells|goblet_cells|Goblet_cells",
+                    "Club_Goblet cells",.)
+deg %<>% filter(group %in% c("Club_Goblet cells","TASC") & p_val_adj < 0.05)
+colnames(deg) %<>% sub("genes","gene",.)
+deg$group %<>% as.character()
+deg$gene %<>% toupper()
+for(fc_value in c(1,0.5,0.25)){
+    eulerr(deg, key = unique(deg$group),
+           group.by = "group", shape =  "circle",
+           cut_off = "avg_log2FC", cut_off_value = fc_value,do.print = T,
+           save.path = path, file.name =paste0("Venn_invivo_log2fc_",fc_value,".jpeg"))
+}
+
+deg %<>% filter(avg_log2FC >0.5)
+openxlsx::write.xlsx(deg, file =  "output/20221118/TASCs vs Club+Goblet cells.xlsx",
+                     colNames = TRUE,rowNames = FALSE,borders = "surrounding")
+
