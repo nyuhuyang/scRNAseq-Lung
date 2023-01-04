@@ -21,11 +21,15 @@ object@meta.data = readRDS(file = "output/Lung_time15_metadata_20220523.rds")
 step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[1]
 
 if(step == "resolutions"){
-    opts = data.frame(ident = c(rep("SCT_snn_res.0.5",26),
+    opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
+                                rep("SCT_snn_res.0.5",26),
+                                rep("SCT_snn_res.0.8",33),
                                 rep("SCT_snn_res.1",35),
                                 rep("SCT_snn_res.2",49),
                                 rep("SCT_snn_res.5",92)),
-                      num = c(0:25,
+                      num = c(0:20,
+                              0:25,
+                              0:32,
                               0:34,
                               0:48,
                               0:91)
