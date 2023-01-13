@@ -5,7 +5,7 @@ source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4
 path <- paste0("output/",gsub("-","",Sys.Date()),"/EXP12_30/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
-# Need 64GB ?
+
 set.seed(101)
 # SLURM_ARRAY_TASK_ID
 slurm_arrayid <- Sys.getenv('SLURM_ARRAY_TASK_ID')
@@ -20,7 +20,7 @@ object@meta.data = readRDS(file = "output/Lung_time15_metadata_20220523.rds")
 
 step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[1]
 
-if(step == "resolutions"){
+if(step == "resolutions"){ # Need 64GB 
     opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
                                 rep("SCT_snn_res.0.5",26),
                                 rep("SCT_snn_res.0.8",33),

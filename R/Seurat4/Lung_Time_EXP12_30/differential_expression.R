@@ -7,12 +7,15 @@ path <- paste0("output/",gsub("-","",Sys.Date()),"/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
 # if(step == "resolutions"){
-res = c(0.5, 1, 2, 5)
+#res = c(0.5, 1, 2, 5)
+res = c(0.3, 0.8)
 csv_names = paste0("SCT_snn_res.",res)
 
 
 deg_list <- pbapply::pblapply(csv_names, function(csv_name){
-        csv = list.files("output/20220524/EXP12_30",pattern = csv_name,full.names = T)
+        #csv = list.files("output/20220524/EXP12_30",pattern = csv_name,full.names = T) 
+        csv = list.files("output/20230104/EXP12_30",pattern = csv_name,full.names = T)
+        
         tmp <- lapply(csv, function(x){
                 temp = read.csv(x,row.names = 1)
                 temp$gene = rownames(temp)
@@ -29,7 +32,8 @@ names(deg_list) =csv_names
 
 write.xlsx(deg_list, file = "output/20220524/Lung_time_EXP12_30.xlsx",
            colNames = TRUE, borders = "surrounding")
-
+write.xlsx(deg_list, file = "output/20230104/Lung_time_EXP12_30_.xlsx",
+           colNames = TRUE, borders = "surrounding")
 #if(step == "Analysis 1a"){# 16~32GB
 types = c("Cell_subtype","Cell_type")
 DEG1 <- pbapply::pblapply(types, function(type){
