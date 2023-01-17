@@ -3,7 +3,7 @@
 #  0 setup environment, install libraries if necessary, load libraries
 #
 # ######################################################################
-# conda activate r4.0.3
+# conda activate r4.1.3
 #devtools::install_github("immunogenomics/harmony", ref= "ee0877a",force = T)
 invisible(lapply(c("Seurat","dplyr","ggplot2","cowplot","pbapply","sctransform","harmony","magrittr"), function(x) {
     suppressPackageStartupMessages(library(x,character.only = T))
@@ -57,34 +57,6 @@ g2m.genes <- cc.genes$g2m.genes %>% plyr::mapvalues(from = c("FAM64A", "HN1"),
 object <- CellCycleScoring(object, s.features = s.genes, g2m.features = g2m.genes, set.ident = FALSE)
 colnames(object@meta.data) %<>% sub("Phase","cell cycle phase",.)
 
-
-# Determine the ‘dimensionality’ of the dataset  =========
-npcs = 100
-
-DefaultAssay(object) <- "RNA"
-object %<>% NormalizeData()
-object <- FindVariableFeatures(object = object, selection.method = "vst",
-                               num.bin = 20, nfeatures = 2000,
-                               mean.cutoff = c(0.1, 8), dispersion.cutoff = c(1, Inf))
-object %<>% ScaleData(verbose = FALSE)
-object %<>% RunPCA(npcs = 100, verbose = FALSE)
-
-
-jpeg(paste0(path,"ElbowPlot_RNA.jpeg"), units="in", width=10, height=7,res=600)
-print(ElbowPlot(object,ndims = 100))
-dev.off()
-object <- JackStraw(object, num.replicate = 20,dims = npcs)
-object <- ScoreJackStraw(object, dims = 1:npcs)
-
-for(i in 0:9){
-    a = i*10+1; b = (i+1)*10
-    jpeg(paste0(path,"JackStrawPlot_",a,"_",b,".jpeg"), units="in", width=10, height=7,res=600)
-    print(JackStrawPlot(object, dims = a:b))
-    dev.off()
-    Progress(i, 9)
-}
-p.values = object[["pca"]]@jackstraw@overall.p.values
-print(npcs <- max(which(p.values[,"Score"] <=0.05)))
 
 # Determine the ‘dimensionality’ of the dataset  =========
 npcs = 100

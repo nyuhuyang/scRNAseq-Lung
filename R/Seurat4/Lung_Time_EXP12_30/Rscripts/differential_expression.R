@@ -1,6 +1,7 @@
 library(Seurat)
 library(magrittr)
 library(tidyr)
+library(dplyr)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
 path <- paste0("output/",gsub("-","",Sys.Date()),"/EXP12_30/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
@@ -16,9 +17,12 @@ print(paste0("slurm_arrayid=",args))
 
 #==========================
 object = readRDS(file = "data/Lung_time15_20220523.rds")
-object@meta.data = readRDS(file = "output/Lung_time15_metadata_20220523.rds")
-
-step = c("resolutions","Analysis 1a","Analysis 1b","Analysis 2")[1]
+meta.data <- readRDS("output/Lung_time15_metadata_20220523_v2.rds")
+if(all(colnames(object) == rownames(meta.data))){
+    print("all cellID match!")
+    object@meta.data <- meta.data
+}
+step = c("resolutions","DGEs","Analysis 1a","Analysis 1b","Analysis 2")[1]
 
 if(step == "resolutions"){ # Need 64GB 
     opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
@@ -61,6 +65,45 @@ if(step == "resolutions"){ # Need 64GB
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",num, ".csv"))
 }
 
+if(step == "DGEs"){ # Need 64GB 
+    opts <- meta.data[!duplicated(meta.data$`cell state`),
+                            c("cell state","cell type","cell group","Stage","Path")] %>%
+        tidyr::pivot_longer(everything(),names_to = "ident") %>% 
+        distinct(ident, value) %>%
+        arrange(ident,value)
+    
+    #opts = data.frame(ident = c(rep("cell state",25),
+    #                            rep("cell type",11),
+    #                            rep("cell group",6),
+    #                            rep("Stage",5),
+    #                            rep("Stage",2)),
+    #                  num = c(1:25,
+    #                          1:11,
+    #                          1:6,
+    #                          1:5,
+    #                          1:2)
+    #)
+    opt = opts[args,]
+    
+    print(opt)
+    #==========================
+    Idents(object) = opt$ident
+    
+    markers = FindMarkers_UMI(object, ident.1 = opt$value,
+                              group.by = opt$ident,
+                              assay = "SCT",
+                              min.pct = 0.1,
+                              logfc.threshold = 0.1,
+                              only.pos = TRUE#,
+                              #test.use = "MAST",
+                              #latent.vars = "nFeature_SCT"
+    )
+    markers$cluster = opt$value
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+
+    write.csv(markers,paste0(path,arg,"_",opt$ident,"_",opt$value, ".csv"))
+}
 
 if(step == "Analysis 1a"){# 16~32GB
     DefaultAssay(object) = "SCT"

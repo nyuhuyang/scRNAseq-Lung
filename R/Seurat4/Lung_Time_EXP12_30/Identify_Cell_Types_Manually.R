@@ -28,7 +28,7 @@ for(i in 1:length(resolutions)){
             select_id <- meta.data %>% dplyr::filter(!!as.name(resolutions[i]) %in% cl)
             if(!is.na(df_annotation$`subsetting step`[m])) {
                 subsetting <- df_annotation$`subsetting step`[m]
-                select_id %<>% dplyr::filter(eval(parse(text = subsetting)))
+                select_id1 <- dplyr::filter(select_id,eval(parse(text = subsetting)))
             } else subsetting <- ""
 
             meta.data[rownames(select_id),"cell state"] = change_to
