@@ -28,27 +28,26 @@ for(i in 1:length(resolutions)){
             select_id <- meta.data %>% dplyr::filter(!!as.name(resolutions[i]) %in% cl)
             if(!is.na(df_annotation$`subsetting step`[m])) {
                 subsetting <- df_annotation$`subsetting step`[m]
-                select_id1 <- dplyr::filter(select_id,eval(parse(text = subsetting)))
+                select_id <- dplyr::filter(select_id,eval(parse(text = subsetting)))
             } else subsetting <- ""
 
-            meta.data[rownames(select_id),"cell state"] = change_to
+            meta.data[rownames(select_id),"cell state"] <- change_to
             output <- paste(nrow(select_id),"cells in",resolutions[i],"at cluster",cl,subsetting,"------->",change_to)
             print(output)
             df_annotation[m,"output"] <- output
         }
 }
+openxlsx::write.xlsx(df_annotation, file =  paste0(path,"20230113 Annotation ALI EX-12 30 YH.xlsx"),
+                     colNames = TRUE,rowNames = FALSE,borders = "surrounding")
 
 Cell_types <- c("cell state","cell type","cell group","Stage","Path")
 
 df_annotation %<>% as.data.frame()
+df_annotation <- df_annotation[!duplicated(df_annotation$`cell state`),]
 for(Cell_type in Cell_types){
-    df_annotation[,"cell state"] %<>% gsub(".*\\.","",.)
     meta.data[,Cell_type] = plyr::mapvalues(meta.data$`cell state`,
                                             from = df_annotation[,"cell state"],
                                             to = df_annotation[,Cell_type])
 }
 
-
-openxlsx::write.xlsx(df_annotation, file =  paste0(path,"20230113 Annotation ALI EX-12 30 YH.xlsx"),
-                     colNames = TRUE,rowNames = FALSE,borders = "surrounding")
 saveRDS(meta.data, file = "output/Lung_time15_metadata_20220523_v2.rds")

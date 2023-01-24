@@ -22,7 +22,7 @@ if(all(colnames(object) == rownames(meta.data))){
     print("all cellID match!")
     object@meta.data <- meta.data
 }
-step = c("resolutions","DGEs","Analysis 1a","Analysis 1b","Analysis 2")[1]
+step = c("resolutions","DGEs","DGEs_group","Analysis 1a","Analysis 1b","Analysis 2")[3]
 
 if(step == "resolutions"){ # Need 64GB 
     opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
@@ -66,31 +66,21 @@ if(step == "resolutions"){ # Need 64GB
 }
 
 if(step == "DGEs"){ # Need 64GB 
-    opts <- meta.data[!duplicated(meta.data$`cell state`),
-                            c("cell state","cell type","cell group","Stage","Path")] %>%
-        tidyr::pivot_longer(everything(),names_to = "ident") %>% 
-        distinct(ident, value) %>%
-        arrange(ident,value)
-    
-    #opts = data.frame(ident = c(rep("cell state",25),
-    #                            rep("cell type",11),
-    #                            rep("cell group",6),
-    #                            rep("Stage",5),
-    #                            rep("Stage",2)),
-    #                  num = c(1:25,
-    #                          1:11,
-    #                          1:6,
-    #                          1:5,
-    #                          1:2)
-    #)
-    opt = opts[args,]
+    meta.data[!duplicated(meta.data$`cell state`),
+              c("cell state","cell type","cell group","Stage","Path")] %>% 
+        tidyr::pivot_longer(c("cell type","cell group","Stage","Path"),
+                            names_to = "ident") %>% 
+        arrange(`cell state`) -> opts
+     
+    opt = opts[args,] # 1-220
     
     print(opt)
     #==========================
-    Idents(object) = opt$ident
+    object %<>% subset(subset = opt$ident == opt$value)
+    Idents(object) = "cell state"
     
-    markers = FindMarkers_UMI(object, ident.1 = opt$value,
-                              group.by = opt$ident,
+    markers = FindMarkers_UMI(object, ident.1 = opt$`cell state`,
+                              group.by = "cell state",
                               assay = "SCT",
                               min.pct = 0.1,
                               logfc.threshold = 0.1,
@@ -103,6 +93,40 @@ if(step == "DGEs"){ # Need 64GB
     if(args < 10) arg = paste0("0",arg)
 
     write.csv(markers,paste0(path,arg,"_",opt$ident,"_",opt$value, ".csv"))
+}
+
+if(step == "DGEs_group"){ # Need 64GB 
+    meta.data[!duplicated(meta.data$`cell state`),
+              c("cell state","cell type","cell group","Stage","Path")] %>% 
+        rename_with(~ gsub(" ", "_", .x, fixed = TRUE)) %>%
+        tidyr::pivot_longer(!cell_state,
+                            names_to = "ident") %>% 
+        arrange(cell_state) -> opts
+    
+    opt = opts[args,] # 1-220
+    
+    print(opt)
+    #==========================
+    colnames(object@meta.data) %<>% gsub(" ", "_", ., fixed = TRUE)
+    object <- object[,object@meta.data[, opt$ident] == opt$value]
+    Idents(object) = "cell state"
+    
+    markers = FindMarkers_UMI(object, ident.1 = opt$cell_state,
+                              group.by = "cell_state",
+                              assay = "SCT",
+                              min.pct = 0.1,
+                              logfc.threshold = 0.1,
+                              only.pos = TRUE#,
+                              #test.use = "MAST",
+                              #latent.vars = "nFeature_SCT"
+    )
+    markers$category = opt$ident
+    markers$cluster = opt$value
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    if(args < 100) arg = paste0("0",arg)
+    
+    write.csv(markers,paste0(path,arg,"_",opt$cell_state,"_in_",opt$ident,"_",opt$value, ".csv"))
 }
 
 if(step == "Analysis 1a"){# 16~32GB
