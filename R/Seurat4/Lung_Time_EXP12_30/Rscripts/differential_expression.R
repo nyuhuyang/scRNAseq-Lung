@@ -16,13 +16,13 @@ args <- as.integer(as.character(slurm_arrayid))
 print(paste0("slurm_arrayid=",args))
 
 #==========================
-object = readRDS(file = "data/Lung_time15_20220523.rds")
+object = readRDS(file = "data/Lung_time15_SoupX_20230129.rds")
 meta.data <- readRDS("output/Lung_time15_metadata_20220523_v2.rds")
 if(all(colnames(object) == rownames(meta.data))){
     print("all cellID match!")
     object@meta.data <- meta.data
 }
-step = c("resolutions","DGEs","DGEs_group","Analysis 1a","Analysis 1b","Analysis 2")[3]
+step = c("resolutions","DGEs","DGEs_group","DGEs_group2","Analysis 1a","Analysis 1b","Analysis 2")[4]
 
 if(step == "resolutions"){ # Need 64GB 
     opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
@@ -126,7 +126,43 @@ if(step == "DGEs_group"){ # Need 64GB
     if(args < 10) arg = paste0("0",arg)
     if(args < 100) arg = paste0("0",arg)
     
+    path <- paste0(path,step,"/")
+    if(!dir.exists(path)) dir.create(path, recursive = T)
     write.csv(markers,paste0(path,arg,"_",opt$cell_state,"_in_",opt$ident,"_",opt$value, ".csv"))
+}
+
+if(step == "DGEs_group2"){ # Need 128GB 
+    meta.data[!duplicated(meta.data$Stage),c("Stage","Path")] %>%
+        tidyr::pivot_longer(!Stage,
+                            names_to = "ident") %>% 
+        arrange(Stage) -> opts
+    
+    opt = opts[args,] # 1-8
+    
+    print(opt)
+    #==========================
+    object %<>% subset(subset = Path == opt$value)
+    Idents(object) = "Stage"
+    
+    markers = FindMarkers_UMI(object, ident.1 = opt$Stage,
+                              group.by = "Stage",
+                              assay = "SCT",
+                              min.pct = 0.1,
+                              logfc.threshold = 0.1,
+                              only.pos = TRUE#,
+                              #test.use = "MAST",
+                              #latent.vars = "nFeature_SCT"
+    )
+    markers$gene = rownames(markers)
+    markers$Stage = opt$Stage
+    markers$category = opt$ident
+    markers$cluster = opt$value
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    path <- paste0(path,step,"/")
+    if(!dir.exists(path)) dir.create(path, recursive = T)
+    write.csv(markers,paste0(path,arg,"_",opt$Stage,"_in_",opt$ident,"_",opt$value, ".csv"))
 }
 
 if(step == "Analysis 1a"){# 16~32GB

@@ -58,7 +58,7 @@ write.csv(QC,paste0(path,"metrics_summary.csv"))
 df_samples %<>% cbind(t(QC))
 rownames(df_samples) = df_samples$sample
 openxlsx::write.xlsx(df_samples, file =  paste0(path,"20220523_scRNAseq_info.xlsx"),
-                     colNames = TRUE,row.names = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
+                     colNames = TRUE,rownames = T,borders = "surrounding",colWidths = c(NA, "auto", "auto"))
 
 ## Load the GEX dataset
 message("Loading the datasets")

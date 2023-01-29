@@ -15,7 +15,7 @@ if(!dir.exists(path))dir.create(path, recursive = T)
 meta.data <- readRDS("output/Lung_time15_metadata_20220523.rds")
 meta.data$sample <- meta.data$patient
 #======== rename ident =================
-df_annotation <- readxl::read_excel("doc/Annotations/20230109 Annotation ALI EX-12 30 RS.xlsx",
+df_annotation <- readxl::read_excel("doc/Annotations/20230125 Annotation ALI EX-12-30 RS.xlsx",
                                     sheet = "annotation")
 df_annotation$output <- "unknown"
 resolutions = c("SCT_snn_res.0.8","SCT_snn_res.2")
@@ -37,7 +37,7 @@ for(i in 1:length(resolutions)){
             df_annotation[m,"output"] <- output
         }
 }
-openxlsx::write.xlsx(df_annotation, file =  paste0(path,"20230113 Annotation ALI EX-12 30 YH.xlsx"),
+openxlsx::write.xlsx(df_annotation, file =  paste0(path,"20230125 Annotation ALI EX-12 30 YH.xlsx"),
                      colNames = TRUE,rowNames = FALSE,borders = "surrounding")
 
 Cell_types <- c("cell state","cell type","cell group","Stage","Path")

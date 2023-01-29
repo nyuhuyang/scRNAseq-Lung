@@ -70,7 +70,76 @@ names(deg_list) <- c("cell state","cell type","cell group","Stage","Path")
 write.xlsx(deg_list, file = "output/20230120/Lung_time_EXP12_30_DEGs.xlsx",
            colNames = TRUE, borders = "surrounding")
 
-#if(step == "Analysis 1a"){# 16~32GB
+
+
+#if(step == "DGEs_group"){ # Need 64GB 
+csv_names <- c("cell_type","cell_group","Stage","Path")
+
+csv_file = list.files("output/20230126/EXP12_30/DGEs_group",pattern = ".csv",full.names = T)
+length(csv_file)
+basename(csv_file) %>% gsub("_.*","",.) %>% as.integer()  -> csv_ind
+all_ind <- 1:220
+all_ind[!all_ind %in% csv_ind]
+
+meta.data <- readRDS("output/Lung_time15_metadata_20220523_v2.rds")
+meta.data[!duplicated(meta.data$`cell state`),
+          c("cell state","cell type","cell group","Stage","Path")] %>% 
+    rename_with(~ gsub(" ", "_", .x, fixed = TRUE)) %>%
+    tidyr::pivot_longer(!cell_state,
+                        names_to = "ident") %>% 
+    arrange(cell_state) -> opts
+
+opts[all_ind[!all_ind %in% csv_ind],]
+deg_list <- pbapply::pblapply(csv_names, function(csv_name){
+    csv = list.files("output/20230124/EXP12_30",pattern = csv_name,full.names = T)
+    
+    tmp <- lapply(csv, function(x){
+        temp = read.csv(x,row.names = 1)
+        temp$cell_state <- sub("[0-9][0-9][0-9]_","",basename(x)) %>% sub("_.*","",.)
+        temp$gene <- rownames(temp)
+        temp
+    })
+    tmp %<>% bind_rows()
+    tmp = tmp[tmp$p_val_adj < 0.05,]
+    
+    tmp %<>% group_by(cell_state) %>% arrange(desc(avg_log2FC), .by_group = TRUE)
+    tmp[,c("p_val","avg_log2FC","pct.1","pct.2","p_val_adj","avg_UMI.1","avg_UMI.2","gene","cell_state","category","cluster")]
+})
+head(deg_list[[1]])
+names(deg_list) <- csv_names
+write.xlsx(deg_list, file = "output/20230124/Lung_time_EXP12_30_DEGs_in_group.xlsx",
+           colNames = TRUE, borders = "surrounding")
+
+
+#if(step == "DGEs_group2"){ # Need 64GB 
+csv_names <- c("Path")
+
+csv_file = list.files("output/20230125/EXP12_30",pattern = ".csv",full.names = T)
+length(csv_file)
+basename(csv_file) %>% gsub("_.*","",.) %>% as.integer()  -> csv_ind
+all_ind <- 1:8
+all_ind[!all_ind %in% csv_ind]
+
+meta.data <- readRDS("output/Lung_time15_metadata_20220523_v2.rds")
+meta.data[!duplicated(meta.data$Stage),c("Stage","Path")] %>%
+    tidyr::pivot_longer(!Stage,
+                        names_to = "ident") %>% 
+    arrange(Stage) -> opts
+
+opts[all_ind[!all_ind %in% csv_ind],]
+deg <- pbapply::pblapply(csv_file, function(csv_name){
+
+    tmp <- read.csv(csv_name,row.names = 1)
+    }) %>% bind_rows() %>%
+    filter(p_val_adj < 0.05) %>% 
+    group_by(Stage) %>% arrange(desc(avg_log2FC), .by_group = TRUE)
+
+
+write.xlsx(deg, file = "output/20230125/Lung_time_EXP12_30_DEGs_in_group2.xlsx",
+           colNames = TRUE, borders = "surrounding")
+
+
+ #if(step == "Analysis 1a"){# 16~32GB
 types = c("Cell_subtype","Cell_type")
 DEG1 <- pbapply::pblapply(types, function(type){
         csv_names = list.files("output/20211018/Analysis 1a",pattern = type,full.names = T)
