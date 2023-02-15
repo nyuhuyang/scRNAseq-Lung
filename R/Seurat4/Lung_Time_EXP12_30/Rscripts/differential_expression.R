@@ -3,6 +3,7 @@ library(magrittr)
 library(tidyr)
 library(dplyr)
 source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Seurat4_differential_expression.R")
+
 path <- paste0("output/",gsub("-","",Sys.Date()),"/EXP12_30/")
 if(!dir.exists(path)) dir.create(path, recursive = T)
 
@@ -22,7 +23,8 @@ if(all(colnames(object) == rownames(meta.data))){
     print("all cellID match!")
     object@meta.data <- meta.data
 }
-step = c("resolutions","DGEs","DGEs_group","DGEs_group2","Analysis 1a","Analysis 1b","Analysis 2")[4]
+step = c("resolutions","DGEs","DGEs_group","DGEs_group2","Analysis 1a","Analysis 1b","Analysis 2",
+         "DGEs_pseudobulk")[8]
 
 if(step == "resolutions"){ # Need 64GB 
     opts = data.frame(ident = c(rep("SCT_snn_res.0.3",21),
@@ -49,9 +51,9 @@ if(step == "resolutions"){ # Need 64GB
                               assay = "SCT",
                               min.pct = 0.1,
                               logfc.threshold = 0.25,
-                                 only.pos = T#,
-                                 #test.use = "MAST",
-                                 #latent.vars = "nFeature_SCT"
+                                 only.pos = TRUE,
+                                 test.use = "MAST",
+                                 latent.vars = "nFeature_SCT"
                               )
     markers$cluster = opt$num
     num = opt$num
@@ -68,27 +70,28 @@ if(step == "resolutions"){ # Need 64GB
 if(step == "DGEs"){ # Need 64GB 
     meta.data[!duplicated(meta.data$`cell state`),
               c("cell state","cell type","cell group","Stage","Path")] %>% 
-        tidyr::pivot_longer(c("cell type","cell group","Stage","Path"),
-                            names_to = "ident") %>% 
-        arrange(`cell state`) -> opts
+        tidyr::pivot_longer(everything(),names_to = "ident") %>% 
+        distinct(ident,value) %>%
+        arrange(ident,value) -> opts
      
-    opt = opts[args,] # 1-220
+    opt = opts[args,] # 1-83
     
     print(opt)
     #==========================
-    object %<>% subset(subset = opt$ident == opt$value)
-    Idents(object) = "cell state"
+    Idents(object) = opt$ident
     
-    markers = FindMarkers_UMI(object, ident.1 = opt$`cell state`,
-                              group.by = "cell state",
+    markers = FindMarkers_UMI(object, ident.1 = opt$value,
+                              group.by = opt$ident,
                               assay = "SCT",
                               min.pct = 0.1,
                               logfc.threshold = 0.1,
-                              only.pos = TRUE#,
-                              #test.use = "MAST",
-                              #latent.vars = "nFeature_SCT"
+                              only.pos = TRUE,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT"
     )
+    markers$category = opt$ident
     markers$cluster = opt$value
+    
     arg = args
     if(args < 10) arg = paste0("0",arg)
 
@@ -116,9 +119,9 @@ if(step == "DGEs_group"){ # Need 64GB
                               assay = "SCT",
                               min.pct = 0.1,
                               logfc.threshold = 0.1,
-                              only.pos = TRUE#,
-                              #test.use = "MAST",
-                              #latent.vars = "nFeature_SCT"
+                              only.pos = TRUE,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT"
     )
     markers$category = opt$ident
     markers$cluster = opt$value
@@ -149,9 +152,9 @@ if(step == "DGEs_group2"){ # Need 128GB
                               assay = "SCT",
                               min.pct = 0.1,
                               logfc.threshold = 0.1,
-                              only.pos = TRUE#,
-                              #test.use = "MAST",
-                              #latent.vars = "nFeature_SCT"
+                              only.pos = TRUE,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT"
     )
     markers$gene = rownames(markers)
     markers$Stage = opt$Stage
@@ -330,4 +333,65 @@ if(step == "Analysis 2"){# 16~32GB
         if(!dir.exists(save_path)) dir.create(save_path, recursive = T)
         
         write.csv(markers,paste0(save_path,arg,"-",ident1,".",type, ".csv"))
+}
+
+if(step == "DGEs"){ # Need 64GB 
+    meta.data[!duplicated(meta.data$`cell state`),
+              c("cell state","cell type","cell group","Stage","Path")] %>% 
+        tidyr::pivot_longer(everything(),names_to = "ident") %>% 
+        distinct(ident,value) %>%
+        arrange(ident,value) -> opts
+    
+    opt = opts[args,] # 1-83
+    
+    print(opt)
+    #==========================
+    Idents(object) = opt$ident
+    
+    markers = FindMarkers_UMI(object, ident.1 = opt$value,
+                              group.by = opt$ident,
+                              assay = "SCT",
+                              min.pct = 0.1,
+                              logfc.threshold = 0.1,
+                              only.pos = TRUE,
+                              test.use = "MAST",
+                              latent.vars = "nFeature_SCT"
+    )
+    markers$category = opt$ident
+    markers$cluster = opt$value
+    
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    write.csv(markers,paste0(path,arg,"_",opt$ident,"_",opt$value, ".csv"))
+}
+
+if(step == "DGEs_pseudobulk"){ # Need 16GB 
+    source("https://raw.githubusercontent.com/nyuhuyang/SeuratExtra/master/R/Libra.R")
+    
+    meta.data[!duplicated(meta.data$`cell state`),
+              c("cell state","cell type","cell group","Stage","Path")] %>% 
+        tidyr::pivot_longer(everything(),names_to = "ident") %>% 
+        distinct(ident,value) %>%
+        arrange(ident,value) -> opts
+    
+    opt = opts[args,] # 1-83
+    
+    print(opt)
+    #==========================
+    Idents(object) = opt$ident
+    object$cell_type <- "All_celles"
+    
+    markers <- run_de.1(object, de_family = 'pseudobulk', cell_type_col = "cell_type", 
+                        label_col = opt$ident,replicate_col = "orig.ident",
+                        ident.1 = opt$value,
+                        min_cells = 3,min_reps = 1,
+                        de_method = 'edgeR', de_type = 'LRT')
+
+    markers$category = opt$ident
+
+    arg = args
+    if(args < 10) arg = paste0("0",arg)
+    
+    write.csv(markers,paste0(path,arg,"_",opt$ident,"_",opt$value, ".csv"))
 }
